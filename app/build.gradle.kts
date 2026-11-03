@@ -18,7 +18,9 @@ android {
 
     // La chiave di firma (firma.p12) e' nel repository ma cifrata: la password
     // sta solo nel segreto FIRMA_PASSWORD di GitHub. Serve perche' ogni APK
-    // compilato si installi sopra il precedente.
+    // compilato si installi sopra il precedente. Senza il segreto l'APK e' una
+    // versione di prova firmata con la chiave temporanea di GitHub: per
+    // aggiornarla bisogna disinstallare quella vecchia.
     val passwordFirma = System.getenv("FIRMA_PASSWORD").orEmpty()
     if (passwordFirma.isNotEmpty()) {
         signingConfigs {
@@ -35,7 +37,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            if (passwordFirma.isNotEmpty()) signingConfig = signingConfigs.getByName("personale")
+            signingConfig = signingConfigs.getByName(if (passwordFirma.isNotEmpty()) "personale" else "debug")
         }
     }
 

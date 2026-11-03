@@ -30,9 +30,7 @@ jobs:
       - name: Test e compilazione
         run: |
           set -o pipefail
-          if [ -n "$FIRMA_PASSWORD" ]; then compito=assembleRelease; else compito=assembleDebug; fi
-          echo "Compito: $compito" | tee compilazione.log
-          ./gradlew --no-daemon --console=plain testDebugUnitTest "$compito" 2>&1 | tee -a compilazione.log
+          ./gradlew --no-daemon --console=plain testDebugUnitTest assembleRelease 2>&1 | tee compilazione.log
 
       # Salva l'esito nel ramo "esito", leggibile senza accedere a GitHub
       - name: Salva l'esito della compilazione
@@ -57,12 +55,18 @@ jobs:
           name: palina-roma-apk
           path: app/build/outputs/apk/*/*.apk
 
+      - name: Sposta l'etichetta "ultima" su questo commit
+        run: |
+          git tag -f ultima
+          git push -f origin refs/tags/ultima
+
       - name: Pubblica l'APK nella release "ultima"
-        if: env.FIRMA_PASSWORD != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ultima
           name: Ultima versione
-          body: "Compilata dal commit ${{ github.sha }}. Scarica app-release.apk dal telefono e installala."
+          body: >-
+            Compilata dal commit ${{ github.sha }}. Dal telefono scarica app-release.apk e installala.
+            ${{ env.FIRMA_PASSWORD == '' && 'Versione di prova - per aggiornarla disinstalla prima quella vecchia (perderai preferiti e orario scaricato).' || '' }}
           files: app/build/outputs/apk/release/app-release.apk
           make_latest: true

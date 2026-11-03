@@ -19,8 +19,11 @@ trasforma in un piccolo database: ci vuole qualche minuto. Conviene aggiornarlo 
 ### Firma
 
 `app/firma.p12` è la chiave che firma l'APK, cifrata con AES-256. La password è solo nel segreto
-`FIRMA_PASSWORD` del repository (Settings → Secrets and variables → Actions). Senza il segreto la
-compilazione produce solo un APK di prova, non pubblicato nella release.
+`FIRMA_PASSWORD` del repository (Settings → Secrets and variables → Actions). Senza il segreto
+l'APK pubblicato è una versione di prova, firmata con una chiave temporanea diversa a ogni
+compilazione: per installare un aggiornamento bisogna prima disinstallare la versione precedente
+(si perdono preferiti e orario scaricato). Aggiungendo il segreto gli aggiornamenti si installano
+sopra, ma solo a partire dalla prima versione firmata con la chiave.
 
 L'esito di ogni compilazione (errori, test, ultime righe del log) viene salvato nel ramo `esito`.
 
