@@ -16,12 +16,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -61,7 +63,12 @@ private fun Orario.conLinee(fermata: Fermata, distanza: Double?) =
     FermataConLinee(fermata, distanza, lineeAllaFermata(fermata.id).map { it.linea.nome }.distinct())
 
 @Composable
-fun HomeSchermo(apriFermata: (String) -> Unit, apriLinea: (String) -> Unit, apriOrario: () -> Unit) {
+fun HomeSchermo(
+    apriFermata: (String) -> Unit,
+    apriLinea: (String) -> Unit,
+    apriOrario: () -> Unit,
+    apriTragitto: () -> Unit,
+) {
     val orario by Archivio.orario.collectAsStateWithLifecycle()
     var scheda by rememberSaveable { mutableIntStateOf(0) }
 
@@ -72,6 +79,15 @@ fun HomeSchermo(apriFermata: (String) -> Unit, apriLinea: (String) -> Unit, apri
                     Icon(Icons.Filled.Settings, contentDescription = "Orario e dati")
                 }
             })
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = apriTragitto,
+                containerColor = Porpora,
+                contentColor = Color.White,
+                icon = { Icon(Icons.Filled.Place, contentDescription = null) },
+                text = { Text("Come arrivo…") },
+            )
         },
     ) { margini ->
         Column(

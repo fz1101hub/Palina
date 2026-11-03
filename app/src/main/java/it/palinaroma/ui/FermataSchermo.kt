@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Arrivo
+import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.arriviAllaFermata
 import kotlinx.coroutines.CancellationException
@@ -58,7 +60,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun FermataSchermo(fermataId: String, indietro: () -> Unit, apriLinea: (String, Int?) -> Unit) {
+fun FermataSchermo(
+    fermataId: String,
+    indietro: () -> Unit,
+    apriLinea: (String, Int?) -> Unit,
+    comeArrivare: (Fermata) -> Unit,
+) {
     val orario by Archivio.orario.collectAsStateWithLifecycle()
     val preferiti by Archivio.preferiti.collectAsStateWithLifecycle()
     val o = orario
@@ -113,6 +120,11 @@ fun FermataSchermo(fermataId: String, indietro: () -> Unit, apriLinea: (String, 
                 sottotitolo = fermata?.let { "Palina ${it.codice}" },
                 indietro = indietro,
                 azioni = {
+                    fermata?.let { f ->
+                        IconButton(onClick = { comeArrivare(f) }) {
+                            Icon(Icons.Filled.Place, contentDescription = "Come arrivo qui")
+                        }
+                    }
                     val preferita = fermataId in preferiti
                     IconButton(onClick = { Archivio.alternaPreferito(fermataId) }) {
                         Icon(

@@ -13,12 +13,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import it.palinaroma.ui.DettaglioTragittoSchermo
 import it.palinaroma.ui.FermataSchermo
 import it.palinaroma.ui.HomeSchermo
 import it.palinaroma.ui.LineaSchermo
 import it.palinaroma.ui.OrarioSchermo
 import it.palinaroma.ui.Porpora
+import it.palinaroma.ui.SceltaLuogoSchermo
+import it.palinaroma.ui.StatoTragitto
 import it.palinaroma.ui.TemaPalina
+import it.palinaroma.ui.TragittoSchermo
+import it.palinaroma.ui.comeLuogo
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,6 +42,7 @@ private fun Navigazione() {
     val apriLinea: (String, Int?) -> Unit = { id, direzione ->
         nav.navigate("linea/" + Uri.encode(id) + "?dir=" + (direzione ?: -1))
     }
+    val apriTragitto: () -> Unit = { nav.navigate("tragitto") { launchSingleTop = true } }
 
     NavHost(navController = nav, startDestination = "home") {
         composable("home") {
@@ -44,6 +50,7 @@ private fun Navigazione() {
                 apriFermata = apriFermata,
                 apriLinea = { apriLinea(it, null) },
                 apriOrario = { nav.navigate("orario") },
+                apriTragitto = apriTragitto,
             )
         }
         composable(
@@ -54,6 +61,10 @@ private fun Navigazione() {
                 fermataId = voce.arguments?.getString("id").orEmpty(),
                 indietro = { nav.popBackStack() },
                 apriLinea = apriLinea,
+                comeArrivare = { fermata ->
+                    StatoTragitto.verso(fermata.comeLuogo())
+                    apriTragitto()
+                },
             )
         }
         composable(
@@ -75,6 +86,32 @@ private fun Navigazione() {
         }
         composable("orario") {
             OrarioSchermo(indietro = { nav.popBackStack() })
+        }
+        composable("tragitto") {
+            TragittoSchermo(
+                indietro = { nav.popBackStack() },
+                scegliLuogo = { campo -> nav.navigate("luogo/$campo") },
+                apriDettaglio = { indice -> nav.navigate("tragitto/$indice") },
+            )
+        }
+        composable(
+            "luogo/{campo}",
+            arguments = listOf(navArgument("campo") { type = NavType.StringType }),
+        ) { voce ->
+            SceltaLuogoSchermo(
+                campo = voce.arguments?.getString("campo") ?: "a",
+                indietro = { nav.popBackStack() },
+            )
+        }
+        composable(
+            "tragitto/{indice}",
+            arguments = listOf(navArgument("indice") { type = NavType.IntType }),
+        ) { voce ->
+            DettaglioTragittoSchermo(
+                indice = voce.arguments?.getInt("indice") ?: 0,
+                indietro = { nav.popBackStack() },
+                apriFermata = apriFermata,
+            )
         }
     }
 }

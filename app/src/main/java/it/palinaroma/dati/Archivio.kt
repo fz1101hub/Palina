@@ -156,4 +156,14 @@ object Archivio {
         _preferiti.value = nuovi
         impostazioni.edit().putStringSet("preferiti", nuovi).apply()
     }
+
+    /** Ultimi luoghi scelti per i tragitti, dal piu' recente. */
+    fun luoghiRecenti(): List<Luogo> =
+        impostazioni.getString("luoghi_recenti", "").orEmpty().lines().mapNotNull { luogoDaRiga(it) }
+
+    fun ricordaLuogo(luogo: Luogo) {
+        if (luogo.tipo == TipoLuogo.POSIZIONE || !luogo.haCoordinate) return
+        val elenco = listOf(luogo) + luoghiRecenti().filter { it.nome != luogo.nome || it.dettaglio != luogo.dettaglio }
+        impostazioni.edit().putString("luoghi_recenti", elenco.take(8).joinToString("\n") { it.inRiga() }).apply()
+    }
 }
