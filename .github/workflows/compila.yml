@@ -1,0 +1,68 @@
+name: Compila APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: compila
+  cancel-in-progress: true
+
+jobs:
+  compila:
+    runs-on: ubuntu-latest
+    env:
+      FIRMA_PASSWORD: ${{ secrets.FIRMA_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Test e compilazione
+        run: |
+          set -o pipefail
+          if [ -n "$FIRMA_PASSWORD" ]; then compito=assembleRelease; else compito=assembleDebug; fi
+          echo "Compito: $compito" | tee compilazione.log
+          ./gradlew --no-daemon --console=plain testDebugUnitTest "$compito" 2>&1 | tee -a compilazione.log
+
+      # Salva l'esito nel ramo "esito", leggibile senza accedere a GitHub
+      - name: Salva l'esito della compilazione
+        if: always()
+        run: |
+          esito="${{ job.status }}"
+          mkdir -p /tmp/esito
+          { echo "commit: $GITHUB_SHA"; echo "esito: $esito"; echo "firma: ${FIRMA_PASSWORD:+presente}"; } > /tmp/esito/ESITO.txt
+          { grep -E "^e: |error:|FAILED|BUILD (SUCCESSFUL|FAILED)|tests completed" compilazione.log | head -300; grep -A12 "What went wrong" compilazione.log | head -120; } > /tmp/esito/errori.txt || true
+          tail -400 compilazione.log > /tmp/esito/coda.log || true
+          find app/build/test-results -name "*.xml" -exec cp {} /tmp/esito/ \; 2>/dev/null || true
+          cd /tmp/esito
+          git init -q -b esito
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Esito compilazione $GITHUB_SHA: $esito"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" esito
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: palina-roma-apk
+          path: app/build/outputs/apk/*/*.apk
+
+      - name: Pubblica l'APK nella release "ultima"
+        if: env.FIRMA_PASSWORD != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ultima
+          name: Ultima versione
+          body: "Compilata dal commit ${{ github.sha }}. Scarica app-release.apk dal telefono e installala."
+          files: app/build/outputs/apk/release/app-release.apk
+          make_latest: true

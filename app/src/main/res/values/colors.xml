@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Porpora (Pantone 202 C) e oro (Pantone 130 C) di Roma -->
+    <color name="porpora">#FF862633</color>
+    <color name="oro">#FFF2A900</color>
+    <color name="travertino">#FFF2EFEA</color>
+</resources>
