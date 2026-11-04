@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="it.palinaroma.dati.TransitousTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-04T01:51:51" hostname="runnervmwuk1x" time="0.136">
+  <properties/>
+  <testcase name="ricordaILuoghi" classname="it.palinaroma.dati.TransitousTest" time="0.005"/>
+  <testcase name="decodificaLePolilinee" classname="it.palinaroma.dati.TransitousTest" time="0.001"/>
+  <testcase name="scriveDurateEDistanze" classname="it.palinaroma.dati.TransitousTest" time="0.063"/>
+  <testcase name="costruisceGliIndirizzi" classname="it.palinaroma.dati.TransitousTest" time="0.015"/>
+  <testcase name="coordinateSempreColPunto" classname="it.palinaroma.dati.TransitousTest" time="0.001"/>
+  <testcase name="leggeIlJson" classname="it.palinaroma.dati.TransitousTest" time="0.002"/>
+  <testcase name="leggeIRisultatiDellaRicerca" classname="it.palinaroma.dati.TransitousTest" time="0.011"/>
+  <testcase name="leggeITragitti" classname="it.palinaroma.dati.TransitousTest" time="0.03"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
