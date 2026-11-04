@@ -21,6 +21,10 @@ interface DestinazioneOrario {
  * in poche tabelle compatte: linee, fermate, capolinea di ogni corsa, il
  * percorso tipico di ogni linea in ogni direzione e il suo tracciato.
  *
+ * La direzione viene da direction_id; se manca o e' sempre la stessa, si ricava
+ * dal percorso: le corse che vanno verso il capolinea piu' frequente della linea
+ * sono la direzione 0, quelle che se ne allontanano la direzione 1.
+ *
  * Il percorso tipico e' quello della corsa con piu' fermate tra quelle della
  * stessa linea e direzione. stop_times.txt viene letto due volte in streaming
  * per non tenerlo in memoria.
@@ -31,13 +35,14 @@ class CostruttoreOrario(
     private val avanzamento: (String, Float) -> Unit = { _, _ -> },
 ) {
     private val indiceCorse = HashMap<String, Int>(1 shl 19)
-    private val corsaSchema = ArrayList<Int>()
+    private val corsaId = ArrayList<String>()
+    private val corsaLinea = ArrayList<String>()
+    private val corsaDirezioneGrezza = ArrayList<Int>()
     private val corsaForma = ArrayList<String>()
     private val corsaCapolinea = ArrayList<String>()
-    private val schemi = HashMap<String, Int>()
-    private val schemaLinea = ArrayList<String>()
-    private val schemaDirezione = ArrayList<Int>()
     private val testiUnici = HashMap<String, String>()
+    private val nomiFermate = HashMap<String, String>()
+    private val posizioniFermate = HashMap<String, Punto>()
 
     fun costruisci() {
         avanzamento("Linee", 0f)
@@ -47,26 +52,60 @@ class CostruttoreOrario(
         avanzamento("Corse", 0.08f)
         leggiCorse()
 
+        // 1. quante fermate ha ogni corsa, dove parte e dove arriva
         avanzamento("Fermate delle linee (1/2)", 0.25f)
-        val conteggi = IntArray(corsaSchema.size)
-        val fermateSchemi = HashMap<String, HashSet<Int>>()
-        leggiOrari(0.25f, 0.55f) { corsa, fermata, _ ->
+        val n = corsaId.size
+        val conteggi = IntArray(n)
+        val primaPosizione = IntArray(n) { Int.MAX_VALUE }
+        val ultimaPosizione = IntArray(n) { Int.MIN_VALUE }
+        val primaFermata = arrayOfNulls<String>(n)
+        val ultimaFermata = arrayOfNulls<String>(n)
+        leggiOrari(0.25f, 0.55f) { corsa, fermata, posizione ->
             conteggi[corsa]++
-            fermateSchemi.getOrPut(fermata) { HashSet() }.add(corsaSchema[corsa])
+            val p = posizione ?: conteggi[corsa]
+            if (p < primaPosizione[corsa]) {
+                primaPosizione[corsa] = p
+                primaFermata[corsa] = unico(fermata)
+            }
+            if (p > ultimaPosizione[corsa]) {
+                ultimaPosizione[corsa] = p
+                ultimaFermata[corsa] = unico(fermata)
+            }
+        }
+
+        // 2. la direzione di ogni corsa e lo schema (linea + direzione)
+        val direzioni = assegnaDirezioni(primaFermata, ultimaFermata)
+        val schemi = HashMap<String, Int>()
+        val schemaLinea = ArrayList<String>()
+        val schemaDirezione = ArrayList<Int>()
+        val corsaSchema = IntArray(n)
+        val capolinea = Array(n) { c ->
+            corsaCapolinea[c].ifEmpty { ultimaFermata[c]?.let { nomiFermate[it] }.orEmpty() }
+        }
+        for (c in 0 until n) {
+            corsaSchema[c] = schemi.getOrPut(corsaLinea[c] + '\u0000' + direzioni[c]) {
+                schemaLinea.add(corsaLinea[c])
+                schemaDirezione.add(direzioni[c])
+                schemaLinea.size - 1
+            }
+            destinazione.corsa(corsaId[c], corsaLinea[c], direzioni[c], capolinea[c])
         }
 
         val migliore = IntArray(schemaLinea.size) { -1 }
-        for (corsa in conteggi.indices) {
+        for (corsa in 0 until n) {
             val schema = corsaSchema[corsa]
             if (conteggi[corsa] > 0 && (migliore[schema] < 0 || conteggi[corsa] > conteggi[migliore[schema]])) {
                 migliore[schema] = corsa
             }
         }
 
+        // 3. le fermate di ogni linea e la sequenza del percorso tipico
         avanzamento("Fermate delle linee (2/2)", 0.55f)
+        val fermateSchemi = HashMap<String, HashSet<Int>>()
         val sequenze = HashMap<Int, ArrayList<Pair<Int, String>>>()
         for (corsa in migliore) if (corsa >= 0) sequenze[corsa] = ArrayList()
         leggiOrari(0.55f, 0.85f) { corsa, fermata, posizione ->
+            fermateSchemi.getOrPut(unico(fermata)) { HashSet() }.add(corsaSchema[corsa])
             sequenze[corsa]?.let { it.add((posizione ?: it.size) to fermata) }
         }
 
@@ -76,14 +115,14 @@ class CostruttoreOrario(
             val fermate = sequenze[corsa].orEmpty().sortedBy { it.first }.map { it.second }
             destinazione.percorso(
                 schemaLinea[schema], schemaDirezione[schema],
-                corsaCapolinea[corsa], corsaForma[corsa], fermate,
+                capolinea[corsa], corsaForma[corsa], fermate,
             )
         }
         for ((fermata, schemiFermata) in fermateSchemi) {
             for (schema in schemiFermata) {
                 val corsa = migliore[schema]
-                val capolinea = if (corsa >= 0) corsaCapolinea[corsa] else ""
-                destinazione.fermataLinea(fermata, schemaLinea[schema], schemaDirezione[schema], capolinea)
+                val testo = if (corsa >= 0) capolinea[corsa] else ""
+                destinazione.fermataLinea(fermata, schemaLinea[schema], schemaDirezione[schema], testo)
             }
         }
 
@@ -91,6 +130,38 @@ class CostruttoreOrario(
         val forme = migliore.filter { it >= 0 }.map { corsaForma[it] }.filter { it.isNotEmpty() }.toHashSet()
         leggiForme(forme)
         avanzamento("Fatto", 1f)
+    }
+
+    /**
+     * La direzione di ogni corsa. Se una linea ha almeno due valori di
+     * direction_id si usano quelli; altrimenti 0 per le corse che finiscono piu'
+     * vicine al capolinea piu' frequente di quanto partano, 1 per le altre.
+     */
+    private fun assegnaDirezioni(prima: Array<String?>, ultima: Array<String?>): IntArray {
+        val direzioni = IntArray(corsaId.size)
+        val perLinea = HashMap<String, ArrayList<Int>>()
+        for (c in corsaId.indices) perLinea.getOrPut(corsaLinea[c]) { ArrayList() }.add(c)
+        for (corse in perLinea.values) {
+            val valori = corse.map { corsaDirezioneGrezza[it] }.filter { it >= 0 }.toSet()
+            if (valori.size >= 2) {
+                corse.forEach { direzioni[it] = corsaDirezioneGrezza[it].coerceAtLeast(0) }
+                continue
+            }
+            val capolinea = corse.mapNotNull { ultima[it] }.groupingBy { it }.eachCount()
+                .maxByOrNull { it.value }?.key?.let { posizioniFermate[it] }
+            for (c in corse) {
+                val da = prima[c]?.let { posizioniFermate[it] }
+                val a = ultima[c]?.let { posizioniFermate[it] }
+                direzioni[c] = if (capolinea == null || da == null || a == null) {
+                    0
+                } else {
+                    val partenza = distanzaMetri(da.lat, da.lon, capolinea.lat, capolinea.lon)
+                    val arrivo = distanzaMetri(a.lat, a.lon, capolinea.lat, capolinea.lon)
+                    if (arrivo <= partenza) 0 else 1
+                }
+            }
+        }
+        return direzioni
     }
 
     private fun apri(nome: String): LettoreCsv? {
@@ -137,7 +208,10 @@ class CostruttoreOrario(
                 val lat = r.campo(iLat).toDoubleOrNull() ?: continue
                 val lon = r.campo(iLon).toDoubleOrNull() ?: continue
                 if (id.isEmpty()) continue
-                destinazione.fermata(id, r.campo(iCodice).ifEmpty { id }, r.campo(iNome), lat, lon)
+                val nome = r.campo(iNome)
+                nomiFermate[id] = nome
+                posizioniFermate[id] = Punto(lat, lon)
+                destinazione.fermata(id, r.campo(iCodice).ifEmpty { id }, nome, lat, lon)
             }
         } ?: error("Nell'orario manca stops.txt")
     }
@@ -153,19 +227,13 @@ class CostruttoreOrario(
                 val r = csv.prossima() ?: break
                 val id = r.campo(iId)
                 val linea = r.campo(iLinea)
-                if (id.isEmpty() || linea.isEmpty()) continue
-                val direzione = r.campo(iDirezione).toIntOrNull() ?: 0
-                val capolinea = unico(r.campo(iCapolinea))
-                val schema = schemi.getOrPut(linea + '\u0000' + direzione) {
-                    schemaLinea.add(linea)
-                    schemaDirezione.add(direzione)
-                    schemaLinea.size - 1
-                }
-                indiceCorse[id] = corsaSchema.size
-                corsaSchema.add(schema)
+                if (id.isEmpty() || linea.isEmpty() || id in indiceCorse) continue
+                indiceCorse[id] = corsaId.size
+                corsaId.add(id)
+                corsaLinea.add(unico(linea))
+                corsaDirezioneGrezza.add(r.campo(iDirezione).toIntOrNull() ?: -1)
                 corsaForma.add(unico(r.campo(iForma)))
-                corsaCapolinea.add(capolinea)
-                destinazione.corsa(id, linea, direzione, capolinea)
+                corsaCapolinea.add(unico(r.campo(iCapolinea)))
             }
         } ?: error("Nell'orario manca trips.txt")
     }

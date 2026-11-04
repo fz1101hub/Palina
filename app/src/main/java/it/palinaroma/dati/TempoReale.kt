@@ -92,7 +92,8 @@ fun arriviAllaFermata(
     val gruppi = LinkedHashMap<Triple<String, Int?, String>, MutableList<Passaggio>>()
     for ((corsa, quando) in passaggi) {
         val dati = info[corsa.corsaId]
-        val direzione = corsa.direzione ?: dati?.direzione
+        // la direzione dell'orario e' quella usata per le linee nell'app
+        val direzione = dati?.direzione ?: corsa.direzione
         val capolinea = corsa.capolinea.let { bellaScrittura(it) }.ifEmpty { dati?.capolinea ?: "" }.ifEmpty {
             lineeFermata.firstOrNull {
                 it.linea.id == corsa.lineaId && (direzione == null || it.direzione == direzione)
@@ -140,6 +141,6 @@ fun etaRilevamento(rilevato: Long, adesso: Long): String? {
 fun mezziDellaLinea(mezzi: List<MezzoRT>, lineaId: String, direzione: Int?, orario: Orario?): List<MezzoRT> {
     val dellaLinea = mezzi.filter { it.lineaId == lineaId }
     if (direzione == null) return dellaLinea
-    val info = orario?.corse(dellaLinea.filter { it.direzione == null }.map { it.corsaId }) ?: emptyMap()
-    return dellaLinea.filter { (it.direzione ?: info[it.corsaId]?.direzione ?: direzione) == direzione }
+    val info = orario?.corse(dellaLinea.map { it.corsaId }) ?: emptyMap()
+    return dellaLinea.filter { (info[it.corsaId]?.direzione ?: it.direzione ?: direzione) == direzione }
 }

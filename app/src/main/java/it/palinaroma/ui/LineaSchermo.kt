@@ -24,11 +24,15 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -148,6 +152,14 @@ fun LineaSchermo(
         }
     }
 
+    val cambiaDirezione: () -> Unit = {
+        val i = percorsi.indexOfFirst { it.direzione == percorso?.direzione }
+        if (percorsi.size > 1) {
+            direzione = percorsi[(i + 1) % percorsi.size].direzione
+            selezionato = null
+        }
+    }
+
     // la vettura mostrata nella scheda: quella toccata, altrimenti quella attesa
     val inScheda = selezionato?.let { id -> (mezzi + listOfNotNull(evidenziato)).firstOrNull { it.corsaId == id } } ?: evidenziato
 
@@ -158,6 +170,13 @@ fun LineaSchermo(
                 sottotitolo = percorso?.capolinea?.takeIf { it.isNotEmpty() }?.let { "verso $it" }
                     ?: linea?.descrizione,
                 indietro = indietro,
+                azioni = {
+                    if (percorsi.size > 1) {
+                        IconButton(onClick = cambiaDirezione) {
+                            Text("⇄", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                        }
+                    }
+                },
             )
         },
     ) { margini ->
@@ -166,7 +185,41 @@ fun LineaSchermo(
                 .padding(margini)
                 .fillMaxSize(),
         ) {
-            if (percorsi.size > 1) {
+            if (percorso != null) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("DIREZIONE", style = MaterialTheme.typography.labelSmall, color = Secondario)
+                        Text(
+                            "→ " + percorso.capolinea.ifEmpty { "Direzione ${percorso.direzione + 1}" },
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (percorsi.size == 1) {
+                            Text(
+                                "Nell'orario questa linea ha una sola direzione (per esempio è circolare).",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Secondario,
+                            )
+                        }
+                    }
+                    if (percorsi.size > 1) {
+                        Button(
+                            onClick = cambiaDirezione,
+                            colors = ButtonDefaults.buttonColors(containerColor = Porpora),
+                            modifier = Modifier.padding(start = 12.dp),
+                        ) { Text("⇄ Cambia") }
+                    }
+                }
+                HorizontalDivider(color = Color(0xFFE2DDD8))
+            }
+            if (percorsi.size > 2) {
                 Row(
                     Modifier
                         .horizontalScroll(rememberScrollState())
@@ -176,7 +229,10 @@ fun LineaSchermo(
                     percorsi.forEach { p ->
                         FilterChip(
                             selected = p.direzione == percorso?.direzione,
-                            onClick = { direzione = p.direzione },
+                            onClick = {
+                                direzione = p.direzione
+                                selezionato = null
+                            },
                             label = {
                                 Text(
                                     "→ " + p.capolinea.ifEmpty { "Direzione ${p.direzione + 1}" },

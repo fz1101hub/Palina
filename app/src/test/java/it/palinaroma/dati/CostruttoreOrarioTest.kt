@@ -14,6 +14,7 @@ class CostruttoreOrarioTest {
         val linee = mutableMapOf<String, String>()
         val fermate = mutableMapOf<String, String>()
         val corse = mutableMapOf<String, String>()
+        val direzioni = mutableMapOf<String, Int>()
         val percorsi = mutableMapOf<Pair<String, Int>, Pair<String, List<String>>>()
         val fermataLinee = mutableSetOf<Triple<String, String, Int>>()
         val forme = mutableMapOf<String, List<Punto>>()
@@ -28,6 +29,7 @@ class CostruttoreOrarioTest {
 
         override fun corsa(id: String, linea: String, direzione: Int, capolinea: String) {
             corse[id] = capolinea
+            direzioni[id] = direzione
         }
 
         override fun percorso(linea: String, direzione: Int, capolinea: String, forma: String, fermate: List<String>) {
@@ -86,6 +88,7 @@ class CostruttoreOrarioTest {
         assertEquals(setOf("A", "B", "C"), raccolta.fermate.keys)  // la stazione (tipo 1) non c'e'
         assertEquals(4, raccolta.corse.size)
 
+        assertEquals(setOf("714" to 0, "714" to 1, "8" to 0), raccolta.percorsi.keys)
         val (capolinea, fermate) = raccolta.percorsi.getValue("714" to 0)
         assertEquals("PALAZZO DELLO SPORT", capolinea)
         assertEquals(listOf("A", "B", "C"), fermate)
@@ -99,5 +102,44 @@ class CostruttoreOrarioTest {
         // solo i tracciati usati, ordinati e senza punti doppi
         assertEquals(setOf("s1"), raccolta.forme.keys)
         assertEquals(listOf(41.90, 41.90, 41.83), raccolta.forme.getValue("s1").map { it.lat })
+    }
+
+    @Test
+    fun ricavaLaDirezioneSeManca() {
+        val file = File.createTempFile("orario", ".zip")
+        zip(
+            file,
+            mapOf(
+                "routes.txt" to "route_id,route_short_name,route_type\n64,64,3\n3,3,0\n",
+                "stops.txt" to "stop_id,stop_name,stop_lat,stop_lon\n" +
+                    "T,TERMINI,41.900,12.500\nV,VENEZIA,41.896,12.482\nP,STAZ.NE S. PIETRO,41.893,12.454\n" +
+                    "G,GIANICOLENSE,41.880,12.460\n",
+                // niente direction_id per la 64; la 3 ce l'ha ma sempre uguale
+                "trips.txt" to "route_id,service_id,trip_id,trip_headsign,shape_id\n" +
+                    "64,F,a1,STAZ.NE S. PIETRO,\n64,F,a2,STAZ.NE S. PIETRO,\n64,F,a3,,\n" +
+                    "64,F,r1,TERMINI,\n64,F,r2,,\n" +
+                    "3,F,c1,GIANICOLENSE,\n",
+                "stop_times.txt" to "trip_id,stop_id,stop_sequence\n" +
+                    "a1,T,1\na1,V,2\na1,P,3\na2,T,1\na2,V,2\na2,P,3\n" +
+                    // a3: corsa limitata che parte da Venezia, stessa direzione
+                    "a3,V,1\na3,P,2\n" +
+                    "r1,P,1\nr1,V,2\nr1,T,3\n" +
+                    // r2: limitata al ritorno, senza capolinea scritto
+                    "r2,P,1\nr2,V,2\n" +
+                    "c1,T,1\nc1,G,2\n",
+            ),
+        )
+        val raccolta = Raccolta()
+        ZipFile(file).use { CostruttoreOrario(it, raccolta).costruisci() }
+        file.delete()
+
+        assertEquals(setOf("64" to 0, "64" to 1, "3" to 0), raccolta.percorsi.keys)
+        assertEquals("STAZ.NE S. PIETRO" to listOf("T", "V", "P"), raccolta.percorsi.getValue("64" to 0))
+        assertEquals("TERMINI" to listOf("P", "V", "T"), raccolta.percorsi.getValue("64" to 1))
+        assertEquals(mapOf("a1" to 0, "a2" to 0, "a3" to 0, "r1" to 1, "r2" to 1, "c1" to 0), raccolta.direzioni)
+        // senza trip_headsign il capolinea e' il nome dell'ultima fermata
+        assertEquals("STAZ.NE S. PIETRO", raccolta.corse.getValue("a3"))
+        assertEquals("VENEZIA", raccolta.corse.getValue("r2"))
+        assertTrue(Triple("V", "64", 1) in raccolta.fermataLinee)
     }
 }
