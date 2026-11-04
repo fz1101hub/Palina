@@ -37,6 +37,8 @@ class FeedTempoRealeTest {
         assertEquals(t0 + 200, c714.fermate[0].orario)
         assertEquals(t0 + 260, c714.fermate[1].orario)  // solo partenza
         assertTrue(c714.fermate[2].saltata)
+        assertEquals("4521", c714.veicolo)
+        assertEquals("", lista[2].veicolo)
 
         assertTrue(lista[1].cancellata)
         assertNull(lista[1].direzione)
@@ -53,6 +55,28 @@ class FeedTempoRealeTest {
         assertEquals(41.9, m.lat, 1e-4)
         assertEquals(12.5, m.lon, 1e-4)
         assertEquals("4521 A", m.etichetta)
+        assertEquals(90f, m.rotta)
+        assertEquals(t0, m.rilevato)
+    }
+
+    @Test
+    fun distingueGPSEOrario() {
+        val lista = FeedTempoReale.corse(corse)
+        // la 714 ha la vettura nel feed; la 8 no, a meno che non compaia tra le vetture rilevate
+        val senzaGps = arriviAllaFermata(lista, "70243", orario = null, adesso = t0)
+        assertEquals(listOf(true, false), senzaGps.map { it.passaggi.first().tracciato })
+        val conGps = arriviAllaFermata(lista, "70243", orario = null, adesso = t0, tracciate = setOf("T8"))
+        assertEquals(listOf(true, true), conGps.map { it.passaggi.first().tracciato })
+        assertEquals("T714A", conGps[0].passaggi.first().corsaId)
+    }
+
+    @Test
+    fun scriveDaQuantoERilevata() {
+        assertNull(etaRilevamento(0, t0))
+        assertEquals("adesso", etaRilevamento(t0 - 5, t0))
+        assertEquals("40 s fa", etaRilevamento(t0 - 42, t0))
+        assertEquals("3 min fa", etaRilevamento(t0 - 200, t0))
+        assertEquals("adesso", etaRilevamento(t0 + 30, t0))
     }
 
     @Test

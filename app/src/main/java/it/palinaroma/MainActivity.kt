@@ -57,10 +57,17 @@ private fun Navigazione() {
             "fermata/{id}",
             arguments = listOf(navArgument("id") { type = NavType.StringType }),
         ) { voce ->
+            val fermataId = voce.arguments?.getString("id").orEmpty()
             FermataSchermo(
-                fermataId = voce.arguments?.getString("id").orEmpty(),
+                fermataId = fermataId,
                 indietro = { nav.popBackStack() },
                 apriLinea = apriLinea,
+                apriVettura = { linea, direzione, corsa ->
+                    nav.navigate(
+                        "linea/" + Uri.encode(linea) + "?dir=" + (direzione ?: -1) +
+                            "&corsa=" + Uri.encode(corsa) + "&fermata=" + Uri.encode(fermataId),
+                    )
+                },
                 comeArrivare = { fermata ->
                     StatoTragitto.verso(fermata.comeLuogo())
                     apriTragitto()
@@ -68,18 +75,30 @@ private fun Navigazione() {
             )
         }
         composable(
-            "linea/{id}?dir={dir}",
+            "linea/{id}?dir={dir}&corsa={corsa}&fermata={fermata}",
             arguments = listOf(
                 navArgument("id") { type = NavType.StringType },
                 navArgument("dir") {
                     type = NavType.IntType
                     defaultValue = -1
                 },
+                navArgument("corsa") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("fermata") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
             ),
         ) { voce ->
             LineaSchermo(
                 lineaId = voce.arguments?.getString("id").orEmpty(),
                 direzioneIniziale = voce.arguments?.getInt("dir")?.takeIf { it >= 0 },
+                corsaEvidenziata = voce.arguments?.getString("corsa")?.takeIf { it.isNotEmpty() },
+                fermataEvidenziata = voce.arguments?.getString("fermata")?.takeIf { it.isNotEmpty() },
                 indietro = { nav.popBackStack() },
                 apriFermata = apriFermata,
             )

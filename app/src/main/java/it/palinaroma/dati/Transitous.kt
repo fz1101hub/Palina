@@ -88,6 +88,8 @@ data class Tratto(
     val passi: List<Passo>,
     val cancellato: Boolean,
     val avvisi: List<String>,
+    /** Identificativo della corsa per Transitous (finisce con quello di Roma Mobilita'). */
+    val corsaId: String = "",
 ) {
     val aPiedi: Boolean get() = modo in MODI_STRADALI
 
@@ -337,6 +339,7 @@ private fun leggiTratto(m: Map<String, Any?>, primo: Boolean, ultimo: Boolean, n
         }.filter { it.metri > 0 || it.svolta == "STAIRS" || it.svolta == "ELEVATOR" },
         cancellato = m.vero("cancelled"),
         avvisi = m.oggetti("alerts").mapNotNull { it.testo("headerText") ?: it.testo("descriptionText") }.distinct(),
+        corsaId = m.testo("tripId").orEmpty(),
     )
 }
 

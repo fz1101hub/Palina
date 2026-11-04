@@ -78,7 +78,10 @@ private fun tag(campo: Int, tipo: Int) = (campo shl 3) or tipo
 /** Una fermata prevista per una corsa in tempo reale. */
 data class FermataRT(val fermataId: String, val orario: Long, val saltata: Boolean)
 
-/** Una corsa del feed "trip updates". Orari in secondi epoch. */
+/**
+ * Una corsa del feed "trip updates". Orari in secondi epoch.
+ * [veicolo] e' la vettura assegnata: se c'e', la corsa e' seguita via GPS.
+ */
 data class CorsaRT(
     val corsaId: String,
     val lineaId: String,
@@ -86,9 +89,13 @@ data class CorsaRT(
     val cancellata: Boolean,
     val capolinea: String,
     val fermate: List<FermataRT>,
+    val veicolo: String = "",
 )
 
-/** Un mezzo del feed "vehicle positions". */
+/**
+ * Un mezzo del feed "vehicle positions": posizione GPS, rotta in gradi
+ * (0 = nord, in senso orario) e ora del rilevamento in secondi epoch (0 se manca).
+ */
 data class MezzoRT(
     val corsaId: String,
     val lineaId: String,
@@ -96,6 +103,8 @@ data class MezzoRT(
     val lat: Double,
     val lon: Double,
     val etichetta: String,
+    val rotta: Float? = null,
+    val rilevato: Long = 0L,
 )
 
 private class Descrittore(
@@ -155,19 +164,36 @@ object FeedTempoReale {
     private fun leggiCorsa(m: LettoreProto): CorsaRT {
         var d = Descrittore()
         var capolinea = ""
+        var veicolo = ""
         val fermate = ArrayList<FermataRT>()
         while (!m.finito()) {
             val t = m.leggiTag()
             when (t) {
                 tag(1, LUNGHEZZA) -> d = leggiDescrittore(m.leggiMessaggio())
                 tag(2, LUNGHEZZA) -> leggiFermata(m.leggiMessaggio())?.let { fermate.add(it) }
+                tag(3, LUNGHEZZA) -> veicolo = leggiVeicolo(m.leggiMessaggio())
                 tag(6, LUNGHEZZA) -> capolinea = leggiCapolinea(m.leggiMessaggio())
                 else -> m.salta(t and 7)
             }
         }
         // CANCELED = 3, DELETED = 7
         val cancellata = d.relazione == 3 || d.relazione == 7
-        return CorsaRT(d.corsaId, d.lineaId, d.direzione, cancellata, capolinea, fermate)
+        return CorsaRT(d.corsaId, d.lineaId, d.direzione, cancellata, capolinea, fermate, veicolo)
+    }
+
+    /** VehicleDescriptor: label (2) se c'e', altrimenti id (1). */
+    private fun leggiVeicolo(v: LettoreProto): String {
+        var id = ""
+        var nome = ""
+        while (!v.finito()) {
+            val tv = v.leggiTag()
+            when (tv) {
+                tag(1, LUNGHEZZA) -> id = v.leggiStringa()
+                tag(2, LUNGHEZZA) -> nome = v.leggiStringa()
+                else -> v.salta(tv and 7)
+            }
+        }
+        return nome.ifBlank { id }.trim()
     }
 
     private fun leggiFermata(m: LettoreProto): FermataRT? {
@@ -215,6 +241,8 @@ object FeedTempoReale {
         var lat = Double.NaN
         var lon = Double.NaN
         var etichetta = ""
+        var rotta: Float? = null
+        var rilevato = 0L
         while (!m.finito()) {
             val t = m.leggiTag()
             when (t) {
@@ -226,28 +254,17 @@ object FeedTempoReale {
                         when (tp) {
                             tag(1, FIXED32) -> lat = p.leggiFloat().toDouble()
                             tag(2, FIXED32) -> lon = p.leggiFloat().toDouble()
+                            tag(3, FIXED32) -> rotta = p.leggiFloat().takeIf { !it.isNaN() && it >= 0f && it <= 360f }
                             else -> p.salta(tp and 7)
                         }
                     }
                 }
-                tag(8, LUNGHEZZA) -> {
-                    val v = m.leggiMessaggio()
-                    var id = ""
-                    var nome = ""
-                    while (!v.finito()) {
-                        val tv = v.leggiTag()
-                        when (tv) {
-                            tag(1, LUNGHEZZA) -> id = v.leggiStringa()
-                            tag(2, LUNGHEZZA) -> nome = v.leggiStringa()
-                            else -> v.salta(tv and 7)
-                        }
-                    }
-                    etichetta = nome.ifBlank { id }
-                }
+                tag(5, VARINT) -> rilevato = m.leggiVarint()
+                tag(8, LUNGHEZZA) -> etichetta = leggiVeicolo(m.leggiMessaggio())
                 else -> m.salta(t and 7)
             }
         }
         if (lat.isNaN() || lon.isNaN()) return null
-        return MezzoRT(d.corsaId, d.lineaId, d.direzione, lat, lon, etichetta)
+        return MezzoRT(d.corsaId, d.lineaId, d.direzione, lat, lon, etichetta, rotta, rilevato)
     }
 }

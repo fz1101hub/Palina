@@ -38,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -58,16 +59,23 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Fermata
+import it.palinaroma.dati.MezzoRT
 import it.palinaroma.dati.Orario
+import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.Tappa
 import it.palinaroma.dati.Tragitto
 import it.palinaroma.dati.Tratto
 import it.palinaroma.dati.distanzaMetri
+import it.palinaroma.dati.etaRilevamento
+import it.palinaroma.dati.mezzoDellaCorsa
 import it.palinaroma.dati.testoDurata
 import it.palinaroma.dati.testoMetri
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
@@ -82,6 +90,33 @@ import org.osmdroid.views.overlay.Polyline
 fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (String) -> Unit) {
     val esito = StatoTragitto.esito as? EsitoTragitti.Pronto
     val tragitto = esito?.let { if (indice < 0) it.soloAPiedi else it.tragitti.getOrNull(indice) }
+
+    // le vetture dei bus e tram del tragitto, se Roma Mobilita' le segue via GPS
+    var mezzi by remember { mutableStateOf<List<MezzoRT>>(emptyList()) }
+    var adesso by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
+    val ciclo = LocalLifecycleOwner.current
+    LaunchedEffect(tragitto) {
+        if (tragitto == null || tragitto.mezzi.isEmpty()) return@LaunchedEffect
+        ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                try {
+                    mezzi = TempoReale.mezzi()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // senza rete restano le ultime posizioni
+                }
+                adesso = System.currentTimeMillis() / 1000
+                delay(15_000)
+            }
+        }
+    }
+    val vetture: Map<Int, MezzoRT> = remember(tragitto, mezzi) {
+        tragitto?.tratti.orEmpty().withIndex()
+            .filter { !it.value.aPiedi }
+            .mapNotNull { (i, t) -> mezzoDellaCorsa(mezzi, t.corsaId)?.let { i to it } }
+            .toMap()
+    }
 
     Scaffold(
         topBar = {
@@ -115,6 +150,8 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
         ) {
             MappaTragitto(
                 tragitto,
+                vetture.map { (i, v) -> tragitto.tratti[i] to v },
+                adesso,
                 Modifier
                     .fillMaxWidth()
                     .weight(0.9f),
@@ -128,7 +165,7 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
                 item { RigaEstremo(true, tragitto.tratti.first().da.nome, tragitto.partenza) }
                 tragitto.tratti.forEachIndexed { i, tratto ->
                     item(key = "tratto-$i") {
-                        if (tratto.aPiedi) BloccoAPiedi(tratto) else BloccoMezzo(tratto, apriFermata)
+                        if (tratto.aPiedi) BloccoAPiedi(tratto) else BloccoMezzo(tratto, vetture[i], adesso, apriFermata)
                     }
                 }
                 item { RigaEstremo(false, tragitto.tratti.last().a.nome, tragitto.arrivo) }
@@ -246,7 +283,7 @@ private fun fermataLocale(orario: Orario, tappa: Tappa): Fermata? {
 }
 
 @Composable
-private fun BloccoMezzo(t: Tratto, apriFermata: (String) -> Unit) {
+private fun BloccoMezzo(t: Tratto, vettura: MezzoRT?, adesso: Long, apriFermata: (String) -> Unit) {
     val orario by Archivio.orario.collectAsStateWithLifecycle()
     val salita by produceState<Fermata?>(initialValue = null, orario, t) {
         val o = orario
@@ -297,6 +334,7 @@ private fun BloccoMezzo(t: Tratto, apriFermata: (String) -> Unit) {
             if (t.cancellato) {
                 Text("Corsa soppressa", color = Porpora, fontWeight = FontWeight.Bold)
             }
+            if (vettura != null) RigaVettura(t, vettura, adesso)
             RigaFermataTragitto("Sali a", t.da, t.partenza, t.partenzaPrevista, t.tempoReale)
             val fermate = t.intermedie.size + 1
             TextButton(
@@ -357,6 +395,33 @@ private fun BloccoMezzo(t: Tratto, apriFermata: (String) -> Unit) {
     }
 }
 
+/** Dove si trova adesso la vettura di questo tratto. */
+@Composable
+private fun RigaVettura(t: Tratto, vettura: MezzoRT, adesso: Long) {
+    val eta = etaRilevamento(vettura.rilevato, adesso)
+    val dove = if (t.partenza / 1000 > adesso && !t.da.lat.isNaN()) {
+        val metri = distanzaMetri(vettura.lat, vettura.lon, t.da.lat, t.da.lon)
+        "è a ${testoMetri(metri)} dalla fermata"
+    } else {
+        "è in viaggio"
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(SuPorpora, RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FonteTempo(true)
+        Text(
+            "  La vettura" + (if (vettura.etichetta.isNotBlank()) " ${vettura.etichetta}" else "") + " $dove" +
+                (eta?.let { " · rilevata $it" } ?: ""),
+            style = MaterialTheme.typography.bodySmall,
+            color = Porpora,
+        )
+    }
+}
+
 @Composable
 private fun RigaFermataTragitto(azione: String, tappa: Tappa, istante: Long, previsto: Long, tempoReale: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -383,6 +448,8 @@ private fun RigaFermataTragitto(azione: String, tappa: Tappa, istante: Long, pre
                     style = MaterialTheme.typography.bodySmall,
                     color = if (ritardo != 0) Porpora else Secondario,
                 )
+            } else {
+                FonteTempo(false)
             }
         }
     }
@@ -398,7 +465,12 @@ private fun cerchio(riempimento: Int, bordo: Int, lato: Int): Drawable =
 
 /** Il tragitto sulla mappa: mezzi a tinta piena, tratti a piedi tratteggiati. */
 @Composable
-private fun MappaTragitto(tragitto: Tragitto, modifier: Modifier) {
+private fun MappaTragitto(
+    tragitto: Tragitto,
+    vetture: List<Pair<Tratto, MezzoRT>>,
+    adesso: Long,
+    modifier: Modifier,
+) {
     val context = LocalContext.current
     val densita = LocalDensity.current.density
     val mappa = remember {
@@ -479,6 +551,16 @@ private fun MappaTragitto(tragitto: Tragitto, modifier: Modifier) {
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 icon = icona
                 title = tappa.nome
+            })
+        }
+        // le vetture in tempo reale, sopra a tutto
+        vetture.forEach { (t, v) ->
+            val vecchia = v.rilevato > 0 && adesso - v.rilevato > SECONDI_POSIZIONE_VECCHIA
+            m.overlays.add(Marker(m).apply {
+                position = GeoPoint(v.lat, v.lon)
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                icon = iconaVettura(m.context.resources, t.linea.ifEmpty { t.nomeMezzo }, v.rotta, true, vecchia, densita)
+                title = "Vettura " + v.etichetta
             })
         }
         m.overlays.add(CopyrightOverlay(m.context))

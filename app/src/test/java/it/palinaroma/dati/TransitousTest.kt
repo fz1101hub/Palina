@@ -131,6 +131,11 @@ class TransitousTest {
         assertEquals(1, bus.intermedie.size)
         assertEquals(listOf("Deviazione per lavori"), bus.avvisi)
         assertEquals(0xFF862633.toInt(), bus.colore)
+        assertEquals("20261103_20:18_it-Lazio-Rome_T714A", bus.corsaId)
+        val vettura = MezzoRT("T714A", "714", 0, 41.9, 12.5, "4521")
+        assertEquals(vettura, mezzoDellaCorsa(listOf(MezzoRT("XT714A", "714", 0, 0.0, 0.0, "x"), vettura), bus.corsaId))
+        assertNull(mezzoDellaCorsa(listOf(vettura), "T714"))
+        assertNull(mezzoDellaCorsa(listOf(vettura), ""))
 
         val metro = t.tratti[2]
         assertEquals("Metro", metro.nomeMezzo)
@@ -218,7 +223,7 @@ class TransitousTest {
              {"relativeDirection": "RIGHT", "distance": 260, "streetName": "", "fromLevel": 0, "toLevel": 0, "exit": "", "stayOn": false, "area": false, "polyline": {"points": "", "precision": 6, "length": 0}},
              {"relativeDirection": "CONTINUE", "distance": 0, "streetName": "x", "fromLevel": 0, "toLevel": 0, "exit": "", "stayOn": false, "area": false, "polyline": {"points": "", "precision": 6, "length": 0}}
            ]},
-          {"mode": "BUS", "duration": 720, "routeShortName": "714", "headsign": "PALAZZO DELLO SPORT", "routeColor": "862633",
+          {"mode": "BUS", "duration": 720, "routeShortName": "714", "tripId": "20261103_20:18_it-Lazio-Rome_T714A", "headsign": "PALAZZO DELLO SPORT", "routeColor": "862633",
            "agencyName": "ATAC", "realTime": true, "scheduled": true,
            "startTime": "2026-11-03T19:20:00Z", "endTime": "2026-11-03T19:32:00Z",
            "scheduledStartTime": "2026-11-03T19:18:00Z", "scheduledEndTime": "2026-11-03T19:30:00Z",

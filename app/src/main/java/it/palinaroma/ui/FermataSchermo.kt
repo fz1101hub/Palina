@@ -64,6 +64,7 @@ fun FermataSchermo(
     fermataId: String,
     indietro: () -> Unit,
     apriLinea: (String, Int?) -> Unit,
+    apriVettura: (lineaId: String, direzione: Int?, corsaId: String) -> Unit,
     comeArrivare: (Fermata) -> Unit,
 ) {
     val orario by Archivio.orario.collectAsStateWithLifecycle()
@@ -84,8 +85,18 @@ fun FermataSchermo(
         aggiornando = true
         try {
             val corse = TempoReale.corse(forza)
+            // le corse con una vettura rilevata via GPS; senza questo feed vale la vettura indicata nelle corse
+            val tracciate = try {
+                TempoReale.mezzi(forza).map { it.corsaId }.toSet()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptySet()
+            }
             val istante = System.currentTimeMillis() / 1000
-            arrivi = withContext(Dispatchers.IO) { arriviAllaFermata(corse, fermataId, o, istante) }
+            arrivi = withContext(Dispatchers.IO) {
+                arriviAllaFermata(corse, fermataId, o, istante, tracciate = tracciate)
+            }
             errore = null
             aggiornatoAlle = System.currentTimeMillis()
         } catch (e: CancellationException) {
@@ -156,6 +167,7 @@ fun FermataSchermo(
                         color = Secondario,
                     )
                 }
+                item { LegendaFonti() }
                 errore?.let { testo ->
                     item {
                         Card(colors = CardDefaults.cardColors(containerColor = SuPorpora)) {
@@ -174,7 +186,9 @@ fun FermataSchermo(
                     }
                 }
                 items(elenco.orEmpty(), key = { "${it.lineaId}|${it.direzione}|${it.capolinea}" }) { arrivo ->
-                    RigaArrivo(arrivo, adesso) { apriLinea(arrivo.lineaId, arrivo.direzione) }
+                    RigaArrivo(arrivo, adesso) {
+                        apriVettura(arrivo.lineaId, arrivo.direzione, arrivo.passaggi.first().corsaId)
+                    }
                 }
                 if (linee.isNotEmpty()) {
                     item { Intestazione("Linee di questa fermata") }
@@ -226,20 +240,53 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, onClick: () -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (arrivo.orari.size > 1) {
+                if (arrivo.passaggi.size > 1) {
                     Text(
-                        "poi " + arrivo.orari.drop(1).take(2).joinToString(", ") { testoMinuti(it, adesso) },
+                        "poi " + arrivo.passaggi.drop(1).take(2).joinToString(", ") {
+                            testoMinuti(it.orario, adesso) + if (it.tracciato) "" else " (da orario)"
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = Secondario,
                     )
                 }
             }
-            val primo = testoMinuti(arrivo.orari.first(), adesso)
+            val primo = arrivo.passaggi.first()
+            val minuti = testoMinuti(primo.orario, adesso)
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    minuti,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = when {
+                        !primo.tracciato -> Secondario
+                        minuti == "in arrivo" -> Porpora
+                        else -> Inchiostro
+                    },
+                )
+                FonteTempo(primo.tracciato)
+            }
+        }
+    }
+}
+
+/** Spiega le due etichette dei tempi d'attesa. */
+@Composable
+private fun LegendaFonti() {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            FonteTempo(true)
             Text(
-                primo,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (primo == "in arrivo") Porpora else Inchiostro,
+                "  la vettura è seguita in tempo reale: tocca per vederla sulla mappa",
+                style = MaterialTheme.typography.bodySmall,
+                color = Secondario,
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            FonteTempo(false)
+            Text(
+                "  tempo calcolato sull'orario programmato, senza GPS",
+                style = MaterialTheme.typography.bodySmall,
+                color = Secondario,
             )
         }
     }

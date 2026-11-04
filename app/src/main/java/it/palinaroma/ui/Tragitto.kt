@@ -598,7 +598,11 @@ private fun CartaTragitto(t: Tragitto, adesso: Long, onClick: () -> Unit) {
                 )
                 when {
                     t.mezzi.any { it.cancellato } -> Text("Corsa soppressa", style = MaterialTheme.typography.bodySmall, color = Porpora, fontWeight = FontWeight.Bold)
-                    t.mezzi.any { it.tempoReale } -> Text("● in tempo reale", style = MaterialTheme.typography.bodySmall, color = Porpora)
+                    t.mezzi.any { it.tempoReale } -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        FonteTempo(true)
+                        Text(" tempo reale", style = MaterialTheme.typography.labelSmall, color = Porpora)
+                    }
+                    else -> FonteTempo(false)
                 }
             }
         }
