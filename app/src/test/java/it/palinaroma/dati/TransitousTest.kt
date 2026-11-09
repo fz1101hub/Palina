@@ -176,32 +176,37 @@ class TransitousTest {
         val url = urlPartenze("70243", 41.9, 12.5)
         assertTrue(url.startsWith("https://api.transitous.org/api/v5/stoptimes?stopId=it-Lazio-Rome_70243&center=41.900000%2C12.500000"))
         assertTrue(url.contains("radius=30") && url.contains("window=5400"))
+        fun voce(nome: String, codice: String, lat: Double?, lon: Double?, ora: String, linea: String, altro: String = "") =
+            """{"place": {"name": "$nome", "stopId": "$codice"""" +
+                (if (lat != null) ""","lat": $lat, "lon": $lon""" else "") +
+                """, "departure": "2026-11-09T$ora:00Z"}, "mode": "BUS", "realTime": false, "headsign": "X",
+                "tripId": "t-$linea-$ora", "routeId": "r", "directionId": "0", "routeShortName": "$linea",
+                "cancelled": false, "tripCancelled": false, "pickupDropoffType": "NORMAL"$altro}"""
         val json = """{"place": {}, "previousPageCursor": "", "nextPageCursor": "", "stopTimes": [
           {"place": {"name": "Termini", "stopId": "it-Lazio-Rome_70243", "lat": 41.9, "lon": 12.5,
                      "departure": "2026-11-09T02:51:00Z", "scheduledDeparture": "2026-11-09T02:50:00Z"},
            "mode": "BUS", "realTime": true, "headsign": "PIAZZA VENEZIA", "tripId": "20261109_03:30_it-Lazio-Rome_N1#55",
            "routeId": "it-Lazio-Rome_n1", "directionId": "1", "routeShortName": "n1", "cancelled": false, "tripCancelled": false,
            "pickupDropoffType": "NORMAL"},
-          {"place": {"name": "Termini", "stopId": "it-Lazio-Rome_70243", "departure": "2026-11-09T03:20:00Z"},
-           "mode": "BUS", "realTime": false, "headsign": "", "tripId": "t2", "routeId": "r", "directionId": "",
-           "routeShortName": "n5", "cancelled": false, "tripCancelled": false, "pickupDropoffType": "NORMAL"},
-          {"place": {"name": "Termini", "stopId": "it-Lazio-Rome_70243", "departure": "2026-11-09T03:25:00Z"},
-           "mode": "BUS", "realTime": false, "headsign": "X", "tripId": "t3", "routeId": "r", "directionId": "0",
-           "routeShortName": "n5", "cancelled": false, "tripCancelled": false, "pickupDropoffType": "NOT_ALLOWED"},
-          {"place": {"name": "Termini lato opposto", "stopId": "it-Lazio-Rome_70244", "departure": "2026-11-09T02:55:00Z"},
-           "mode": "BUS", "realTime": false, "headsign": "Y", "tripId": "t4", "routeId": "r", "directionId": "0",
-           "routeShortName": "n2", "cancelled": false, "tripCancelled": false, "pickupDropoffType": "NORMAL"}
+          ${voce("Termini", "it-Lazio-Rome_70243", null, null, "03:20", "n5")},
+          ${voce("Termini", "it-Lazio-Rome_70243", 41.9, 12.5, "03:25", "n7", ""","pickupDropoffType2": 0""").replace("NORMAL", "NOT_ALLOWED")},
+          ${voce("Termini lato opposto", "it-Lazio-Rome_70244", 41.9002, 12.5, "02:55", "n2")},
+          ${voce("Termini", "it-Lazio-Cotral_70243", 41.95, 12.6, "02:56", "COTRAL")},
+          ${voce("Termini (palo Cotral)", "it-Lazio-Cotral_9", 41.90004, 12.5, "02:57", "C9")},
+          ${voce("Termini", "it-Lazio-Rome_70243-bis", 41.98, 12.40, "02:58", "lontano")}
         ]}"""
-        val partenze = leggiPartenze(json, "70243")
-        assertEquals(listOf("n1", "n5"), partenze.map { it.linea })
+        val partenze = leggiPartenze(json, "70243", 41.9, 12.5)
+        // la fermata stessa (anche senza coordinate) e il palo Cotral nello stesso punto; non l'altro lato
+        // della strada (22 m), ne' le fermate con lo stesso numero o lo stesso nome in altre zone
+        assertEquals(listOf("n1", "n5", "C9"), partenze.map { it.linea })
         val n1 = partenze[0]
         assertEquals("Piazza Venezia", n1.capolinea)
         assertEquals(1, n1.direzione)
         assertTrue(n1.tempoReale)
         assertEquals(60_000L, n1.orario - n1.previsto)
-        assertNull(partenze[1].direzione)
-        // se nessuna ha il codice giusto si tengono tutte quelle vicine
-        assertEquals(3, leggiPartenze(json, "99999").size)
+        assertEquals(0, partenze[1].direzione)
+        // con un codice che Transitous non conosce restano solo le partenze nello stesso punto
+        assertEquals(listOf("n1", "C9"), leggiPartenze(json, "99999", 41.9, 12.5).map { it.linea })
     }
 
     private fun codificaPerTest(punti: List<Punto>, precisione: Int): String {

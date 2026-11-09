@@ -182,7 +182,7 @@ object Transitous {
     /** Le prossime partenze (90 minuti) dalla fermata dell'app [fermataId]. */
     suspend fun partenze(fermataId: String, lat: Double, lon: Double): List<PartenzaTransitous> =
         withContext(Dispatchers.IO) {
-            leggiPartenze(scarica(urlPartenze(fermataId, lat, lon)), fermataId)
+            leggiPartenze(scarica(urlPartenze(fermataId, lat, lon)), fermataId, lat, lon)
         }
 
     private fun scarica(url: String): String {
@@ -228,12 +228,31 @@ fun urlPartenze(fermataId: String, lat: Double, lon: Double): String =
         "&center=" + codifica(String.format(Locale.ROOT, "%.6f,%.6f", lat, lon)) +
         "&radius=30&exactRadius=true&n=40&window=5400&language=it"
 
-/** Risposta di /stoptimes: solo le partenze dalla fermata cercata, se riconoscibile. */
-fun leggiPartenze(json: String, fermataId: String): List<PartenzaTransitous> {
+/** Le partenze con lo stesso codice di fermata valgono entro questa distanza (altri dati, stesso numero). */
+private const val METRI_STESSO_CODICE = 150.0
+
+/** Senza lo stesso codice valgono solo le fermate in questo raggio: lo stesso palo, non l'altro lato della strada. */
+private const val METRI_STESSO_PUNTO = 12.0
+
+/**
+ * Risposta di /stoptimes: solo le partenze dalla fermata cercata. Transitous puo'
+ * aggiungere fermate vicine (anche dall'altro lato della strada) e fermate con lo
+ * stesso nome in altre zone: si tengono quelle con lo stesso codice a meno di
+ * 150 m e, con un codice diverso, solo quelle nello stesso punto.
+ */
+fun leggiPartenze(json: String, fermataId: String, lat: Double, lon: Double): List<PartenzaTransitous> {
     val voci = Json.leggi(json).comeOggetto().oggetti("stopTimes")
-    val tutte = voci.mapNotNull { m ->
+    return voci.mapNotNull { m ->
         val luogo = m.oggetto("place") ?: return@mapNotNull null
         if (m.testo("pickupDropoffType") == "NOT_ALLOWED") return@mapNotNull null
+        val codice = luogo.testo("stopId").orEmpty()
+        val stessoCodice = codice == fermataId || codice.endsWith("_$fermataId")
+        val latLuogo = luogo.numero("lat")
+        val lonLuogo = luogo.numero("lon")
+        val distanza = if (latLuogo != null && lonLuogo != null) distanzaMetri(lat, lon, latLuogo, lonLuogo) else null
+        val valida = if (distanza == null) stessoCodice
+        else (stessoCodice && distanza <= METRI_STESSO_CODICE) || distanza <= METRI_STESSO_PUNTO
+        if (!valida) return@mapNotNull null
         val orario = leggiIstante(luogo.testo("departure")) ?: leggiIstante(luogo.testo("arrival")) ?: return@mapNotNull null
         val previsto = leggiIstante(luogo.testo("scheduledDeparture")) ?: leggiIstante(luogo.testo("scheduledArrival")) ?: orario
         val modo = m.testo("mode") ?: "BUS"
@@ -247,12 +266,9 @@ fun leggiPartenze(json: String, fermataId: String): List<PartenzaTransitous> {
             previsto = previsto,
             tempoReale = m.vero("realTime"),
             cancellata = m.vero("cancelled") || m.vero("tripCancelled"),
-            fermataId = luogo.testo("stopId").orEmpty(),
+            fermataId = codice,
         )
     }
-    // con il raggio entrano anche fermate vicine: si tengono quelle col codice giusto, se ci sono
-    val stessa = tutte.filter { it.fermataId == fermataId || it.fermataId.endsWith("_$fermataId") }
-    return stessa.ifEmpty { tutte }
 }
 
 fun messaggioErrore(codice: Int, corpo: String): String {
