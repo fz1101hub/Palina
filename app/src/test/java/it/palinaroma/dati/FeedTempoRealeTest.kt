@@ -121,6 +121,33 @@ class FeedTempoRealeTest {
     }
 
     @Test
+    fun nonAbbinaLeVettureAmbigue() {
+        val corse = listOf(
+            CorsaRT("a", "NMA", 0, false, "", emptyList(), "9000"),
+            CorsaRT("b", "64", 0, false, "", emptyList(), "9000"),     // stesso numero, altra azienda
+            CorsaRT("c", "NMA", 0, false, "", emptyList(), "7000"),
+        )
+        val mezzi = listOf(
+            MezzoRT("", "", null, 41.9, 12.5, "9000"),    // numero in due corse: ambiguo
+            MezzoRT("", "64", 0, 41.9, 12.5, "7000"),     // il feed dice 64, la corsa col suo numero e' NMA
+            MezzoRT("x", "", null, 41.9, 12.5, "7000"),   // corsa sconosciuta: niente ripiego sul numero
+        )
+        val completi = completaMezzi(mezzi, corse)
+        assertEquals(mezzi, completi)
+        assertTrue(vettureDellaLinea(completi, "NMA", "nMA", 0, orario = null).let { it.inDirezione + it.altre }.isEmpty())
+    }
+
+    @Test
+    fun misuraLaDistanzaDalTracciato() {
+        // via Nazionale, da piazza della Repubblica verso piazza Venezia (circa)
+        val forma = listOf(Punto(41.9025, 12.4960), Punto(41.8990, 12.4900), Punto(41.8960, 12.4830))
+        assertTrue(distanzaDalTracciato(41.8990, 12.4900, forma) < 1.0)
+        assertTrue(distanzaDalTracciato(41.9008, 12.4930, forma) < 15.0)          // sul tratto
+        assertTrue(distanzaDalTracciato(41.9100, 12.4900, forma) in 900.0..1300.0) // un chilometro a nord
+        assertEquals(Double.POSITIVE_INFINITY, distanzaDalTracciato(41.9, 12.5, emptyList()), 0.0)
+    }
+
+    @Test
     fun scriveDaQuantoERilevata() {
         assertNull(etaRilevamento(0, t0))
         assertEquals("adesso", etaRilevamento(t0 - 5, t0))

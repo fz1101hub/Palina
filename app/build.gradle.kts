@@ -12,8 +12,8 @@ android {
         applicationId = "it.palinaroma"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.7"
+        versionCode = 8
+        versionName = "0.8"
     }
 
     // La chiave di firma (firma.p12) e' nel repository ma cifrata: la password

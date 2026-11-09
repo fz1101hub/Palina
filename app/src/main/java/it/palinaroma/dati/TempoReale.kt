@@ -221,14 +221,23 @@ data class VettureLinea(val inDirezione: List<MezzoRT>, val altre: List<MezzoRT>
 
 /**
  * Completa le vetture senza corsa o senza linea con i dati delle corse in tempo
- * reale che indicano la stessa vettura.
+ * reale. Con la corsa nota si usa quella; altrimenti il numero di vettura, ma
+ * solo se compare in una sola corsa e in una sola vettura (aziende diverse
+ * possono avere numeri uguali) e se la linea non contraddice quella del feed.
  */
 fun completaMezzi(mezzi: List<MezzoRT>, corse: List<CorsaRT>): List<MezzoRT> {
-    val perVettura = corse.filter { it.veicolo.isNotEmpty() }.associateBy { it.veicolo }
     val perCorsa = corse.associateBy { it.corsaId }
+    val perVettura = corse.filter { it.veicolo.isNotEmpty() }.groupBy { it.veicolo }
+        .filterValues { it.size == 1 }.mapValues { it.value.single() }
+    val vettureUguali = mezzi.groupingBy { it.etichetta }.eachCount()
     return mezzi.map { m ->
         if (m.corsaId.isNotEmpty() && m.lineaId.isNotEmpty()) return@map m
-        val corsa = perCorsa[m.corsaId].takeIf { m.corsaId.isNotEmpty() } ?: perVettura[m.etichetta] ?: return@map m
+        val corsa = when {
+            m.corsaId.isNotEmpty() -> perCorsa[m.corsaId]
+            m.etichetta.isNotEmpty() && vettureUguali[m.etichetta] == 1 -> perVettura[m.etichetta]
+            else -> null
+        } ?: return@map m
+        if (m.lineaId.isNotEmpty() && !m.lineaId.equals(corsa.lineaId, ignoreCase = true)) return@map m
         m.copy(
             corsaId = m.corsaId.ifEmpty { corsa.corsaId },
             lineaId = m.lineaId.ifEmpty { corsa.lineaId },
@@ -238,10 +247,11 @@ fun completaMezzi(mezzi: List<MezzoRT>, corse: List<CorsaRT>): List<MezzoRT> {
 }
 
 /**
- * Le vetture di una linea. Linea e direzione vengono dall'orario attraverso la
- * corsa quando e' nota, altrimenti dal feed; il codice della linea si confronta
- * anche con il nome e senza badare alle maiuscole ("nMA" e "NMA"). Una vettura
- * senza direzione nota conta come nella direzione scelta.
+ * Le vetture di una linea. La linea e' quella indicata dal feed; se manca, quella
+ * della corsa nell'orario. Il codice si confronta anche con il nome della linea
+ * e senza badare alle maiuscole ("nMA" e "NMA"). La direzione viene dall'orario
+ * se la corsa e' nota, altrimenti dal feed; senza direzione la vettura conta
+ * nella direzione scelta.
  */
 fun vettureDellaLinea(
     mezzi: List<MezzoRT>,
@@ -254,10 +264,36 @@ fun vettureDellaLinea(
     fun stessaLinea(id: String) =
         id.isNotEmpty() && (id.equals(lineaId, ignoreCase = true) || (nomeLinea != null && id.equals(nomeLinea, ignoreCase = true)))
     val dellaLinea = mezzi.filter { m ->
-        val dati = info[m.corsaId]
-        stessaLinea(m.lineaId) || (dati != null && stessaLinea(dati.lineaId))
+        if (m.lineaId.isNotEmpty()) stessaLinea(m.lineaId) else info[m.corsaId]?.let { stessaLinea(it.lineaId) } ?: false
     }
     if (direzione == null) return VettureLinea(dellaLinea, emptyList())
     val (dentro, fuori) = dellaLinea.partition { (info[it.corsaId]?.direzione ?: it.direzione ?: direzione) == direzione }
     return VettureLinea(dentro, fuori)
+}
+
+/**
+ * Distanza in metri di un punto dal tracciato (la spezzata [forma]).
+ * Infinita se il tracciato e' vuoto.
+ */
+fun distanzaDalTracciato(lat: Double, lon: Double, forma: List<Punto>): Double {
+    if (forma.isEmpty()) return Double.POSITIVE_INFINITY
+    if (forma.size == 1) return distanzaMetri(lat, lon, forma[0].lat, forma[0].lon)
+    // piano locale in metri attorno al punto: basta per distanze di qualche chilometro
+    val kx = 111_320.0 * kotlin.math.cos(Math.toRadians(lat))
+    val ky = 110_540.0
+    var minimo = Double.POSITIVE_INFINITY
+    for (i in 0 until forma.size - 1) {
+        val ax = (forma[i].lon - lon) * kx
+        val ay = (forma[i].lat - lat) * ky
+        val bx = (forma[i + 1].lon - lon) * kx
+        val by = (forma[i + 1].lat - lat) * ky
+        val dx = bx - ax
+        val dy = by - ay
+        val lunghezza = dx * dx + dy * dy
+        val t = if (lunghezza == 0.0) 0.0 else (-(ax * dx + ay * dy) / lunghezza).coerceIn(0.0, 1.0)
+        val px = ax + t * dx
+        val py = ay + t * dy
+        minimo = minOf(minimo, kotlin.math.sqrt(px * px + py * py))
+    }
+    return minimo
 }

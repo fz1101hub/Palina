@@ -2,6 +2,7 @@
 
 package it.palinaroma.ui
 
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -65,6 +66,7 @@ import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.MezzoRT
 import it.palinaroma.dati.Punto
 import it.palinaroma.dati.TempoReale
+import it.palinaroma.dati.distanzaDalTracciato
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.etaRilevamento
 import it.palinaroma.dati.completaMezzi
@@ -110,6 +112,16 @@ fun LineaSchermo(
     val forma = remember(o, percorso, fermate) {
         val tracciato = if (o != null && percorso != null) o.forma(percorso.forma) else emptyList()
         if (tracciato.size >= 2) tracciato else fermate.map { Punto(it.lat, it.lon) }
+    }
+    // il tracciato dell'altra direzione: spesso passa per strade diverse
+    val formaAltra = remember(o, lineaId, percorsi, percorso) {
+        val altro = percorsi.firstOrNull { it.direzione != percorso?.direzione }
+        if (o == null || altro == null) {
+            emptyList()
+        } else {
+            o.forma(altro.forma).takeIf { it.size >= 2 }
+                ?: o.fermateDelPercorso(lineaId, altro.direzione).map { Punto(it.lat, it.lon) }
+        }
     }
     val fermataAttesa = remember(o, fermataEvidenziata) { fermataEvidenziata?.let { o?.fermata(it) } }
 
@@ -173,6 +185,16 @@ fun LineaSchermo(
             selezionato = null
         }
     }
+
+    // quanto dista ogni vettura dal tracciato piu' vicino tra le due direzioni
+    val lontananze: Map<String, Double> = remember(mezzi, altre, evidenziato, forma, formaAltra) {
+        (mezzi + altre + listOfNotNull(evidenziato)).associate { v ->
+            val qui = if (forma.size >= 2) distanzaDalTracciato(v.lat, v.lon, forma) else Double.POSITIVE_INFINITY
+            val la = if (formaAltra.size >= 2) distanzaDalTracciato(v.lat, v.lon, formaAltra) else Double.POSITIVE_INFINITY
+            v.chiave() to minOf(qui, la)
+        }.filterValues { it.isFinite() }
+    }
+    val fuoriPercorso: Set<String> = lontananze.filterValues { it > METRI_FUORI_PERCORSO }.keys
 
     // la vettura mostrata nella scheda: quella toccata, altrimenti quella attesa
     val inScheda = selezionato?.let { id -> (mezzi + altre + listOfNotNull(evidenziato)).firstOrNull { it.chiave() == id } }
@@ -279,6 +301,8 @@ fun LineaSchermo(
                 MappaLinea(
                     nomeLinea = linea?.nome ?: lineaId,
                     forma = forma,
+                    formaAltra = formaAltra,
+                    fuoriPercorso = fuoriPercorso,
                     fermate = fermate,
                     mezzi = mezzi,
                     altre = altre,
@@ -296,6 +320,7 @@ fun LineaSchermo(
                         attesa = inScheda.chiave() == evidenziato?.chiave(),
                         altraDirezione = altre.any { it.chiave() == inScheda.chiave() },
                         mostraQuellaDirezione = cambiaDirezione,
+                        distanzaPercorso = lontananze[inScheda.chiave()]?.takeIf { it > METRI_FUORI_PERCORSO },
                         fermata = fermataAttesa,
                         arrivo = arrivoAtteso,
                         adesso = adesso,
@@ -363,6 +388,7 @@ private fun SchedaVettura(
     attesa: Boolean,
     altraDirezione: Boolean,
     mostraQuellaDirezione: () -> Unit,
+    distanzaPercorso: Double?,
     fermata: Fermata?,
     arrivo: Long?,
     adesso: Long,
@@ -408,6 +434,14 @@ private fun SchedaVettura(
                 if (vecchia) {
                     Text(
                         "Il segnale è vecchio: la vettura potrebbe essere più avanti.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Porpora,
+                    )
+                }
+                if (distanzaPercorso != null) {
+                    Text(
+                        "È a ${testoMetri(distanzaPercorso)} dal percorso della linea: forse è in deviazione, " +
+                            "in rimessa o sta andando al capolinea.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Porpora,
                     )
@@ -533,6 +567,8 @@ private fun cerchio(riempimento: Int, bordo: Int, lato: Int): Drawable =
 private fun MappaLinea(
     nomeLinea: String,
     forma: List<Punto>,
+    formaAltra: List<Punto>,
+    fuoriPercorso: Set<String>,
     fermate: List<Fermata>,
     mezzi: List<MezzoRT>,
     altre: List<MezzoRT>,
@@ -575,6 +611,15 @@ private fun MappaLinea(
 
     AndroidView(factory = { mappa }, modifier = modifier, update = { m ->
         m.overlays.clear()
+        if (formaAltra.size >= 2) {
+            m.overlays.add(Polyline(m).apply {
+                setPoints(formaAltra.map { GeoPoint(it.lat, it.lon) })
+                outlinePaint.color = Secondario.copy(alpha = 0.55f).toArgb()
+                outlinePaint.strokeWidth = 3 * densita
+                outlinePaint.strokeCap = Paint.Cap.ROUND
+                outlinePaint.pathEffect = DashPathEffect(floatArrayOf(6 * densita, 6 * densita), 0f)
+            })
+        }
         if (forma.size >= 2) {
             m.overlays.add(Polyline(m).apply {
                 setPoints(forma.map { GeoPoint(it.lat, it.lon) })
@@ -598,7 +643,7 @@ private fun MappaLinea(
         // le vetture sopra a tutto; quella attesa per ultima, cosi' resta in cima
         // prima quelle dell'altra direzione, in grigio e sotto alle altre
         altre.filter { it.chiave() != evidenziato?.chiave() }.forEach { v ->
-            val vecchia = v.rilevato > 0 && adesso - v.rilevato > SECONDI_POSIZIONE_VECCHIA
+            val vecchia = (v.rilevato > 0 && adesso - v.rilevato > SECONDI_POSIZIONE_VECCHIA) || v.chiave() in fuoriPercorso
             m.overlays.add(Marker(m).apply {
                 position = GeoPoint(v.lat, v.lon)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
@@ -612,7 +657,7 @@ private fun MappaLinea(
         val vetture = mezzi.filter { it.chiave() != evidenziato?.chiave() } + listOfNotNull(evidenziato)
         vetture.forEach { v ->
             val attesa = v.chiave() == evidenziato?.chiave()
-            val vecchia = v.rilevato > 0 && adesso - v.rilevato > SECONDI_POSIZIONE_VECCHIA
+            val vecchia = (v.rilevato > 0 && adesso - v.rilevato > SECONDI_POSIZIONE_VECCHIA) || v.chiave() in fuoriPercorso
             m.overlays.add(Marker(m).apply {
                 position = GeoPoint(v.lat, v.lon)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
@@ -656,6 +701,9 @@ private fun MappaLinea(
         }
     }
 }
+
+/** Oltre questa distanza dal tracciato una vettura si segnala come fuori percorso. */
+private const val METRI_FUORI_PERCORSO = 250.0
 
 /** Per riconoscere una vettura anche quando il feed non ne indica la corsa. */
 private fun MezzoRT.chiave(): String = corsaId.ifEmpty { "vettura:$etichetta" }
