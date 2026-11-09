@@ -138,10 +138,27 @@ data class RisultatoTragitti(
 
 class ErroreTransitous(messaggio: String) : Exception(messaggio)
 
+/** Una partenza da una fermata: orario programmato, aggiornato col tempo reale se c'e'. Orari in ms. */
+data class PartenzaTransitous(
+    val corsaId: String,
+    val lineaId: String,
+    val linea: String,
+    val direzione: Int?,
+    val capolinea: String,
+    val orario: Long,
+    val previsto: Long,
+    val tempoReale: Boolean,
+    val cancellata: Boolean,
+    val fermataId: String,
+)
+
 object Transitous {
     const val API = "https://api.transitous.org/api"
     const val FONTI = "https://transitous.org/sources/"
     const val SITO_APP = "https://github.com/fz1101hub/Palina"
+
+    /** Nome con cui Transitous identifica l'orario di Roma Mobilita'. */
+    const val DATI_ROMA = "it-Lazio-Rome"
 
     /** Centro di Roma, per favorire i risultati in citta'. */
     val ROMA = Punto(41.9028, 12.4964)
@@ -161,6 +178,12 @@ object Transitous {
     ): RisultatoTragitti = withContext(Dispatchers.IO) {
         leggiTragitti(scarica(urlTragitti(da, a, istante, arrivaEntro, cursore)), da.nome, a.nome)
     }
+
+    /** Le prossime partenze (90 minuti) dalla fermata dell'app [fermataId]. */
+    suspend fun partenze(fermataId: String, lat: Double, lon: Double): List<PartenzaTransitous> =
+        withContext(Dispatchers.IO) {
+            leggiPartenze(scarica(urlPartenze(fermataId, lat, lon)), fermataId)
+        }
 
     private fun scarica(url: String): String {
         val richiesta = Request.Builder()
@@ -194,6 +217,42 @@ fun urlTragitti(da: Luogo, a: Luogo, istante: Long?, arrivaEntro: Boolean, curso
     if (arrivaEntro) parametri += "arriveBy" to "true"
     if (cursore != null) parametri += "pageCursor" to cursore
     return Transitous.API + "/v5/plan?" + parametri.joinToString("&") { (k, v) -> k + "=" + codifica(v) }
+}
+
+/**
+ * Partenze da una fermata. Se Transitous non riconosce il codice della fermata
+ * usa le coordinate: solo le fermate entro 30 metri.
+ */
+fun urlPartenze(fermataId: String, lat: Double, lon: Double): String =
+    Transitous.API + "/v5/stoptimes?stopId=" + codifica(Transitous.DATI_ROMA + "_" + fermataId) +
+        "&center=" + codifica(String.format(Locale.ROOT, "%.6f,%.6f", lat, lon)) +
+        "&radius=30&exactRadius=true&n=40&window=5400&language=it"
+
+/** Risposta di /stoptimes: solo le partenze dalla fermata cercata, se riconoscibile. */
+fun leggiPartenze(json: String, fermataId: String): List<PartenzaTransitous> {
+    val voci = Json.leggi(json).comeOggetto().oggetti("stopTimes")
+    val tutte = voci.mapNotNull { m ->
+        val luogo = m.oggetto("place") ?: return@mapNotNull null
+        if (m.testo("pickupDropoffType") == "NOT_ALLOWED") return@mapNotNull null
+        val orario = leggiIstante(luogo.testo("departure")) ?: leggiIstante(luogo.testo("arrival")) ?: return@mapNotNull null
+        val previsto = leggiIstante(luogo.testo("scheduledDeparture")) ?: leggiIstante(luogo.testo("scheduledArrival")) ?: orario
+        val modo = m.testo("mode") ?: "BUS"
+        PartenzaTransitous(
+            corsaId = m.testo("tripId").orEmpty(),
+            lineaId = m.testo("routeId").orEmpty(),
+            linea = nomeLinea(m.testo("routeShortName") ?: m.testo("displayName"), m.testo("routeLongName"), modo),
+            direzione = m.testo("directionId")?.toIntOrNull(),
+            capolinea = m.testo("headsign")?.let { bellaScrittura(it) }.orEmpty(),
+            orario = orario,
+            previsto = previsto,
+            tempoReale = m.vero("realTime"),
+            cancellata = m.vero("cancelled") || m.vero("tripCancelled"),
+            fermataId = luogo.testo("stopId").orEmpty(),
+        )
+    }
+    // con il raggio entrano anche fermate vicine: si tengono quelle col codice giusto, se ci sono
+    val stessa = tutte.filter { it.fermataId == fermataId || it.fermataId.endsWith("_$fermataId") }
+    return stessa.ifEmpty { tutte }
 }
 
 fun messaggioErrore(codice: Int, corpo: String): String {

@@ -71,6 +71,34 @@ class FeedTempoRealeTest {
     }
 
     @Test
+    fun uniscePassaggiInTempoRealeEProgrammati() {
+        val rt = passaggiTempoReale(FeedTempoReale.corse(corse), "70243", orario = null, adesso = t0)
+        fun partenza(corsa: String, linea: String, direzione: Int?, secondi: Long, tempoReale: Boolean = false) =
+            PartenzaTransitous(corsa, "it-Lazio-Rome_$linea", linea, direzione, "Capolinea $linea",
+                (t0 + secondi) * 1000, (t0 + secondi) * 1000, tempoReale, false, "it-Lazio-Rome_70243")
+        val programmati = passaggiProgrammati(
+            listOf(
+                partenza("20261109_08:00_it-Lazio-Rome_T714A", "714", 1, 205), // stessa corsa della 714 in tempo reale
+                partenza("altro-codice", "714", 1, 230),                         // stessa corsa, codice diverso: scartata
+                partenza("T714Z", "714", 1, 1500),                                // corsa successiva, solo da orario
+                partenza("N1", "n1", null, 900),                                  // linea notturna, solo da orario
+                partenza("tardi", "n1", null, 6000),                              // oltre i 90 minuti
+            ),
+            orario = null, adesso = t0,
+            mezzi = listOf(MezzoRT("N1", "n1", null, 41.9, 12.5, "7001")),
+        )
+        assertEquals(4, programmati.size)
+        val uniti = uniscPassaggi(rt, programmati)
+        val arrivi = raggruppa(uniti, orario = null)
+        assertEquals(listOf("714", "8", "n1", "714"), arrivi.map { it.nomeLinea })
+        assertEquals(listOf(t0 + 200), arrivi[0].orari)                     // vince il tempo reale
+        assertEquals(listOf(t0 + 1500), arrivi[3].orari)                    // la successiva, con il capolinea di Transitous
+        assertEquals("Capolinea 714", arrivi[3].capolinea)
+        assertTrue(arrivi[2].passaggi.single().tracciato)                    // la n1 ha la vettura nel feed
+        assertFalse(arrivi[3].passaggi.single().tracciato)
+    }
+
+    @Test
     fun scriveDaQuantoERilevata() {
         assertNull(etaRilevamento(0, t0))
         assertEquals("adesso", etaRilevamento(t0 - 5, t0))

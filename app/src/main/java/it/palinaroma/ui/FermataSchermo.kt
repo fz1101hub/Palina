@@ -52,7 +52,13 @@ import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Arrivo
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.TempoReale
-import it.palinaroma.dati.arriviAllaFermata
+import it.palinaroma.dati.Transitous
+import it.palinaroma.dati.passaggiProgrammati
+import it.palinaroma.dati.passaggiTempoReale
+import it.palinaroma.dati.raggruppa
+import it.palinaroma.dati.uniscPassaggi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -77,32 +83,49 @@ fun FermataSchermo(
     var errore by remember { mutableStateOf<String?>(null) }
     var aggiornando by remember { mutableStateOf(false) }
     var aggiornatoAlle by remember { mutableLongStateOf(0L) }
+    var soloTempoReale by remember { mutableStateOf(false) }
     var adesso by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
     val ambito = rememberCoroutineScope()
     val ciclo = LocalLifecycleOwner.current
 
+    suspend fun <T> seRiesce(blocco: suspend () -> T): T? =
+        try {
+            blocco()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+
+    // Tre fonti in parallelo, ognuna puo' mancare:
+    // - tempo reale di Roma Mobilita' (vetture seguite via GPS),
+    // - posizioni delle vetture,
+    // - Transitous: tutte le partenze da orario, aggiornate col tempo reale quando c'e'.
     suspend fun carica(forza: Boolean) {
         aggiornando = true
         try {
-            val corse = TempoReale.corse(forza)
-            // le corse con una vettura rilevata via GPS; senza questo feed vale la vettura indicata nelle corse
-            val tracciate = try {
-                TempoReale.mezzi(forza).map { it.corsaId }.toSet()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                emptySet()
+            val f = fermata
+            val (corse, mezzi, partenze) = coroutineScope {
+                val c = async { seRiesce { TempoReale.corse(forza) } }
+                val m = async { seRiesce { TempoReale.mezzi(forza) } }
+                val p = async { if (f == null) null else seRiesce { Transitous.partenze(fermataId, f.lat, f.lon) } }
+                Triple(c.await(), m.await().orEmpty(), p.await())
             }
+            if (corse == null && partenze == null) throw IllegalStateException("nessuna fonte disponibile")
             val istante = System.currentTimeMillis() / 1000
+            val tracciate = mezzi.map { it.corsaId }.toSet()
             arrivi = withContext(Dispatchers.IO) {
-                arriviAllaFermata(corse, fermataId, o, istante, tracciate = tracciate)
+                val inTempoReale = corse?.let { passaggiTempoReale(it, fermataId, o, istante, tracciate = tracciate) }.orEmpty()
+                val programmati = partenze?.let { passaggiProgrammati(it, o, istante, mezzi = mezzi) }.orEmpty()
+                raggruppa(uniscPassaggi(inTempoReale, programmati), o)
             }
+            soloTempoReale = partenze == null
             errore = null
             aggiornatoAlle = System.currentTimeMillis()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            errore = "Non riesco a leggere i dati in tempo reale. Controlla la connessione e riprova."
+            errore = "Non riesco a leggere i passaggi. Controlla la connessione e riprova."
         } finally {
             aggiornando = false
         }
@@ -168,6 +191,15 @@ fun FermataSchermo(
                     )
                 }
                 item { LegendaFonti() }
+                if (soloTempoReale && aggiornatoAlle > 0) {
+                    item {
+                        Text(
+                            "Gli orari programmati non sono disponibili in questo momento: vedi solo i mezzi seguiti in tempo reale.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Porpora,
+                        )
+                    }
+                }
                 errore?.let { testo ->
                     item {
                         Card(colors = CardDefaults.cardColors(containerColor = SuPorpora)) {
@@ -179,7 +211,8 @@ fun FermataSchermo(
                 if (elenco != null && elenco.isEmpty() && errore == null) {
                     item {
                         Text(
-                            "Nessun mezzo in arrivo nei prossimi 90 minuti tra quelli tracciati in tempo reale.",
+                            if (soloTempoReale) "Nessun mezzo seguito in tempo reale nei prossimi 90 minuti."
+                            else "Nessun passaggio nei prossimi 90 minuti, né in tempo reale né da orario.",
                             color = Secondario,
                             modifier = Modifier.padding(vertical = 16.dp),
                         )

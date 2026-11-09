@@ -171,6 +171,39 @@ class TransitousTest {
         assertEquals("Termini-Lido", nomeLinea("", "Termini-Lido", "RAIL"))
     }
 
+    @Test
+    fun leggeLePartenzeDallaFermata() {
+        val url = urlPartenze("70243", 41.9, 12.5)
+        assertTrue(url.startsWith("https://api.transitous.org/api/v5/stoptimes?stopId=it-Lazio-Rome_70243&center=41.900000%2C12.500000"))
+        assertTrue(url.contains("radius=30") && url.contains("window=5400"))
+        val json = """{"place": {}, "previousPageCursor": "", "nextPageCursor": "", "stopTimes": [
+          {"place": {"name": "Termini", "stopId": "it-Lazio-Rome_70243", "lat": 41.9, "lon": 12.5,
+                     "departure": "2026-11-09T02:51:00Z", "scheduledDeparture": "2026-11-09T02:50:00Z"},
+           "mode": "BUS", "realTime": true, "headsign": "PIAZZA VENEZIA", "tripId": "20261109_03:30_it-Lazio-Rome_N1#55",
+           "routeId": "it-Lazio-Rome_n1", "directionId": "1", "routeShortName": "n1", "cancelled": false, "tripCancelled": false,
+           "pickupDropoffType": "NORMAL"},
+          {"place": {"name": "Termini", "stopId": "it-Lazio-Rome_70243", "departure": "2026-11-09T03:20:00Z"},
+           "mode": "BUS", "realTime": false, "headsign": "", "tripId": "t2", "routeId": "r", "directionId": "",
+           "routeShortName": "n5", "cancelled": false, "tripCancelled": false, "pickupDropoffType": "NORMAL"},
+          {"place": {"name": "Termini", "stopId": "it-Lazio-Rome_70243", "departure": "2026-11-09T03:25:00Z"},
+           "mode": "BUS", "realTime": false, "headsign": "X", "tripId": "t3", "routeId": "r", "directionId": "0",
+           "routeShortName": "n5", "cancelled": false, "tripCancelled": false, "pickupDropoffType": "NOT_ALLOWED"},
+          {"place": {"name": "Termini lato opposto", "stopId": "it-Lazio-Rome_70244", "departure": "2026-11-09T02:55:00Z"},
+           "mode": "BUS", "realTime": false, "headsign": "Y", "tripId": "t4", "routeId": "r", "directionId": "0",
+           "routeShortName": "n2", "cancelled": false, "tripCancelled": false, "pickupDropoffType": "NORMAL"}
+        ]}"""
+        val partenze = leggiPartenze(json, "70243")
+        assertEquals(listOf("n1", "n5"), partenze.map { it.linea })
+        val n1 = partenze[0]
+        assertEquals("Piazza Venezia", n1.capolinea)
+        assertEquals(1, n1.direzione)
+        assertTrue(n1.tempoReale)
+        assertEquals(60_000L, n1.orario - n1.previsto)
+        assertNull(partenze[1].direzione)
+        // se nessuna ha il codice giusto si tengono tutte quelle vicine
+        assertEquals(3, leggiPartenze(json, "99999").size)
+    }
+
     private fun codificaPerTest(punti: List<Punto>, precisione: Int): String {
         val fattore = Math.pow(10.0, precisione.toDouble())
         val sb = StringBuilder()

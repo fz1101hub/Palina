@@ -63,9 +63,18 @@ object TempoReale {
     }
 }
 
+/** Un passaggio con la sua linea, prima di raggruppare per linea e direzione. */
+data class PassaggioLinea(
+    val lineaId: String,
+    val nomeLinea: String?,
+    val direzione: Int?,
+    val capolinea: String,
+    val passaggio: Passaggio,
+)
+
 /**
- * I prossimi passaggi alla fermata, raggruppati per linea e direzione.
- * La direzione viene dal feed, se c'e', altrimenti dall'orario.
+ * I prossimi passaggi alla fermata secondo il feed in tempo reale di Roma Mobilita',
+ * raggruppati per linea e direzione.
  */
 fun arriviAllaFermata(
     corse: List<CorsaRT>,
@@ -74,7 +83,17 @@ fun arriviAllaFermata(
     adesso: Long,
     orizzonteMinuti: Int = 90,
     tracciate: Set<String> = emptySet(),
-): List<Arrivo> {
+): List<Arrivo> = raggruppa(passaggiTempoReale(corse, fermataId, orario, adesso, orizzonteMinuti, tracciate), orario)
+
+/** I passaggi del feed in tempo reale; la direzione e' quella dell'orario, se nota. */
+fun passaggiTempoReale(
+    corse: List<CorsaRT>,
+    fermataId: String,
+    orario: Orario?,
+    adesso: Long,
+    orizzonteMinuti: Int = 90,
+    tracciate: Set<String> = emptySet(),
+): List<PassaggioLinea> {
     val passaggi = ArrayList<Pair<CorsaRT, Long>>()
     for (corsa in corse) {
         if (corsa.cancellata) continue
@@ -88,28 +107,88 @@ fun arriviAllaFermata(
 
     val info = orario?.corse(passaggi.map { it.first.corsaId }) ?: emptyMap()
     val lineeFermata = orario?.lineeAllaFermata(fermataId) ?: emptyList()
-
-    val gruppi = LinkedHashMap<Triple<String, Int?, String>, MutableList<Passaggio>>()
-    for ((corsa, quando) in passaggi) {
+    return passaggi.map { (corsa, quando) ->
         val dati = info[corsa.corsaId]
-        // la direzione dell'orario e' quella usata per le linee nell'app
         val direzione = dati?.direzione ?: corsa.direzione
-        val capolinea = corsa.capolinea.let { bellaScrittura(it) }.ifEmpty { dati?.capolinea ?: "" }.ifEmpty {
+        val capolinea = bellaScrittura(corsa.capolinea).ifEmpty { dati?.capolinea ?: "" }.ifEmpty {
             lineeFermata.firstOrNull {
                 it.linea.id == corsa.lineaId && (direzione == null || it.direzione == direzione)
             }?.capolinea ?: ""
         }
         val tracciato = corsa.veicolo.isNotEmpty() || corsa.corsaId in tracciate
-        gruppi.getOrPut(Triple(corsa.lineaId, direzione, capolinea)) { ArrayList() }
-            .add(Passaggio(quando, corsa.corsaId, tracciato))
+        PassaggioLinea(corsa.lineaId, null, direzione, capolinea, Passaggio(quando, corsa.corsaId, tracciato))
     }
-    return gruppi.map { (chiave, elenco) ->
+}
+
+/** Possibili identificativi locali dentro un identificativo di Transitous ("data_ora_dati_id"). */
+internal fun candidatiLocali(id: String): List<String> {
+    val parti = id.split('_')
+    return (1..parti.size).map { k -> parti.takeLast(k).joinToString("_") } + id
+}
+
+/**
+ * I passaggi di Transitous (orario programmato, con il tempo reale quando c'e'),
+ * riportati agli identificativi dell'orario dell'app. [adesso] in secondi.
+ */
+fun passaggiProgrammati(
+    partenze: List<PartenzaTransitous>,
+    orario: Orario?,
+    adesso: Long,
+    orizzonteMinuti: Int = 90,
+    mezzi: List<MezzoRT> = emptyList(),
+): List<PassaggioLinea> {
+    val utili = partenze.filter { p ->
+        !p.cancellata && (p.orario / 1000 - adesso) in -30..(orizzonteMinuti * 60L)
+    }
+    if (utili.isEmpty()) return emptyList()
+    val candidati = utili.associateWith { candidatiLocali(it.corsaId) }
+    val info = orario?.corse(candidati.values.flatten()) ?: emptyMap()
+    return utili.map { p ->
+        val locale = candidati.getValue(p).firstOrNull { it in info }
+        val dati = locale?.let { info[it] }
+        val lineaId = dati?.lineaId
+            ?: candidatiLocali(p.lineaId).firstOrNull { orario?.linea(it) != null }
+            ?: p.linea
+        val corsa = locale ?: p.corsaId
+        val tracciato = p.tempoReale || mezzoDellaCorsa(mezzi, corsa) != null
+        PassaggioLinea(
+            lineaId = lineaId,
+            nomeLinea = p.linea.takeIf { orario?.linea(lineaId) == null },
+            direzione = dati?.direzione ?: p.direzione,
+            capolinea = dati?.capolinea?.takeIf { it.isNotEmpty() } ?: p.capolinea,
+            passaggio = Passaggio(p.orario / 1000, corsa, tracciato),
+        )
+    }
+}
+
+/**
+ * Unisce i due elenchi: per le corse presenti in entrambi vale il tempo reale di
+ * Roma Mobilita'; si scarta anche un programmato della stessa linea a meno di
+ * 90 secondi da un passaggio in tempo reale (la stessa corsa con un altro codice).
+ */
+fun uniscPassaggi(tempoReale: List<PassaggioLinea>, programmati: List<PassaggioLinea>): List<PassaggioLinea> {
+    val corseRT = tempoReale.map { it.passaggio.corsaId }.toSet()
+    val aggiunti = programmati.filter { p ->
+        candidatiLocali(p.passaggio.corsaId).none { it in corseRT } && tempoReale.none { r ->
+            r.lineaId == p.lineaId &&
+                (r.direzione == null || p.direzione == null || r.direzione == p.direzione) &&
+                kotlin.math.abs(r.passaggio.orario - p.passaggio.orario) < 90
+        }
+    }
+    return tempoReale + aggiunti
+}
+
+/** Raggruppa per linea, direzione e capolinea, dal primo passaggio. */
+fun raggruppa(elenco: List<PassaggioLinea>, orario: Orario?): List<Arrivo> {
+    val gruppi = LinkedHashMap<Triple<String, Int?, String>, MutableList<PassaggioLinea>>()
+    for (p in elenco) gruppi.getOrPut(Triple(p.lineaId, p.direzione, p.capolinea)) { ArrayList() }.add(p)
+    return gruppi.map { (chiave, voci) ->
         Arrivo(
             lineaId = chiave.first,
-            nomeLinea = orario?.linea(chiave.first)?.nome ?: chiave.first,
+            nomeLinea = orario?.linea(chiave.first)?.nome ?: voci.firstNotNullOfOrNull { it.nomeLinea } ?: chiave.first,
             direzione = chiave.second,
             capolinea = chiave.third,
-            passaggi = elenco.sortedBy { it.orario }.distinctBy { it.orario },
+            passaggi = voci.map { it.passaggio }.sortedBy { it.orario }.distinctBy { it.orario },
         )
     }.sortedBy { it.orari.first() }
 }
