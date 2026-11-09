@@ -26,6 +26,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -52,7 +53,9 @@ import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.Linea
 import it.palinaroma.dati.Orario
 import it.palinaroma.dati.haPermessoPosizione
-import it.palinaroma.dati.posizioneAttuale
+import it.palinaroma.dati.distanzaMetri
+import it.palinaroma.dati.posizioni
+import it.palinaroma.dati.precisione
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -136,25 +139,43 @@ private fun SchedaVicino(orario: Orario, apriFermata: (String) -> Unit) {
     var messaggio by remember { mutableStateOf<String?>(null) }
     var vicine by remember { mutableStateOf<List<FermataConLinee>>(emptyList()) }
     var tentativo by remember { mutableIntStateOf(0) }
+    var precisioneMetri by remember { mutableStateOf<Float?>(null) }
+    var affinando by remember { mutableStateOf(false) }
     val richiesta = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { esiti ->
         permesso = esiti.values.any { it }
         if (permesso) tentativo++
     }
 
+    // le fermate compaiono con la prima posizione (anche approssimativa) e si
+    // aggiornano man mano che arriva una posizione piu' precisa
     LaunchedEffect(permesso, tentativo, orario) {
         if (!permesso) return@LaunchedEffect
-        messaggio = "Cerco la tua posizione…"
-        val posizione = posizioneAttuale(context)
-        if (posizione == null) {
-            messaggio = "Posizione non disponibile: attiva la localizzazione e riprova."
-            return@LaunchedEffect
+        if (vicine.isEmpty()) messaggio = "Cerco la tua posizione…"
+        affinando = true
+        var usataLat = Double.NaN
+        var usataLon = Double.NaN
+        var usataPrecisione = Float.MAX_VALUE
+        try {
+            posizioni(context).collect { p ->
+                precisioneMetri = p.precisione()
+                val spostamento = if (usataLat.isNaN()) Double.MAX_VALUE
+                else distanzaMetri(usataLat, usataLon, p.latitude, p.longitude)
+                if (spostamento > 15 || p.precisione() < usataPrecisione / 2) {
+                    usataLat = p.latitude
+                    usataLon = p.longitude
+                    usataPrecisione = p.precisione()
+                    val trovate = withContext(Dispatchers.IO) {
+                        orario.fermateVicine(p.latitude, p.longitude)
+                            .map { (fermata, distanza) -> orario.conLinee(fermata, distanza) }
+                    }
+                    vicine = trovate
+                    messaggio = if (trovate.isEmpty()) "Nessuna fermata entro 700 metri." else null
+                }
+            }
+        } finally {
+            affinando = false
         }
-        val trovate = withContext(Dispatchers.IO) {
-            orario.fermateVicine(posizione.latitude, posizione.longitude)
-                .map { (fermata, distanza) -> orario.conLinee(fermata, distanza) }
-        }
-        vicine = trovate
-        messaggio = if (trovate.isEmpty()) "Nessuna fermata entro 700 metri." else null
+        if (usataLat.isNaN()) messaggio = "Posizione non disponibile: attiva la localizzazione e riprova."
     }
 
     if (!permesso) {
@@ -170,6 +191,24 @@ private fun SchedaVicino(orario: Orario, apriFermata: (String) -> Unit) {
     }
 
     LazyColumn(Modifier.fillMaxSize()) {
+        if (affinando) {
+            item { LinearProgressIndicator(color = Porpora, modifier = Modifier.fillMaxWidth()) }
+        }
+        precisioneMetri?.let { metri ->
+            item {
+                Text(
+                    when {
+                        affinando && metri > 30 -> "Posizione approssimativa (±${metri.toInt()} m): la sto affinando…"
+                        affinando -> "Posizione precisa a ±${metri.toInt()} m"
+                        metri > 150 -> "Posizione poco precisa (±${metri.toInt()} m): attiva il GPS per migliorarla"
+                        else -> "Posizione precisa a ±${metri.toInt()} m"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Secondario,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                )
+            }
+        }
         messaggio?.let { testo ->
             item { Text(testo, color = Secondario, modifier = Modifier.padding(16.dp)) }
         }

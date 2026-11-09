@@ -37,6 +37,8 @@ L'esito di ogni compilazione (errori, test, ultime righe del log) viene salvato 
 - **Tragitti**: `Transitous` interroga [Transitous](https://transitous.org) (motore MOTIS),
   che include ATAC, Roma TPL, Cotral e Trenitalia con il tempo reale e calcola i tratti a piedi
   su OpenStreetMap. Le risposte JSON sono lette da `Json`, senza librerie esterne.
+- **Posizione**: subito l'ultima nota, poi quella da Wi-Fi e rete dei servizi di localizzazione
+  di Google e infine il GPS; sui telefoni senza servizi Google si usano rete e GPS di Android.
 - **Mappe**: OpenStreetMap tramite osmdroid, senza chiavi da registrare.
 
 ## Struttura

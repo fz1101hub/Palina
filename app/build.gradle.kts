@@ -12,8 +12,8 @@ android {
         applicationId = "it.palinaroma"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4"
+        versionCode = 5
+        versionName = "0.5"
     }
 
     // La chiave di firma (firma.p12) e' nel repository ma cifrata: la password
@@ -74,6 +74,8 @@ dependencies {
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.osmdroid:osmdroid-android:6.1.20")
+    // posizione rapida (Wi-Fi e rete) dai servizi di localizzazione di Google
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 
     testImplementation("junit:junit:4.13.2")
 }

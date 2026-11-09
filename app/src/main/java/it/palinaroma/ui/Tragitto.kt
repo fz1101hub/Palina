@@ -93,7 +93,9 @@ import it.palinaroma.dati.Transitous
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.haPermessoPosizione
 import it.palinaroma.dati.inRiga
+import it.palinaroma.dati.Punto
 import it.palinaroma.dati.posizioneAttuale
+import it.palinaroma.dati.ultimaPosizioneNota
 import it.palinaroma.dati.testoDurata
 import it.palinaroma.dati.testoMetri
 import kotlinx.coroutines.CancellationException
@@ -254,6 +256,10 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
             delay(20_000)
             adesso = System.currentTimeMillis()
         }
+    }
+    // la posizione si cerca subito, mentre si sceglie la destinazione
+    LaunchedEffect(permesso) {
+        if (permesso && serveLaPosizione && stato.a == null) posizioneAttuale(context)
     }
     LaunchedEffect(stato.da, stato.a, stato.quando, permesso) {
         if (stato.da == null || stato.a == null) return@LaunchedEffect
@@ -734,7 +740,7 @@ fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit) {
         fermate = withContext(Dispatchers.IO) { orario?.cercaFermate(t)?.take(5).orEmpty() }
         cercando = true
         try {
-            luoghi = Transitous.cerca(t, null)
+            luoghi = Transitous.cerca(t, ultimaPosizioneNota()?.let { Punto(it.latitude, it.longitude) })
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
