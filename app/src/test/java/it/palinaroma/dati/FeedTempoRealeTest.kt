@@ -148,6 +148,18 @@ class FeedTempoRealeTest {
     }
 
     @Test
+    fun riconosceICodiciDiTransitous() {
+        assertEquals("913_1_5", codiceDaTransitous("20261109_17:05_it-Lazio-Rome_913_1_5"))
+        assertEquals("0#913-12", codiceDaTransitous("20261109_17:05_it-Lazio-Rome_0#913-12"))
+        assertEquals("913", codiceDaTransitous("it-Lazio-Rome_913"))
+        assertNull(codiceDaTransitous("913"))
+        // nessun pezzo corto che potrebbe essere la corsa di un'altra linea
+        assertEquals(listOf("913_1_5", "20261109_17:05_it-Lazio-Rome_913_1_5"), candidatiLocali("20261109_17:05_it-Lazio-Rome_913_1_5"))
+        val vettura = MezzoRT("5", "90", 0, 41.9, 12.5, "1")
+        assertNull(mezzoDellaCorsa(listOf(vettura), "20261109_17:05_it-Lazio-Rome_913_1_5"))
+    }
+
+    @Test
     fun scriveDaQuantoERilevata() {
         assertNull(etaRilevamento(0, t0))
         assertEquals("adesso", etaRilevamento(t0 - 5, t0))

@@ -120,11 +120,23 @@ fun passaggiTempoReale(
     }
 }
 
-/** Possibili identificativi locali dentro un identificativo di Transitous ("data_ora_dati_id"). */
-internal fun candidatiLocali(id: String): List<String> {
-    val parti = id.split('_')
-    return (1..parti.size).map { k -> parti.takeLast(k).joinToString("_") } + id
-}
+/** Corsa di Transitous: "20261109_17:05_it-Lazio-Rome_" + codice della corsa nell'orario. */
+private val FORMATO_CORSA = Regex("^\\d{8}_\\d{2}:\\d{2}_[^_]+_(.+)$")
+
+/**
+ * Il codice dell'orario dentro un codice di Transitous: per le corse quello dopo
+ * data, ora e nome dei dati; per linee e fermate quello dopo il nome dei dati
+ * ("it-Lazio-Rome_913" -> "913"). Null se il formato non e' questo.
+ */
+fun codiceDaTransitous(id: String): String? =
+    FORMATO_CORSA.find(id)?.groupValues?.get(1) ?: id.substringAfter('_', "").ifEmpty { null }
+
+/**
+ * I codici dell'orario da provare per un codice di Transitous: quello ricavato
+ * dal formato e il codice intero. Mai pezzi piu' corti: "5" o "1_5" possono
+ * essere corse di tutt'altra linea.
+ */
+internal fun candidatiLocali(id: String): List<String> = listOfNotNull(codiceDaTransitous(id), id).distinct()
 
 /**
  * I passaggi di Transitous (orario programmato, con il tempo reale quando c'e'),
@@ -144,7 +156,13 @@ fun passaggiProgrammati(
     val candidati = utili.associateWith { candidatiLocali(it.corsaId) }
     val info = orario?.corse(candidati.values.flatten()) ?: emptyMap()
     return utili.map { p ->
-        val locale = candidati.getValue(p).firstOrNull { it in info }
+        // la corsa dell'orario vale solo se e' della stessa linea indicata da Transitous
+        val locale = candidati.getValue(p).firstOrNull { c ->
+            val trovata = info[c] ?: return@firstOrNull false
+            val nome = orario?.linea(trovata.lineaId)?.nome
+            nome == null || nome.equals(p.linea, ignoreCase = true) ||
+                trovata.lineaId.equals(codiceDaTransitous(p.lineaId) ?: p.lineaId, ignoreCase = true)
+        }
         val dati = locale?.let { info[it] }
         val lineaId = dati?.lineaId
             ?: candidatiLocali(p.lineaId).firstOrNull { orario?.linea(it) != null }
@@ -199,9 +217,8 @@ fun raggruppa(elenco: List<PassaggioLinea>, orario: Orario?): List<Arrivo> {
  */
 fun mezzoDellaCorsa(mezzi: List<MezzoRT>, corsaId: String): MezzoRT? {
     if (corsaId.isEmpty()) return null
-    return mezzi.firstOrNull { it.corsaId == corsaId } ?: mezzi.firstOrNull {
-        it.corsaId.length >= 3 && corsaId.endsWith("_" + it.corsaId)
-    }
+    val locale = FORMATO_CORSA.find(corsaId)?.groupValues?.get(1)
+    return mezzi.firstOrNull { it.corsaId == corsaId } ?: locale?.let { l -> mezzi.firstOrNull { it.corsaId == l } }
 }
 
 /** "adesso", "40 s fa", "3 min fa"; null se l'ora del rilevamento non e' nota. */
