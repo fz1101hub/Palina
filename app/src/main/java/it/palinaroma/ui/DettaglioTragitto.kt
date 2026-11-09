@@ -2,7 +2,11 @@
 
 package it.palinaroma.ui
 
+import android.Manifest
 import android.graphics.DashPathEffect
+import android.location.Location
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.graphics.Paint
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -38,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -71,6 +76,7 @@ import it.palinaroma.dati.Tratto
 import it.palinaroma.dati.completaMezzi
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.etaRilevamento
+import it.palinaroma.dati.haPermessoPosizione
 import it.palinaroma.dati.mezzoDellaCorsa
 import it.palinaroma.dati.testoDurata
 import it.palinaroma.dati.testoMetri
@@ -119,6 +125,16 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
             }
         }
     }
+    // "sei qui" sulla mappa del tragitto
+    val contesto = LocalContext.current
+    var permessoPosizione by remember { mutableStateOf(haPermessoPosizione(contesto)) }
+    var richiestaCentra by remember { mutableIntStateOf(0) }
+    val chiediPermesso = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { esiti ->
+        permessoPosizione = esiti.values.any { it }
+        if (permessoPosizione) richiestaCentra++
+    }
+    val miaPosizione = rememberMiaPosizione(permessoPosizione)
+
     val vetture: Map<Int, MezzoRT> = remember(tragitto, mezzi) {
         tragitto?.tratti.orEmpty().withIndex()
             .filter { !it.value.aPiedi }
@@ -156,14 +172,35 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
                 .padding(margini)
                 .fillMaxSize(),
         ) {
-            MappaTragitto(
-                tragitto,
-                vetture.map { (i, v) -> tragitto.tratti[i] to v },
-                adesso,
+            Box(
                 Modifier
                     .fillMaxWidth()
                     .weight(0.9f),
-            )
+            ) {
+                MappaTragitto(
+                    tragitto,
+                    vetture.map { (i, v) -> tragitto.tratti[i] to v },
+                    adesso,
+                    miaPosizione,
+                    richiestaCentra,
+                    Modifier.fillMaxSize(),
+                )
+                PulsanteMiaPosizione(
+                    attivo = miaPosizione != null,
+                    onClick = {
+                        if (permessoPosizione) {
+                            richiestaCentra++
+                        } else {
+                            chiediPermesso.launch(
+                                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(10.dp),
+                )
+            }
             LazyColumn(
                 Modifier
                     .fillMaxWidth()
@@ -477,6 +514,8 @@ private fun MappaTragitto(
     tragitto: Tragitto,
     vetture: List<Pair<Tratto, MezzoRT>>,
     adesso: Long,
+    miaPosizione: Location?,
+    richiestaCentra: Int,
     modifier: Modifier,
 ) {
     val context = LocalContext.current
@@ -561,6 +600,7 @@ private fun MappaTragitto(
                 title = tappa.nome
             })
         }
+        miaPosizione?.let { disegnaMiaPosizione(m, it, densita) }
         // le vetture in tempo reale, sopra a tutto
         vetture.forEach { (t, v) ->
             val vecchia = v.rilevato > 0 && adesso - v.rilevato > SECONDI_POSIZIONE_VECCHIA
@@ -574,6 +614,15 @@ private fun MappaTragitto(
         m.overlays.add(CopyrightOverlay(m.context))
         m.invalidate()
     })
+
+    var centrataPer by remember { mutableIntStateOf(0) }
+    LaunchedEffect(richiestaCentra, miaPosizione != null) {
+        val p = miaPosizione ?: return@LaunchedEffect
+        if (richiestaCentra > centrataPer) {
+            centrataPer = richiestaCentra
+            centraSu(mappa, p)
+        }
+    }
 
     LaunchedEffect(tracciati) {
         val tutti = tracciati.flatMap { it.second }

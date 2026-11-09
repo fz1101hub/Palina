@@ -2,7 +2,11 @@
 
 package it.palinaroma.ui
 
+import android.Manifest
 import android.graphics.DashPathEffect
+import android.location.Location
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.graphics.Paint
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -41,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,6 +74,7 @@ import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.distanzaDalTracciato
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.etaRilevamento
+import it.palinaroma.dati.haPermessoPosizione
 import it.palinaroma.dati.completaMezzi
 import it.palinaroma.dati.vettureDellaLinea
 import it.palinaroma.dati.mezzoDellaCorsa
@@ -124,6 +130,21 @@ fun LineaSchermo(
         }
     }
     val fermataAttesa = remember(o, fermataEvidenziata) { fermataEvidenziata?.let { o?.fermata(it) } }
+
+    // "sei qui": la posizione del telefono sulla mappa
+    val contesto = LocalContext.current
+    var permessoPosizione by remember { mutableStateOf(haPermessoPosizione(contesto)) }
+    var richiestaCentra by remember { mutableIntStateOf(0) }
+    val chiediPermesso = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { esiti ->
+        permessoPosizione = esiti.values.any { it }
+        if (permessoPosizione) richiestaCentra++
+    }
+    val miaPosizione = rememberMiaPosizione(permessoPosizione)
+    val fermataVicina = remember(miaPosizione, fermate) {
+        miaPosizione?.let { p ->
+            fermate.map { it to distanzaMetri(p.latitude, p.longitude, it.lat, it.lon) }.minByOrNull { it.second }
+        }
+    }
 
     var mezzi by remember { mutableStateOf<List<MezzoRT>>(emptyList()) }
     var altre by remember { mutableStateOf<List<MezzoRT>>(emptyList()) }
@@ -311,7 +332,24 @@ fun LineaSchermo(
                     adesso = adesso,
                     apriFermata = apriFermata,
                     seleziona = { selezionato = it.chiave() },
+                    miaPosizione = miaPosizione,
+                    richiestaCentra = richiestaCentra,
                     modifier = Modifier.fillMaxSize(),
+                )
+                PulsanteMiaPosizione(
+                    attivo = miaPosizione != null,
+                    onClick = {
+                        if (permessoPosizione) {
+                            richiestaCentra++
+                        } else {
+                            chiediPermesso.launch(
+                                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(10.dp),
                 )
                 when {
                     inScheda != null -> SchedaVettura(
@@ -361,6 +399,30 @@ fun LineaSchermo(
                     color = Secondario,
                     modifier = Modifier.padding(start = 8.dp),
                 )
+            }
+            fermataVicina?.let { (f, metri) ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { apriFermata(f.id) }
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        Modifier
+                            .size(10.dp)
+                            .background(BluPosizione, CircleShape),
+                    )
+                    Text(
+                        if (metri > 3_000) "Sei a ${testoMetri(metri)} da questa linea"
+                        else "Sei a ${testoMetri(metri)} da ${f.nome}, la sua fermata più vicina ›",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = BluPosizione,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
             }
             LazyColumn(
                 Modifier
@@ -577,6 +639,8 @@ private fun MappaLinea(
     adesso: Long,
     apriFermata: (String) -> Unit,
     seleziona: (MezzoRT) -> Unit,
+    miaPosizione: Location?,
+    richiestaCentra: Int,
     modifier: Modifier,
 ) {
     val context = LocalContext.current
@@ -640,6 +704,7 @@ private fun MappaLinea(
                 }
             })
         }
+        miaPosizione?.let { disegnaMiaPosizione(m, it, densita) }
         // le vetture sopra a tutto; quella attesa per ultima, cosi' resta in cima
         // prima quelle dell'altra direzione, in grigio e sotto alle altre
         altre.filter { it.chiave() != evidenziato?.chiave() }.forEach { v ->
@@ -674,6 +739,16 @@ private fun MappaLinea(
 
     // inquadra il tracciato; quando compare la vettura attesa, inquadra lei e la fermata
     var inquadrataVettura by remember { mutableStateOf(false) }
+    // centra su di te quando si preme il pulsante (anche se la posizione arriva dopo)
+    var centrataPer by remember { mutableIntStateOf(0) }
+    LaunchedEffect(richiestaCentra, miaPosizione != null) {
+        val p = miaPosizione ?: return@LaunchedEffect
+        if (richiestaCentra > centrataPer) {
+            centrataPer = richiestaCentra
+            centraSu(mappa, p)
+        }
+    }
+
     LaunchedEffect(forma, evidenziato != null) {
         val punti = if (evidenziato != null && fermataAttesa != null && !inquadrataVettura) {
             inquadrataVettura = true

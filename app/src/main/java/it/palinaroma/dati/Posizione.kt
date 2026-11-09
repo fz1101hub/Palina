@@ -5,15 +5,20 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
 import android.os.CancellationSignal
+import android.os.Looper
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.CurrentLocationRequest
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -180,4 +185,65 @@ suspend fun posizioneAttuale(context: Context, attesaMs: Long = 8_000): Location
             .collect()
     }
     return migliore ?: memoria
+}
+
+/**
+ * La posizione aggiornata di continuo, ogni [intervalloMs] circa, finche' il
+ * flusso e' raccolto: per il segnalino "sei qui" sulle mappe. Parte subito con
+ * l'ultima posizione nota, se recente.
+ */
+@SuppressLint("MissingPermission")
+fun aggiornamentiPosizione(context: Context, intervalloMs: Long = 4_000): Flow<Location> = callbackFlow {
+    if (!haPermessoPosizione(context)) {
+        close()
+        awaitClose { }
+        return@callbackFlow
+    }
+    val app = context.applicationContext
+    fun nuova(posizione: Location?) {
+        if (posizione == null || (posizione.latitude == 0.0 && posizione.longitude == 0.0)) return
+        memoria = posizione
+        trySend(posizione)
+    }
+    memoria?.takeIf { it.etaMs() < 2 * 60_000L }?.let { trySend(it) }
+
+    if (serviziGoogle(app)) {
+        val cliente = LocationServices.getFusedLocationProviderClient(app)
+        val richiesta = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalloMs)
+            .setMinUpdateIntervalMillis(intervalloMs / 2)
+            .build()
+        val ascoltatore = object : LocationCallback() {
+            override fun onLocationResult(risultato: LocationResult) {
+                risultato.locations.forEach { nuova(it) }
+            }
+        }
+        val avviata = runCatching { cliente.requestLocationUpdates(richiesta, ascoltatore, Looper.getMainLooper()) }.isSuccess
+        if (!avviata) close()
+        awaitClose { runCatching { cliente.removeLocationUpdates(ascoltatore) } }
+    } else {
+        val gestore = app.getSystemService(LocationManager::class.java)
+        // tutti i metodi implementati: su Android 8 e 9 non hanno ancora un'implementazione predefinita
+        val ascoltatore = object : LocationListener {
+            override fun onLocationChanged(posizione: Location) = nuova(posizione)
+
+            @Deprecated("Solo per Android 8 e 9")
+            override fun onStatusChanged(fornitore: String?, stato: Int, extra: android.os.Bundle?) = Unit
+
+            override fun onProviderEnabled(fornitore: String) = Unit
+
+            override fun onProviderDisabled(fornitore: String) = Unit
+        }
+        val fornitori = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER).filter { f ->
+            runCatching { gestore?.isProviderEnabled(f) == true }.getOrDefault(false)
+        }
+        var avviati = 0
+        fornitori.forEach { f ->
+            runCatching {
+                gestore?.requestLocationUpdates(f, intervalloMs, 0f, ascoltatore, Looper.getMainLooper())
+                avviati++
+            }
+        }
+        if (avviati == 0) close()
+        awaitClose { runCatching { gestore?.removeUpdates(ascoltatore) } }
+    }
 }
