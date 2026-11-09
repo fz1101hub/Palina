@@ -68,6 +68,7 @@ import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.Tappa
 import it.palinaroma.dati.Tragitto
 import it.palinaroma.dati.Tratto
+import it.palinaroma.dati.completaMezzi
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.etaRilevamento
 import it.palinaroma.dati.mezzoDellaCorsa
@@ -100,7 +101,14 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
         ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 try {
-                    mezzi = TempoReale.mezzi()
+                    val corse = try {
+                        TempoReale.corse()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                    mezzi = completaMezzi(TempoReale.mezzi(), corse)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {

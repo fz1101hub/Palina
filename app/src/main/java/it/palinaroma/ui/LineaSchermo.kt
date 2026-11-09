@@ -67,7 +67,8 @@ import it.palinaroma.dati.Punto
 import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.etaRilevamento
-import it.palinaroma.dati.mezziDellaLinea
+import it.palinaroma.dati.completaMezzi
+import it.palinaroma.dati.vettureDellaLinea
 import it.palinaroma.dati.mezzoDellaCorsa
 import it.palinaroma.dati.stessoCodice
 import it.palinaroma.dati.testoMetri
@@ -113,6 +114,7 @@ fun LineaSchermo(
     val fermataAttesa = remember(o, fermataEvidenziata) { fermataEvidenziata?.let { o?.fermata(it) } }
 
     var mezzi by remember { mutableStateOf<List<MezzoRT>>(emptyList()) }
+    var altre by remember { mutableStateOf<List<MezzoRT>>(emptyList()) }
     var evidenziato by remember { mutableStateOf<MezzoRT?>(null) }
     var arrivoAtteso by remember { mutableStateOf<Long?>(null) }
     var caricato by remember { mutableStateOf(false) }
@@ -125,12 +127,24 @@ fun LineaSchermo(
         ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 try {
-                    val tutti = TempoReale.mezzi()
-                    mezzi = withContext(Dispatchers.IO) { mezziDellaLinea(tutti, lineaId, percorso?.direzione, o) }
+                    val corse = try {
+                        TempoReale.corse()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                    // le vetture senza corsa o linea si completano con le corse in tempo reale
+                    val tutti = completaMezzi(TempoReale.mezzi(), corse)
+                    val vetture = withContext(Dispatchers.IO) {
+                        vettureDellaLinea(tutti, lineaId, linea?.nome, percorso?.direzione, o)
+                    }
+                    mezzi = vetture.inDirezione
+                    altre = vetture.altre
                     if (corsaEvidenziata != null) {
                         evidenziato = mezzoDellaCorsa(tutti, corsaEvidenziata)
                         if (fermataEvidenziata != null) {
-                            val corsa = TempoReale.corse().firstOrNull { it.corsaId == corsaEvidenziata }
+                            val corsa = corse.firstOrNull { it.corsaId == corsaEvidenziata }
                             arrivoAtteso = corsa?.fermate?.firstOrNull { stessoCodice(it.fermataId, fermataEvidenziata) }?.orario
                         }
                     }
@@ -161,7 +175,8 @@ fun LineaSchermo(
     }
 
     // la vettura mostrata nella scheda: quella toccata, altrimenti quella attesa
-    val inScheda = selezionato?.let { id -> (mezzi + listOfNotNull(evidenziato)).firstOrNull { it.corsaId == id } } ?: evidenziato
+    val inScheda = selezionato?.let { id -> (mezzi + altre + listOfNotNull(evidenziato)).firstOrNull { it.chiave() == id } }
+        ?: evidenziato
 
     Scaffold(
         topBar = {
@@ -266,18 +281,21 @@ fun LineaSchermo(
                     forma = forma,
                     fermate = fermate,
                     mezzi = mezzi,
+                    altre = altre,
                     evidenziato = evidenziato,
                     fermataAttesa = fermataAttesa,
                     adesso = adesso,
                     apriFermata = apriFermata,
-                    seleziona = { selezionato = it.corsaId },
+                    seleziona = { selezionato = it.chiave() },
                     modifier = Modifier.fillMaxSize(),
                 )
                 when {
                     inScheda != null -> SchedaVettura(
                         mezzo = inScheda,
                         nomeLinea = linea?.nome ?: lineaId,
-                        attesa = inScheda.corsaId == evidenziato?.corsaId,
+                        attesa = inScheda.chiave() == evidenziato?.chiave(),
+                        altraDirezione = altre.any { it.chiave() == inScheda.chiave() },
+                        mostraQuellaDirezione = cambiaDirezione,
                         fermata = fermataAttesa,
                         arrivo = arrivoAtteso,
                         adesso = adesso,
@@ -306,9 +324,13 @@ fun LineaSchermo(
                 )
                 Text(
                     when (mezzi.size) {
-                        0 -> if (caricato) "Nessuna vettura rilevata via GPS in questa direzione" else "Cerco le vetture…"
-                        1 -> "1 vettura rilevata via GPS in questa direzione"
-                        else -> "${mezzi.size} vetture rilevate via GPS in questa direzione"
+                        0 -> if (caricato) "Nessuna vettura GPS in questa direzione" else "Cerco le vetture…"
+                        1 -> "1 vettura GPS in questa direzione"
+                        else -> "${mezzi.size} vetture GPS in questa direzione"
+                    } + when (altre.size) {
+                        0 -> ""
+                        1 -> " · 1 nell'altra (in grigio)"
+                        else -> " · ${altre.size} nell'altra (in grigio)"
                     } + if (aggiornatoAlle > 0) " · ${ora(aggiornatoAlle)}" else "",
                     style = MaterialTheme.typography.bodySmall,
                     color = Secondario,
@@ -339,6 +361,8 @@ private fun SchedaVettura(
     mezzo: MezzoRT,
     nomeLinea: String,
     attesa: Boolean,
+    altraDirezione: Boolean,
+    mostraQuellaDirezione: () -> Unit,
     fermata: Fermata?,
     arrivo: Long?,
     adesso: Long,
@@ -386,6 +410,15 @@ private fun SchedaVettura(
                         "Il segnale è vecchio: la vettura potrebbe essere più avanti.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Porpora,
+                    )
+                }
+                if (altraDirezione) {
+                    Text(
+                        "Va nell'altra direzione · mostra quella direzione ›",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Porpora,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable(onClick = mostraQuellaDirezione),
                     )
                 }
                 if (attesa && fermata != null) {
@@ -502,6 +535,7 @@ private fun MappaLinea(
     forma: List<Punto>,
     fermate: List<Fermata>,
     mezzi: List<MezzoRT>,
+    altre: List<MezzoRT>,
     evidenziato: MezzoRT?,
     fermataAttesa: Fermata?,
     adesso: Long,
@@ -562,9 +596,22 @@ private fun MappaLinea(
             })
         }
         // le vetture sopra a tutto; quella attesa per ultima, cosi' resta in cima
-        val vetture = mezzi.filter { it.corsaId != evidenziato?.corsaId } + listOfNotNull(evidenziato)
+        // prima quelle dell'altra direzione, in grigio e sotto alle altre
+        altre.filter { it.chiave() != evidenziato?.chiave() }.forEach { v ->
+            val vecchia = v.rilevato > 0 && adesso - v.rilevato > SECONDI_POSIZIONE_VECCHIA
+            m.overlays.add(Marker(m).apply {
+                position = GeoPoint(v.lat, v.lon)
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                icon = iconaVettura(m.context.resources, nomeLinea, v.rotta, false, vecchia, densita, altraDirezione = true)
+                setOnMarkerClickListener { _, _ ->
+                    seleziona(v)
+                    true
+                }
+            })
+        }
+        val vetture = mezzi.filter { it.chiave() != evidenziato?.chiave() } + listOfNotNull(evidenziato)
         vetture.forEach { v ->
-            val attesa = v.corsaId == evidenziato?.corsaId
+            val attesa = v.chiave() == evidenziato?.chiave()
             val vecchia = v.rilevato > 0 && adesso - v.rilevato > SECONDI_POSIZIONE_VECCHIA
             m.overlays.add(Marker(m).apply {
                 position = GeoPoint(v.lat, v.lon)
@@ -609,3 +656,6 @@ private fun MappaLinea(
         }
     }
 }
+
+/** Per riconoscere una vettura anche quando il feed non ne indica la corsa. */
+private fun MezzoRT.chiave(): String = corsaId.ifEmpty { "vettura:$etichetta" }

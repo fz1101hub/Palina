@@ -216,10 +216,48 @@ fun etaRilevamento(rilevato: Long, adesso: Long): String? {
     }
 }
 
-/** I mezzi della linea; se la direzione e' nota, solo quelli in quella direzione. */
-fun mezziDellaLinea(mezzi: List<MezzoRT>, lineaId: String, direzione: Int?, orario: Orario?): List<MezzoRT> {
-    val dellaLinea = mezzi.filter { it.lineaId == lineaId }
-    if (direzione == null) return dellaLinea
-    val info = orario?.corse(dellaLinea.map { it.corsaId }) ?: emptyMap()
-    return dellaLinea.filter { (info[it.corsaId]?.direzione ?: it.direzione ?: direzione) == direzione }
+/** Le vetture di una linea: quelle nella direzione scelta e quelle nell'altra. */
+data class VettureLinea(val inDirezione: List<MezzoRT>, val altre: List<MezzoRT>)
+
+/**
+ * Completa le vetture senza corsa o senza linea con i dati delle corse in tempo
+ * reale che indicano la stessa vettura.
+ */
+fun completaMezzi(mezzi: List<MezzoRT>, corse: List<CorsaRT>): List<MezzoRT> {
+    val perVettura = corse.filter { it.veicolo.isNotEmpty() }.associateBy { it.veicolo }
+    val perCorsa = corse.associateBy { it.corsaId }
+    return mezzi.map { m ->
+        if (m.corsaId.isNotEmpty() && m.lineaId.isNotEmpty()) return@map m
+        val corsa = perCorsa[m.corsaId].takeIf { m.corsaId.isNotEmpty() } ?: perVettura[m.etichetta] ?: return@map m
+        m.copy(
+            corsaId = m.corsaId.ifEmpty { corsa.corsaId },
+            lineaId = m.lineaId.ifEmpty { corsa.lineaId },
+            direzione = m.direzione ?: corsa.direzione,
+        )
+    }
+}
+
+/**
+ * Le vetture di una linea. Linea e direzione vengono dall'orario attraverso la
+ * corsa quando e' nota, altrimenti dal feed; il codice della linea si confronta
+ * anche con il nome e senza badare alle maiuscole ("nMA" e "NMA"). Una vettura
+ * senza direzione nota conta come nella direzione scelta.
+ */
+fun vettureDellaLinea(
+    mezzi: List<MezzoRT>,
+    lineaId: String,
+    nomeLinea: String?,
+    direzione: Int?,
+    orario: Orario?,
+): VettureLinea {
+    val info = orario?.corse(mezzi.map { it.corsaId }) ?: emptyMap()
+    fun stessaLinea(id: String) =
+        id.isNotEmpty() && (id.equals(lineaId, ignoreCase = true) || (nomeLinea != null && id.equals(nomeLinea, ignoreCase = true)))
+    val dellaLinea = mezzi.filter { m ->
+        val dati = info[m.corsaId]
+        stessaLinea(m.lineaId) || (dati != null && stessaLinea(dati.lineaId))
+    }
+    if (direzione == null) return VettureLinea(dellaLinea, emptyList())
+    val (dentro, fuori) = dellaLinea.partition { (info[it.corsaId]?.direzione ?: it.direzione ?: direzione) == direzione }
+    return VettureLinea(dentro, fuori)
 }

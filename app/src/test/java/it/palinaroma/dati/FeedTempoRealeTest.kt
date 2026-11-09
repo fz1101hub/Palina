@@ -99,6 +99,28 @@ class FeedTempoRealeTest {
     }
 
     @Test
+    fun trovaLeVettureDellaLinea() {
+        val mezzi = listOf(
+            MezzoRT("c1", "nMA", 0, 41.9, 12.5, "8001"),   // codice con le minuscole
+            MezzoRT("c2", "NMA", 1, 41.9, 12.5, "8002"),   // direzione opposta
+            MezzoRT("c3", "", null, 41.9, 12.5, "8003"),   // senza linea: la prende dalla corsa
+            MezzoRT("", "", null, 41.9, 12.5, "8004"),     // senza corsa: la trova dal numero di vettura
+            MezzoRT("c5", "64", 0, 41.9, 12.5, "1234"),    // altra linea
+        )
+        val corse = listOf(
+            CorsaRT("c3", "NMA", 0, false, "", emptyList(), "8003"),
+            CorsaRT("c4", "NMA", null, false, "", emptyList(), "8004"),
+        )
+        val completi = completaMezzi(mezzi, corse)
+        assertEquals("NMA", completi[2].lineaId)
+        assertEquals("c4", completi[3].corsaId)
+        val v = vettureDellaLinea(completi, "NMA", "nMA", 0, orario = null)
+        assertEquals(listOf("8001", "8003", "8004"), v.inDirezione.map { it.etichetta })
+        assertEquals(listOf("8002"), v.altre.map { it.etichetta })
+        assertEquals(4, vettureDellaLinea(completi, "nma", null, null, orario = null).inDirezione.size)
+    }
+
+    @Test
     fun scriveDaQuantoERilevata() {
         assertNull(etaRilevamento(0, t0))
         assertEquals("adesso", etaRilevamento(t0 - 5, t0))

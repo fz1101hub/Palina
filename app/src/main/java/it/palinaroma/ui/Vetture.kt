@@ -42,15 +42,16 @@ fun iconaVettura(
     evidenziata: Boolean,
     vecchia: Boolean,
     densita: Float,
+    altraDirezione: Boolean = false,
 ): Drawable {
     val rottaArrotondata = rotta?.let { (it / 10f).roundToInt() * 10 }
-    val chiave = "$linea|$rottaArrotondata|$evidenziata|$vecchia|$densita"
+    val chiave = "$linea|$rottaArrotondata|$evidenziata|$vecchia|$densita|$altraDirezione"
     cacheIcone[chiave]?.let { return it }
     if (cacheIcone.size > 300) cacheIcone.clear()
 
-    val diametro = (if (evidenziata) 44f else 34f) * densita
-    val freccia = (if (evidenziata) 11f else 9f) * densita
-    val alone = (if (evidenziata) 14f else 6f) * densita
+    val diametro = (if (evidenziata) 44f else if (altraDirezione) 28f else 34f) * densita
+    val freccia = (if (evidenziata) 11f else if (altraDirezione) 7f else 9f) * densita
+    val alone = (if (evidenziata) 14f else if (altraDirezione) 0f else 6f) * densita
     val margine = max(freccia, alone) + 3 * densita
     val lato = (diametro + 2 * margine).toInt()
     val immagine = Bitmap.createBitmap(lato, lato, Bitmap.Config.ARGB_8888)
@@ -61,8 +62,10 @@ fun iconaVettura(
     val pennello = Paint(Paint.ANTI_ALIAS_FLAG)
 
     // alone
-    pennello.color = (if (evidenziata) Porpora else Inchiostro).copy(alpha = if (evidenziata) 0.28f else 0.2f).toArgb()
-    tela.drawCircle(cx, cy, raggio + alone, pennello)
+    if (alone > 0f) {
+        pennello.color = (if (evidenziata) Porpora else Inchiostro).copy(alpha = if (evidenziata) 0.28f else 0.2f).toArgb()
+        tela.drawCircle(cx, cy, raggio + alone, pennello)
+    }
 
     // freccia di marcia, ruotata secondo la rotta (0 = nord)
     if (rottaArrotondata != null) {
@@ -74,7 +77,11 @@ fun iconaVettura(
             lineTo(cx + freccia, cy - raggio + 3 * densita)
             close()
         }
-        pennello.color = if (evidenziata) Porpora.toArgb() else Inchiostro.toArgb()
+        pennello.color = when {
+            evidenziata -> Porpora.toArgb()
+            altraDirezione -> Secondario.toArgb()
+            else -> Inchiostro.toArgb()
+        }
         tela.drawPath(punta, pennello)
         tela.restore()
     }
@@ -82,14 +89,18 @@ fun iconaVettura(
     // bordo bianco e cerchio
     pennello.color = android.graphics.Color.WHITE
     tela.drawCircle(cx, cy, raggio, pennello)
-    pennello.color = if (evidenziata) Porpora.toArgb() else Oro.toArgb()
+    pennello.color = when {
+        evidenziata -> Porpora.toArgb()
+        altraDirezione -> android.graphics.Color.rgb(0xCF, 0xC9, 0xC2)
+        else -> Oro.toArgb()
+    }
     tela.drawCircle(cx, cy, raggio - 3 * densita, pennello)
 
     // numero di linea, rimpicciolito se non ci sta
     pennello.color = if (evidenziata) android.graphics.Color.WHITE else Inchiostro.toArgb()
     pennello.typeface = Typeface.DEFAULT_BOLD
     pennello.textAlign = Paint.Align.CENTER
-    var dimensione = (if (evidenziata) 17f else 14f) * densita
+    var dimensione = (if (evidenziata) 17f else if (altraDirezione) 12f else 14f) * densita
     pennello.textSize = dimensione
     val spazio = (raggio - 5 * densita) * 2
     val testo = linea.ifEmpty { "•" }
@@ -101,7 +112,7 @@ fun iconaVettura(
     tela.drawText(testo, cx, cy - (misure.ascent + misure.descent) / 2, pennello)
 
     val icona = BitmapDrawable(risorse, immagine)
-    if (vecchia) icona.alpha = 130
+    if (vecchia || altraDirezione) icona.alpha = if (vecchia) 130 else 215
     cacheIcone[chiave] = icona
     return icona
 }
