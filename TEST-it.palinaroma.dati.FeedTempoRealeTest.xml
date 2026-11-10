@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="it.palinaroma.dati.FeedTempoRealeTest" tests="17" skipped="0" failures="0" errors="0" timestamp="2026-11-10T05:28:39.574Z" hostname="runnervmwuk1x" time="0.07">
+  <properties/>
+  <testcase name="togliIPassaggiGiaAvvenuti" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.003"/>
+  <testcase name="scriveDaQuantoERilevata" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.001"/>
+  <testcase name="rifiutaIFeedRovinatiSenzaUscireDaiDati" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.013"/>
+  <testcase name="arriviRaggruppatiPerLineaEDirezione" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.002"/>
+  <testcase name="nonUnisceUnaCorsaColPezzoDiUnAltra" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.001"/>
+  <testcase name="leggeIMezzi" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.0"/>
+  <testcase name="distingueGPSEOrario" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.0"/>
+  <testcase name="ilFeedInMemoriaSenzaDatiDaSubitoLErrore" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.034"/>
+  <testcase name="nonAbbinaLeVettureAmbigue" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.001"/>
+  <testcase name="ignoraIPassaggiOltreLOrizzonte" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.001"/>
+  <testcase name="unaVetturaSenzaCorsaNonSegnaComeTracciateLeAltre" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.0"/>
+  <testcase name="ilFeedInMemoriaNonRiscaricaSeNonServe" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.008"/>
+  <testcase name="trovaLeVettureDellaLinea" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.001"/>
+  <testcase name="riconosceICodiciDiTransitous" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.001"/>
+  <testcase name="leggeLeCorse" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.0"/>
+  <testcase name="misuraLaDistanzaDalTracciato" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.0"/>
+  <testcase name="uniscePassaggiInTempoRealeEProgrammati" classname="it.palinaroma.dati.FeedTempoRealeTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

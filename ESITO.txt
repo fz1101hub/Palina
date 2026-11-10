@@ -1,0 +1,5 @@
+commit: 661f70f181f5948197f5582b684db24254958aff
+esito: success
+firma: 
+orario incluso: fonte https://romamobilita.it/sites/default/files/rome_static_gtfs.zip, 45M
+orario incluso: si', 2026-11-10 05:28 UTC, 15.4 MB, linee 434, fermate 8333, corse 167613, percorsi 723, fermata_linee 24499, forme 723
