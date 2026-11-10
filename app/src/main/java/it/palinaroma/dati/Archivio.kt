@@ -129,9 +129,10 @@ object Archivio {
 
     /** Senza costi: rete Wi-Fi o comunque non a consumo. */
     private fun reteSenzaCosti(): Boolean = runCatching {
+        // runCatching copre anche i telefoni senza il servizio di rete
         val gestore = app.getSystemService(ConnectivityManager::class.java)
-        val rete = gestore?.getNetworkCapabilities(gestore.activeNetwork)
-        rete != null && rete.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) && gestore?.isActiveNetworkMetered == false
+        val rete = gestore.getNetworkCapabilities(gestore.activeNetwork)
+        rete != null && rete.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) && !gestore.isActiveNetworkMetered
     }.getOrDefault(false)
 
     /** Se l'orario ha piu' di una settimana lo aggiorna da solo, ma solo in Wi-Fi. */

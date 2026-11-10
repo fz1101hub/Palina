@@ -33,7 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -136,7 +136,7 @@ fun HomeSchermo(
                     )
                 }
             }
-            TabRow(selectedTabIndex = scheda, containerColor = Color.White, contentColor = Porpora) {
+            PrimaryTabRow(selectedTabIndex = scheda, containerColor = Color.White, contentColor = Porpora) {
                 listOf("Vicino a me", "Cerca", "Preferiti").forEachIndexed { i, titolo ->
                     Tab(selected = scheda == i, onClick = { scheda = i }, text = { Text(titolo) })
                 }
