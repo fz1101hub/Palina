@@ -5,25 +5,23 @@ on:
 permissions:
   contents: write
 jobs:
-  versioni:
+  wrapper:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Cerca le ultime versioni
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: 9.9.0
+      - name: Genera il wrapper di Gradle 9.9.0
         run: |
-          {
-            SM=$(ls -d $ANDROID_HOME/cmdline-tools/*/bin/sdkmanager | tail -1)
-            AM=$(dirname $SM)/avdmanager
-            echo "== immagini di sistema 26 e 34+ =="
-            $SM --list 2>/dev/null | grep -E "system-images;android-(26|3[4-9])" | sed 's/  */ /g' | sort -u
-            echo "== emulatore e platform-tools =="
-            $SM --list 2>/dev/null | grep -E "^ *(emulator|platform-tools) " | sed 's/  */ /g' | sort -u
-            echo "== dispositivi avd =="
-            $AM list device -c 2>/dev/null | tr '\n' ' '
-            echo; echo "== kvm =="; ls -l /dev/kvm 2>&1; nproc; free -g | head -2
-          } > /tmp/versioni.txt 2>&1
-          mkdir -p /tmp/esito && cp /tmp/versioni.txt /tmp/esito/
-          cd /tmp/esito && git init -q -b risultati-versioni-2 && git config user.name gh && git config user.email gh@users.noreply.github.com
-          git add -A && git commit -q -m versioni && git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" risultati-versioni-2
+          mkdir -p /tmp/w && cd /tmp/w
+          echo 'rootProject.name = "w"' > settings.gradle.kts
+          gradle --version
+          gradle wrapper --gradle-version 9.9.0 --distribution-type bin --gradle-distribution-sha256-sum 0b00b0ffe07c4d4789c12d4935a44a7057d55774b7540bd4a3f76f336deb177a
+          rm -rf settings.gradle.kts .gradle
+          gradle --version > versione.txt 2>&1
+          git init -q -b wrapper-gradle && git config user.name gh && git config user.email gh@users.noreply.github.com
+          git add -A && git commit -q -m wrapper && git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" wrapper-gradle
