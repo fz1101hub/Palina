@@ -49,6 +49,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.palinaroma.dati.Archivio
@@ -98,6 +100,10 @@ fun HomeSchermo(
                 contentColor = Color.White,
                 icon = { Icon(Icons.Filled.Place, contentDescription = null) },
                 text = { Text("Come arrivo…") },
+                // il testo del pulsante non arriva al lettore di schermo: lo si dice qui
+                modifier = Modifier
+                    .testTag("come-arrivo")
+                    .semantics { contentDescription = "Come arrivo" },
             )
         },
     ) { margini ->

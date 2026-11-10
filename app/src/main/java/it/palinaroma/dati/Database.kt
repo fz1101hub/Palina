@@ -205,9 +205,14 @@ class Orario(private val db: SQLiteDatabase) {
         val parole = normalizza(t).split(" ").filter { it.isNotEmpty() }
         if (parole.isNotEmpty() && parole.joinToString("").length >= 2) {
             val condizioni = parole.joinToString(" AND ") { "nome_norm LIKE ?" }
+            val frase = parole.joinToString(" ")
+            // prima i nomi che cominciano con il testo cercato ("Termini..."), poi quelli
+            // in cui e' una parola intera ("Siculiana/Termini Imerese"), poi gli altri
             fermateDa(
-                "SELECT id, codice, nome, lat, lon FROM fermate WHERE $condizioni ORDER BY nome LIMIT 60",
-                parole.map { "%$it%" }.toTypedArray(),
+                "SELECT id, codice, nome, lat, lon FROM fermate WHERE $condizioni " +
+                    "ORDER BY CASE WHEN nome_norm LIKE ? THEN 0 WHEN nome_norm LIKE ? THEN 1 ELSE 2 END, " +
+                    "length(nome), nome LIMIT 60",
+                (parole.map { "%$it%" } + listOf("$frase%", "% $frase%")).toTypedArray(),
             ).forEach { risultati.putIfAbsent(it.id, it) }
         }
         return risultati.values.toList()

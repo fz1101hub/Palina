@@ -83,22 +83,32 @@ private val VOCALI = Regex("[aeiouy]")
 private fun sigleTraParentesi(p: String): Boolean =
     p.length > 2 && p.substring(1, p.length - 1).split('-', '/').all { it.length in 1..3 && it.all(Char::isLetterOrDigit) }
 
-/** "STAZIONE TERMINI" -> "Stazione Termini"; i testi gia' scritti bene restano uguali. */
+/** Una parola in minuscolo scritta per bene; [prima] se apre il nome (allora mai minuscola). */
+private fun parolaScritta(p: String, prima: Boolean): String = when {
+    (p.startsWith("(") && p.endsWith(")") && (p.length <= 5 || sigleTraParentesi(p))) ||
+        (p.isNotEmpty() && p.all { it.isLetter() } && p.length <= 3 && !VOCALI.containsMatchIn(p)) -> p.uppercase()
+    !prima && p in MINUSCOLE -> p
+    '\'' in p -> {
+        val inizio = p.substringBefore('\'')
+        val dopo = p.substringAfter('\'')
+        val testa = if (!prima && inizio in ELISE) inizio else inizio.replaceFirstChar { it.uppercase() }
+        testa + "'" + dopo.replaceFirstChar { it.uppercase() }
+    }
+    else -> p.replaceFirstChar { it.uppercase() }
+}
+
+/**
+ * "STAZIONE TERMINI" -> "Stazione Termini"; i testi gia' scritti bene restano
+ * uguali. Dopo la barra comincia un altro nome: "NAZIONALE/TORINO" -> "Nazionale/Torino".
+ */
 fun bellaScrittura(testo: String): String {
     val pulito = testo.trim().split(SPAZI).joinToString(" ")
     if (pulito.isEmpty() || pulito != pulito.uppercase()) return pulito
     return pulito.lowercase().split(" ").mapIndexed { i, p ->
-        when {
-            (p.startsWith("(") && p.endsWith(")") && (p.length <= 5 || sigleTraParentesi(p))) ||
-                (p.all { it.isLetter() } && p.length <= 3 && !VOCALI.containsMatchIn(p)) -> p.uppercase()
-            i > 0 && p in MINUSCOLE -> p
-            '\'' in p -> {
-                val prima = p.substringBefore('\'')
-                val dopo = p.substringAfter('\'')
-                val inizio = if (i > 0 && prima in ELISE) prima else prima.replaceFirstChar { it.uppercase() }
-                inizio + "'" + dopo.replaceFirstChar { it.uppercase() }
-            }
-            else -> p.replaceFirstChar { it.uppercase() }
+        if ('/' in p && !p.startsWith("(")) {
+            p.split('/').mapIndexed { j, pezzo -> parolaScritta(pezzo, prima = i == 0 || j > 0) }.joinToString("/")
+        } else {
+            parolaScritta(p, prima = i == 0)
         }
     }.joinToString(" ")
 }

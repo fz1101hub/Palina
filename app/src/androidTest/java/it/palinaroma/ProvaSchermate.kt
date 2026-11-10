@@ -133,7 +133,7 @@ class ProvaSchermate {
 
     @Test
     fun a5_tragittoFinoAlColosseo() {
-        tocca(By.textStartsWith("Come arrivo"))
+        tocca(By.res("come-arrivo"))
         tocca(By.res("campo-a"))
         scrivi("Colosseo")
         aspettaUnoDi(30_000, "i luoghi trovati", By.text("FERMATE"), By.text("INDIRIZZI E LUOGHI"))

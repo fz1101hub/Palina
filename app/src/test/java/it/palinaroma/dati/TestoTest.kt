@@ -21,6 +21,12 @@ class TestoTest {
         assertEquals("Staz.ne S. Pietro FS", bellaScrittura("STAZ.NE S. PIETRO FS"))
         assertEquals("Ponte Mammolo", bellaScrittura("Ponte Mammolo"))
         assertEquals("L.go Argentina", bellaScrittura("  L.GO   ARGENTINA "))
+        // dopo la barra comincia un'altra strada
+        assertEquals("Nazionale/Torino", bellaScrittura("NAZIONALE/TORINO"))
+        assertEquals("Siculiana/Termini Imerese", bellaScrittura("SICULIANA/TERMINI IMERESE"))
+        assertEquals("Nazionale/Quattro Fontane", bellaScrittura("NAZIONALE/QUATTRO FONTANE"))
+        assertEquals("Via del Corso/Minghetti", bellaScrittura("VIA DEL CORSO/MINGHETTI"))
+        assertEquals("Termini (MA-MB-FS)", bellaScrittura("TERMINI (MA-MB-FS)"))
     }
 
     @Test

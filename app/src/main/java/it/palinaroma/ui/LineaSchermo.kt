@@ -51,6 +51,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -704,7 +705,9 @@ private fun MappaLinea(
     }
     val diritti = remember(mappa) { CopyrightOverlay(mappa.context) }
 
-    AndroidView(factory = { mappa }, modifier = modifier, update = { m ->
+    // clipToBounds: la mappa di osmdroid disegna anche fuori dal suo riquadro e
+    // copriva la riga della direzione e il conteggio delle vetture
+    AndroidView(factory = { mappa }, modifier = modifier.clipToBounds(), update = { m ->
         m.overlays.clear()
         m.overlays.addAll(fissi)
         miaPosizione?.let { disegnaMiaPosizione(m, it, densita) }
