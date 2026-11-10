@@ -1,0 +1,171 @@
+== immagini di sistema 26 e 34+ ==
+ system-images;android-26;android-tv;x86 | 14 | Android TV Intel x86 Atom System Image 
+ system-images;android-26;android-wear;x86 | 4 | Android Wear Intel x86 Atom System Image 
+ system-images;android-26;default;arm64-v8a | 2 | ARM 64 v8a System Image 
+ system-images;android-26;default;x86 | 1 | Intel x86 Atom System Image 
+ system-images;android-26;default;x86_64 | 1 | Intel x86_64 Atom System Image 
+ system-images;android-26;google_apis;arm64-v8a | 3 | Google APIs ARM 64 v8a System Image 
+ system-images;android-26;google_apis;x86 | 16 | Google APIs Intel x86 Atom System Image 
+ system-images;android-26;google_apis;x86_64 | 16 | Google APIs Intel x86_64 Atom System Image 
+ system-images;android-26;google_apis_playstore;x86 | 7 | Google Play Intel x86 Atom System Image 
+ system-images;android-34-ext10;google_apis_playstore;arm64-v8a | 2 | Google Play ARM 64 v8a System Image 
+ system-images;android-34-ext10;google_apis_playstore;x86_64 | 2 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-34-ext11;google_apis_playstore;arm64-v8a | 1 | Google Play ARM 64 v8a System Image 
+ system-images;android-34-ext11;google_apis_playstore;x86_64 | 1 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-34-ext12;google_apis_playstore;arm64-v8a | 1 | Google Play ARM 64 v8a System Image 
+ system-images;android-34-ext12;google_apis_playstore;x86_64 | 1 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-34-ext8;google_apis_playstore;arm64-v8a | 2 | Google Play ARM 64 v8a System Image 
+ system-images;android-34-ext8;google_apis_playstore;x86_64 | 2 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-34-ext9;android-automotive-playstore;arm64-v8a | 4 | Android Automotive with Google Play arm64-v8a System Image 
+ system-images;android-34-ext9;android-automotive-playstore;x86_64 | 4 | Android Automotive with Google Play x86_64 System Image 
+ system-images;android-34-ext9;android-automotive;arm64-v8a | 5 | Android Automotive with Google APIs arm64-v8a System Image 
+ system-images;android-34-ext9;android-automotive;x86_64 | 5 | Android Automotive with Google APIs x86_64 System Image 
+ system-images;android-34;android-desktop;arm64-v8a | 1 | Desktop ARM 64 v8a System Image 
+ system-images;android-34;android-desktop;x86_64 | 1 | Desktop Intel x86_64 Atom System Image 
+ system-images;android-34;android-tv;arm64-v8a | 3 | Android TV ARM 64 v8a System Image 
+ system-images;android-34;android-tv;x86 | 3 | Android TV Intel x86 Atom System Image 
+ system-images;android-34;android-wear;arm64-v8a | 1 | Wear OS 5 ARM 64 v8a System Image 
+ system-images;android-34;android-wear;x86_64 | 1 | Wear OS 5 Intel x86_64 Atom System Image 
+ system-images;android-34;android-xr-preview-playstore;arm64-v8a | 4 | Google Play XR Preview API v4 ARM 64 v8a System Image (Developer Preview) 
+ system-images;android-34;android-xr-preview-playstore;x86_64 | 4 | Google Play XR Preview API v4 Intel x86_64 Atom System Image (Developer Preview)
+ system-images;android-34;android-xr-v3-playstore;arm64-v8a | 3 | Google Play XR API v3 ARM 64 v8a System Image (Developer Preview) 
+ system-images;android-34;android-xr-v3-playstore;x86_64 | 3 | Google Play XR API v3 Intel x86_64 Atom System Image (Developer Preview) 
+ system-images;android-34;aosp_atd;arm64-v8a | 2 | AOSP ATD ARM 64 v8a System Image 
+ system-images;android-34;aosp_atd;x86_64 | 2 | AOSP ATD Intel x86_64 Atom System Image 
+ system-images;android-34;default;arm64-v8a | 4 | ARM 64 v8a System Image 
+ system-images;android-34;default;x86_64 | 4 | Intel x86_64 Atom System Image 
+ system-images;android-34;google-tv;arm64-v8a | 3 | Google TV ARM 64 v8a System Image 
+ system-images;android-34;google-tv;x86 | 3 | Google TV Intel x86 Atom System Image 
+ system-images;android-34;google-xr;arm64-v8a | 7 | Google Play XR ARM 64 v8a System Image (Developer Preview) 
+ system-images;android-34;google-xr;x86_64 | 7 | Google Play XR Intel x86_64 Atom System Image (Developer Preview) 
+ system-images;android-34;google_apis;arm64-v8a | 14 | Google APIs ARM 64 v8a System Image 
+ system-images;android-34;google_apis;x86_64 | 14 | Google APIs Intel x86_64 Atom System Image 
+ system-images;android-34;google_apis_playstore;arm64-v8a | 14 | Google Play ARM 64 v8a System Image 
+ system-images;android-34;google_apis_playstore;x86_64 | 14 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-34;google_atd;arm64-v8a | 1 | Google APIs ATD ARM 64 System Image 
+ system-images;android-34;google_atd;x86_64 | 1 | Google APIs ATD Intel x86_64 Atom System Image 
+ system-images;android-35-ext14;google_apis_playstore;arm64-v8a | 1 | Google Play ARM 64 v8a System Image 
+ system-images;android-35-ext14;google_apis_playstore;x86_64 | 1 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-35-ext15;android-automotive-playstore;arm64-v8a | 4 | Android Automotive with Google Play arm64-v8a System Image 
+ system-images;android-35-ext15;android-automotive-playstore;x86_64 | 4 | Android Automotive with Google Play x86_64 System Image 
+ system-images;android-35-ext15;android-automotive;arm64-v8a | 4 | Android Automotive with Google APIs arm64-v8a System Image 
+ system-images;android-35-ext15;android-automotive;x86_64 | 4 | Android Automotive with Google APIs x86_64 System Image 
+ system-images;android-35-ext15;android-wear;arm64-v8a | 1 | Wear OS 5.1 ARM 64 v8a System Image 
+ system-images;android-35-ext15;android-wear;x86_64 | 1 | Wear OS 5.1 Intel x86_64 Atom System Image 
+ system-images;android-35-ext15;google_apis;arm64-v8a | 1 | Google APIs ARM 64 v8a System Image 
+ system-images;android-35-ext15;google_apis;x86_64 | 1 | Google APIs Intel x86_64 Atom System Image 
+ system-images;android-35-ext15;google_apis_playstore;arm64-v8a | 1 | Google Play ARM 64 v8a System Image 
+ system-images;android-35-ext15;google_apis_playstore;x86_64 | 1 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-35;aosp_atd;arm64-v8a | 1 | AOSP ATD ARM 64 System Image 
+ system-images;android-35;aosp_atd;x86_64 | 1 | AOSP ATD Intel x86_64 Atom System Image 
+ system-images;android-35;default;arm64-v8a | 2 | ARM 64 v8a System Image 
+ system-images;android-35;default;x86_64 | 2 | Intel x86_64 Atom System Image 
+ system-images;android-35;google_apis;arm64-v8a | 9 | Google APIs ARM 64 v8a System Image 
+ system-images;android-35;google_apis;x86_64 | 9 | Google APIs Intel x86_64 Atom System Image 
+ system-images;android-35;google_apis_playstore;arm64-v8a | 9 | Google Play ARM 64 v8a System Image 
+ system-images;android-35;google_apis_playstore;x86_64 | 9 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-35;google_apis_playstore_ps16k;arm64-v8a | 5 | 16 KB Page Size Google Play ARM 64 v8a System Image 
+ system-images;android-35;google_apis_playstore_ps16k;x86_64 | 5 | 16 KB Page Size Google Play Intel x86_64 Atom System Image 
+ system-images;android-35;google_apis_playstore_tablet;arm64-v8a | 9 | Google Play Tablet ARM 64 v8a System Image 
+ system-images;android-35;google_apis_playstore_tablet;x86_64 | 9 | Google Play Tablet Intel x86_64 Atom System Image 
+ system-images;android-35;google_apis_ps16k;arm64-v8a | 5 | 16 KB Page Size Google APIs ARM 64 v8a System Image 
+ system-images;android-35;google_apis_ps16k;x86_64 | 5 | 16 KB Page Size Google APIs Intel x86_64 Atom System Image 
+ system-images;android-35;google_apis_tablet;arm64-v8a | 2 | Google APIs Tablet ARM 64 v8a System Image 
+ system-images;android-35;google_apis_tablet;x86_64 | 2 | Google APIs Tablet Intel x86_64 Atom System Image 
+ system-images;android-35;google_atd;arm64-v8a | 1 | Google APIs ATD ARM 64 System Image 
+ system-images;android-35;google_atd;x86_64 | 1 | Google APIs ATD Intel x86_64 Atom System Image 
+ system-images;android-36-ext18;google_apis;arm64-v8a | 1 | Google APIs ARM 64 v8a System Image 
+ system-images;android-36-ext18;google_apis;x86_64 | 1 | Google APIs Intel x86_64 Atom System Image 
+ system-images;android-36-ext18;google_apis_playstore;arm64-v8a | 1 | Google Play ARM 64 v8a System Image 
+ system-images;android-36-ext18;google_apis_playstore;x86_64 | 1 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-36-ext19;google_apis;arm64-v8a | 1 | Google APIs ARM 64 v8a System Image 
+ system-images;android-36-ext19;google_apis;x86_64 | 1 | Google APIs Intel x86_64 Atom System Image 
+ system-images;android-36-ext19;google_apis_playstore;arm64-v8a | 1 | Google Play ARM 64 v8a System Image 
+ system-images;android-36-ext19;google_apis_playstore;x86_64 | 1 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-36.1;android-wear-signed;arm64-v8a | 1 | Wear OS 6.1 ARM 64 v8a System Image (signed) 
+ system-images;android-36.1;android-wear-signed;x86_64 | 1 | Wear OS 6.1 Intel x86_64 Atom System Image (signed) 
+ system-images;android-36.1;google_apis;arm64-v8a | 4 | Google APIs ARM 64 v8a System Image 
+ system-images;android-36.1;google_apis;x86_64 | 4 | Google APIs Intel x86_64 Atom System Image 
+ system-images;android-36.1;google_apis_playstore;arm64-v8a | 4 | Google Play ARM 64 v8a System Image 
+ system-images;android-36.1;google_apis_playstore;x86_64 | 4 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-36.1;google_apis_playstore_ps16k;arm64-v8a | 4 | 16 KB Page Size Google Play ARM 64 v8a System Image 
+ system-images;android-36.1;google_apis_playstore_ps16k;x86_64 | 4 | 16 KB Page Size Google Play Intel x86_64 Atom System Image 
+ system-images;android-36.1;google_apis_ps16k;arm64-v8a | 4 | 16 KB Page Size Google APIs ARM 64 v8a System Image 
+ system-images;android-36.1;google_apis_ps16k;x86_64 | 4 | 16 KB Page Size Google APIs Intel x86_64 Atom System Image 
+ system-images;android-36;ai-glasses;arm64-v8a | 6 | Intelligent Eyewear ARM 64 v8a System Image (Developer Preview) 
+ system-images;android-36;ai-glasses;x86_64 | 6 | Intelligent Eyewear Intel x86_64 Atom System Image (Developer Preview) 
+ system-images;android-36;android-tv;arm64-v8a | 4 | Android TV ARM 64 v8a System Image 
+ system-images;android-36;android-tv;x86 | 4 | Android TV Intel x86 Atom System Image 
+ system-images;android-36;android-tv;x86_64 | 4 | Android TV Intel x86_64 Atom System Image 
+ system-images;android-36;android-wear-signed;arm64-v8a | 1 | Wear OS 6.0 ARM 64 v8a System Image (signed) 
+ system-images;android-36;android-wear-signed;x86_64 | 1 | Wear OS 6.0 Intel x86_64 Atom System Image (signed) 
+ system-images;android-36;aosp_atd;arm64-v8a | 1 | AOSP ATD ARM 64 System Image 
+ system-images;android-36;aosp_atd;x86_64 | 1 | AOSP ATD Intel x86_64 Atom System Image 
+ system-images;android-36;default;arm64-v8a | 2 | ARM 64 v8a System Image 
+ system-images;android-36;default;x86_64 | 2 | Intel x86_64 Atom System Image 
+ system-images;android-36;google-tv-ps16k;arm64-v8a | 4 | 16 KB Page Size Google TV ARM 64 v8a System Image 
+ system-images;android-36;google-tv-ps16k;x86_64 | 4 | 16 KB Page Size Google TV Intel x86_64 Atom System Image 
+ system-images;android-36;google-tv;arm64-v8a | 4 | Google TV ARM 64 v8a System Image 
+ system-images;android-36;google-tv;x86 | 4 | Google TV Intel x86 Atom System Image 
+ system-images;android-36;google-tv;x86_64 | 4 | Google TV Intel x86_64 Atom System Image 
+ system-images;android-36;google_apis;arm64-v8a | 7 | Google APIs ARM 64 v8a System Image 
+ system-images;android-36;google_apis;x86_64 | 7 | Google APIs Intel x86_64 Atom System Image 
+ system-images;android-36;google_apis_playstore;arm64-v8a | 7 | Google Play ARM 64 v8a System Image 
+ system-images;android-36;google_apis_playstore;x86_64 | 7 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-36;google_apis_playstore_ps16k;arm64-v8a | 7 | 16 KB Page Size Google Play ARM 64 v8a System Image 
+ system-images;android-36;google_apis_playstore_ps16k;x86_64 | 7 | 16 KB Page Size Google Play Intel x86_64 Atom System Image 
+ system-images;android-36;google_apis_playstore_tablet;arm64-v8a | 2 | Google Play Tablet ARM 64 v8a System Image 
+ system-images;android-36;google_apis_playstore_tablet;x86_64 | 2 | Google Play Tablet Intel x86_64 Atom System Image 
+ system-images;android-36;google_apis_ps16k;arm64-v8a | 7 | 16 KB Page Size Google APIs ARM 64 v8a System Image 
+ system-images;android-36;google_apis_ps16k;x86_64 | 7 | 16 KB Page Size Google APIs Intel x86_64 Atom System Image 
+ system-images;android-36;google_apis_tablet;arm64-v8a | 2 | Google APIs Tablet ARM 64 v8a System Image 
+ system-images;android-36;google_apis_tablet;x86_64 | 2 | Google APIs Tablet Intel x86_64 Atom System Image 
+ system-images;android-36;google_atd;arm64-v8a | 1 | Google APIs ATD ARM 64 System Image 
+ system-images;android-36;google_atd;x86_64 | 1 | Google APIs ATD Intel x86_64 Atom System Image 
+ system-images;android-37.0;android-wear-signed;arm64-v8a | 1 | Wear OS 7.0 ARM 64 v8a System Image (signed) 
+ system-images;android-37.0;android-wear-signed;x86_64 | 1 | Wear OS 7.0 Intel x86_64 Atom System Image (signed) 
+ system-images;android-37.0;aosp_atd;arm64-v8a | 1 | AOSP ATD ARM 64 System Image 
+ system-images;android-37.0;aosp_atd;x86_64 | 1 | AOSP ATD Intel x86_64 Atom System Image 
+ system-images;android-37.0;default;arm64-v8a | 6 | ARM 64 v8a System Image 
+ system-images;android-37.0;default;x86_64 | 6 | Intel x86_64 Atom System Image 
+ system-images;android-37.0;google_apis;arm64-v8a | 8 | Google APIs ARM 64 v8a System Image 
+ system-images;android-37.0;google_apis;x86_64 | 8 | Google APIs Intel x86_64 Atom System Image 
+ system-images;android-37.0;google_apis_playstore;arm64-v8a | 8 | Google Play ARM 64 v8a System Image 
+ system-images;android-37.0;google_apis_playstore;x86_64 | 8 | Google Play Intel x86_64 Atom System Image 
+ system-images;android-37.0;google_apis_playstore_ps16k;arm64-v8a | 8 | 16 KB Page Size Google Play ARM 64 v8a System Image 
+ system-images;android-37.0;google_apis_playstore_ps16k;x86_64 | 8 | 16 KB Page Size Google Play Intel x86_64 Atom System Image 
+ system-images;android-37.0;google_apis_ps16k;arm64-v8a | 8 | 16 KB Page Size Google APIs ARM 64 v8a System Image 
+ system-images;android-37.0;google_apis_ps16k;x86_64 | 8 | 16 KB Page Size Google APIs Intel x86_64 Atom System Image 
+ system-images;android-37.0;google_atd;arm64-v8a | 7 | Google APIs ATD ARM 64 System Image 
+ system-images;android-37.0;google_atd;x86_64 | 7 | Google APIs ATD Intel x86_64 Atom System Image 
+ system-images;android-37.1;google_apis_playstore_ps16k;arm64-v8a | 9 | 16 KB Page Size Google Play ARM 64 v8a System Image 
+ system-images;android-37.1;google_apis_playstore_ps16k;x86_64 | 9 | 16 KB Page Size Google Play Intel x86_64 Atom System Image 
+ system-images;android-37.1;google_apis_ps16k;arm64-v8a | 9 | 16 KB Page Size Google APIs ARM 64 v8a System Image 
+ system-images;android-37.1;google_apis_ps16k;x86_64 | 9 | 16 KB Page Size Google APIs Intel x86_64 Atom System Image 
+ system-images;android-37.2-beta1;google_apis_playstore_ps16k;arm64-v8a | 1 | 16 KB Page Size Google Play ARM 64 v8a System Image 
+ system-images;android-37.2-beta1;google_apis_playstore_ps16k;x86_64 | 1 | 16 KB Page Size Google Play Intel x86_64 Atom System Image 
+ system-images;android-37.2-beta1;google_apis_ps16k;arm64-v8a | 1 | 16 KB Page Size Google APIs ARM 64 v8a System Image 
+ system-images;android-37.2-beta1;google_apis_ps16k;x86_64 | 1 | 16 KB Page Size Google APIs Intel x86_64 Atom System Image 
+ system-images;android-37.2-beta2;google_apis_playstore_ps16k;arm64-v8a | 2 | 16 KB Page Size Google Play ARM 64 v8a System Image 
+ system-images;android-37.2-beta2;google_apis_playstore_ps16k;x86_64 | 2 | 16 KB Page Size Google Play Intel x86_64 Atom System Image 
+ system-images;android-37.2-beta2;google_apis_ps16k;arm64-v8a | 2 | 16 KB Page Size Google APIs ARM 64 v8a System Image 
+ system-images;android-37.2-beta2;google_apis_ps16k;x86_64 | 2 | 16 KB Page Size Google APIs Intel x86_64 Atom System Image 
+ system-images;android-37.2-beta3;google_apis_playstore_ps16k;arm64-v8a | 3 | 16 KB Page Size Google Play ARM 64 v8a System Image 
+ system-images;android-37.2-beta3;google_apis_playstore_ps16k;x86_64 | 3 | 16 KB Page Size Google Play Intel x86_64 Atom System Image 
+ system-images;android-37.2-beta3;google_apis_ps16k;arm64-v8a | 3 | 16 KB Page Size Google APIs ARM 64 v8a System Image 
+ system-images;android-37.2-beta3;google_apis_ps16k;x86_64 | 3 | 16 KB Page Size Google APIs Intel x86_64 Atom System Image 
+ system-images;android-37.2;google_apis_playstore_ps16k;arm64-v8a | 7 | 16 KB Page Size Google Play ARM 64 v8a System Image 
+ system-images;android-37.2;google_apis_playstore_ps16k;x86_64 | 7 | 16 KB Page Size Google Play Intel x86_64 Atom System Image 
+ system-images;android-37.2;google_apis_ps16k;arm64-v8a | 7 | 16 KB Page Size Google APIs ARM 64 v8a System Image 
+ system-images;android-37.2;google_apis_ps16k;x86_64 | 7 | 16 KB Page Size Google APIs Intel x86_64 Atom System Image 
+== emulatore e platform-tools ==
+ emulator | 37.2.13 | Android Emulator 
+ platform-tools | 37.0.1 | Android SDK Platform-Tools 
+ platform-tools | 37.0.1 | Android SDK Platform-Tools | platform-tools 
+== dispositivi avd ==
+ai_glasses_device automotive_1024p_landscape automotive_1080p_landscape automotive_1408p_landscape_with_google_apis automotive_1408p_landscape_with_play automotive_distant_display automotive_distant_display_with_play automotive_large_portrait automotive_portrait automotive_ultrawide Galaxy Nexus desktop_large desktop_medium medium_phone medium_tablet Nexus 10 Nexus 4 Nexus 5 Nexus 5X Nexus 6 Nexus 6P Nexus 7 2013 Nexus 7 Nexus 9 Nexus One Nexus S pixel pixel_2 pixel_2_xl pixel_3 pixel_3_xl pixel_3a pixel_3a_xl pixel_4 pixel_4_xl pixel_4a pixel_5 pixel_6 pixel_6_pro pixel_6a pixel_7 pixel_7_pro pixel_7a pixel_8 pixel_8_pro pixel_8a pixel_9 pixel_9_pro pixel_9_pro_fold pixel_9_pro_xl pixel_9a pixel_c pixel_fold pixel_tablet pixel_xl resizable desktop_small small_phone tv_1080p tv_4k tv_720p wearos_large_round wearos_rect wearos_small_round wearos_square wearos_xl_round xr_glasses_device xr_headset_device 2.7in QVGA 2.7in QVGA slider 3.2in HVGA slider (ADP1) 3.2in QVGA (ADP2) 3.3in WQVGA 3.4in WQVGA 3.7 FWVGA slider 3.7in WVGA (Nexus One) 4in WVGA (Nexus S) 4.65in 720p (Galaxy Nexus) 4.7in WXGA 5.1in WVGA 5.4in FWVGA 6.7in Foldable 7in WSVGA (Tablet) 7.4in Rollable 7.6in Foldable 8in Foldable 10.1in WXGA (Tablet) 13.5in Freeform 
+== kvm ==
+crw-rw---- 1 root kvm 10, 232 Nov 10 04:10 /dev/kvm
+4
+               total        used        free      shared  buff/cache   available
+Mem:              15           0          14           0           0          14
