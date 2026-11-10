@@ -10,3 +10,6 @@
 .cxx/
 *.jks
 *.keystore
+# preparati dalla compilazione su GitHub (strumenti/crea_orario.py), non vanno nel repository
+/app/src/main/assets/orario.db
+/app/src/main/assets/orario-incluso.txt

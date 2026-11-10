@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.palinaroma.dati.Archivio
@@ -282,7 +283,7 @@ private fun SchedaCerca(orario: Orario, apriFermata: (String) -> Unit, apriLinea
                         modifier = Modifier.padding(horizontal = 16.dp),
                     ) {
                         linee.forEach { l ->
-                            BadgeLinea(l.nome, Modifier.clickable { apriLinea(l.id) }, grande = true)
+                            BadgeLinea(l.nome, Modifier.testTag("linea").clickable { apriLinea(l.id) }, grande = true)
                         }
                     }
                 }

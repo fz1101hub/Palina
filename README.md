@@ -31,7 +31,18 @@ compilazione: per installare un aggiornamento bisogna prima disinstallare la ver
 (si perdono i preferiti). Aggiungendo il segreto gli aggiornamenti si installano
 sopra, ma solo a partire dalla prima versione firmata con la chiave.
 
-L'esito di ogni compilazione (errori, test, ultime righe del log) viene salvato nel ramo `esito`.
+L'esito di ogni compilazione (errori, avvisi, test, ultime righe del log) viene salvato nel ramo `esito`.
+
+### Prova su telefoni simulati
+
+Dopo la compilazione GitHub avvia due telefoni Android simulati (emulatori): Android 8, la
+versione minima, e Android 17. Su ognuno `ProvaSchermate` (in `app/src/androidTest`) usa l'app
+come una persona: schermata principale con l'orario incluso, fermate vicine (il telefono
+simulato è in piazza Venezia), ricerca di una fermata con i tempi d'attesa e i preferiti, linea
+sulla mappa con le vetture e il "sei qui", tragitto fino al Colosseo, *Orario e dati*. Esito,
+registro dell'app e una schermata per ogni passaggio finiscono nel ramo `prova-emulatore`.
+L'APK viene pubblicato nella release solo se la prova va bene (la compilazione settimanale del
+lunedì salta la prova e pubblica direttamente). Lo script è `strumenti/prova-emulatore.sh`.
 
 ## Come funziona
 
@@ -54,6 +65,9 @@ L'esito di ogni compilazione (errori, test, ultime righe del log) viene salvato 
   (le coordinate vanno a Transitous) e nella ricerca di indirizzi (solo la zona, arrotondata
   a circa un chilometro).
 - **Mappe**: OpenStreetMap tramite osmdroid, senza chiavi da registrare.
+- **Strumenti**: Kotlin 2.4, plugin Android 9.5 (che compila anche il Kotlin), Gradle 9.9,
+  Compose (BOM 2026.09), OkHttp 5; l'app gira da Android 8 (API 26) ed è compilata per
+  Android 17 (API 37).
 
 ## Struttura
 
@@ -65,7 +79,9 @@ app/src/main/java/it/palinaroma/
           MiaPosizione, Vetture, Tema
 app/src/test/   test del decodificatore, dell'orario, dei testi e del client Transitous;
                 GeneraOrarioIncluso prepara l'orario da includere nell'APK
-strumenti/      crea_orario.py: dalle istruzioni SQL al database incluso nell'APK
+app/src/androidTest/   ProvaSchermate: prova dell'app intera sull'emulatore
+strumenti/      crea_orario.py: dalle istruzioni SQL al database incluso nell'APK;
+                prova-emulatore.sh: avvia l'emulatore e prova l'app
 ```
 
 ## Fonti e licenza

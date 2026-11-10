@@ -102,7 +102,7 @@ object TempoReale {
                     risposta.code == 304 -> null
                     !risposta.isSuccessful -> throw IOException("Il server ha risposto ${risposta.code}")
                     else -> RispostaFeed(
-                        risposta.body?.bytes() ?: throw IOException("Risposta vuota"),
+                        risposta.body.bytes(),
                         risposta.header("ETag"),
                         risposta.header("Last-Modified"),
                     )

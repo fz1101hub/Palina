@@ -10,25 +10,28 @@ on:
 
 permissions:
   contents: write
-  actions: write # solo per tenere attiva la compilazione settimanale (ultimo passo)
+  actions: write # solo per tenere attiva la compilazione settimanale
 
 concurrency:
   group: compila
   cancel-in-progress: true
 
 jobs:
+  # 1. Test della parte dati, orario incluso e APK
   compila:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
+    outputs:
+      firma: ${{ steps.compila.outputs.firma }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 25
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       # Scarica l'orario di Roma Mobilita' (o la copia del Mobility Database) e lo
       # trasforma nel database incluso nell'APK. Se non riesce, l'APK si compila
@@ -54,7 +57,7 @@ jobs:
           ORARIO_GTFS=/tmp/orario/gtfs.zip ORARIO_SQL=/tmp/orario/orario.sql \
             ./gradlew --no-daemon --console=plain testDebugUnitTest --tests it.palinaroma.dati.GeneraOrarioIncluso --rerun \
             2>&1 | tee -a orario.log
-          python3 strumenti/crea_orario.py /tmp/orario/orario.sql app/build/orario-incluso | tee -a orario.log
+          python3 strumenti/crea_orario.py /tmp/orario/orario.sql app/src/main/assets | tee -a orario.log
           rm -f /tmp/orario/orario.sql
 
       # La password della firma arriva solo a questo passo: gli altri (e le azioni
@@ -66,7 +69,7 @@ jobs:
         run: |
           set -o pipefail
           echo "firma=${FIRMA_PASSWORD:+presente}" >> "$GITHUB_OUTPUT"
-          ./gradlew --no-daemon --console=plain testDebugUnitTest assembleRelease 2>&1 | tee compilazione.log
+          ./gradlew --no-daemon --console=plain --warning-mode=all testDebugUnitTest assembleRelease 2>&1 | tee compilazione.log
 
       # Salva l'esito nel ramo "esito", leggibile senza accedere a GitHub
       - name: Salva l'esito della compilazione
@@ -78,6 +81,7 @@ jobs:
           mkdir -p /tmp/esito
           { echo "commit: $GITHUB_SHA"; echo "esito: $esito"; echo "firma: $FIRMA"; grep "^orario incluso" orario.log || echo "orario incluso: passo non eseguito"; } > /tmp/esito/ESITO.txt
           { grep -E "^e: |error:|FAILED|BUILD (SUCCESSFUL|FAILED)|tests completed" compilazione.log | head -300; grep -A12 "What went wrong" compilazione.log | head -120; } > /tmp/esito/errori.txt || true
+          grep -E "^w: |warning:|[Dd]eprecat" compilazione.log | sort -u | head -300 > /tmp/esito/avvisi.txt || true
           tail -400 compilazione.log > /tmp/esito/coda.log || true
           tail -200 orario.log > /tmp/esito/orario.log 2>/dev/null || true
           find app/build/test-results -name "*.xml" -exec cp {} /tmp/esito/ \; 2>/dev/null || true
@@ -89,21 +93,8 @@ jobs:
           git commit -q -m "Esito compilazione $GITHUB_SHA: $esito"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" esito
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: palina-roma-apk
-          path: app/build/outputs/apk/*/*.apk
-
-      - name: Sposta l'etichetta "ultima" su questo commit
-        run: |
-          git tag -f ultima
-          git push -f origin refs/tags/ultima
-
-      # Con lo strumento "gh" gia' presente su GitHub, senza azioni di terzi
-      - name: Pubblica l'APK nella release "ultima"
+      - name: Note per la release
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
           FIRMA: ${{ steps.compila.outputs.firma }}
         run: |
           note="Compilata dal commit $GITHUB_SHA. Dal telefono scarica app-release.apk e installala."
@@ -116,9 +107,21 @@ jobs:
           if [ -z "$FIRMA" ]; then
             note="$note Versione di prova: per aggiornarla disinstalla prima quella vecchia (perderai i preferiti)."
           fi
-          gh release view ultima > /dev/null 2>&1 || gh release create ultima --title "Ultima versione" --notes "$note"
-          gh release edit ultima --title "Ultima versione" --notes "$note" --latest
-          gh release upload ultima app/build/outputs/apk/release/app-release.apk --clobber
+          echo "$note" > note.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: palina-roma-apk
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            note.txt
+
+      # lo stesso orario per la prova sull'emulatore
+      - uses: actions/upload-artifact@v7
+        with:
+          name: orario-incluso
+          path: app/src/main/assets/orario*
+          if-no-files-found: ignore
 
       # GitHub sospende le compilazioni programmate dopo 60 giorni senza modifiche
       # al repository: riattivare il flusso di lavoro fa ripartire il conto.
@@ -128,3 +131,128 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/compila.yml/enable"
+
+  # 2. L'app provata su due telefoni simulati: Android 8 (il minimo) e Android 17
+  emulatore:
+    needs: compila
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 26
+            immagine: "system-images;android-26;google_apis;x86_64"
+          - api: 37
+            immagine: "system-images;android-37.0;google_apis;x86_64"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: orario-incluso
+          path: app/src/main/assets
+
+      - name: Accelerazione dell'emulatore (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Prova sull'emulatore (Android API ${{ matrix.api }})
+        run: bash strumenti/prova-emulatore.sh "${{ matrix.immagine }}" risultati
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: prova-${{ matrix.api }}
+          path: risultati
+          if-no-files-found: ignore
+
+  # 3. Risultati e schermate dell'emulatore nel ramo "prova-emulatore"
+  risultati:
+    needs: emulatore
+    if: always() && github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: prova-*
+          path: /tmp/prova
+
+      - name: Salva i risultati
+        env:
+          ESITO: ${{ needs.emulatore.result }}
+        run: |
+          mkdir -p /tmp/ramo
+          { echo "commit: $GITHUB_SHA"; echo "esito: $ESITO"; } > /tmp/ramo/ESITO.txt
+          for d in /tmp/prova/prova-*; do
+            [ -d "$d" ] || continue
+            n=$(basename "$d")
+            mkdir -p "/tmp/ramo/$n"
+            cp "$d"/riassunto.txt "$d"/logcat-app.txt "$d"/crash.txt "/tmp/ramo/$n/" 2>/dev/null || true
+            tail -300 "$d/prova.log" > "/tmp/ramo/$n/prova-coda.log" 2>/dev/null || true
+            find "$d" -name "TEST-*.xml" -exec cp {} "/tmp/ramo/$n/" \; 2>/dev/null || true
+            if [ -d "$d/schermate" ]; then
+              mkdir -p "/tmp/ramo/$n/schermate"
+              for f in "$d"/schermate/*.png; do
+                [ -f "$f" ] || continue
+                if command -v convert > /dev/null; then
+                  convert "$f" -resize 45% "/tmp/ramo/$n/schermate/$(basename "$f")"
+                else
+                  cp "$f" "/tmp/ramo/$n/schermate/"
+                fi
+              done
+            fi
+            echo "== $n" >> /tmp/ramo/ESITO.txt
+            cat "$d/riassunto.txt" >> /tmp/ramo/ESITO.txt 2>/dev/null || true
+          done
+          cd /tmp/ramo
+          git init -q -b prova-emulatore
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Prova sull'emulatore $GITHUB_SHA: $ESITO"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" prova-emulatore
+
+  # 4. Pubblicazione: solo se l'APK si e' compilato e (quando c'e' stata) la
+  #    prova sull'emulatore e' andata bene
+  pubblica:
+    needs: [compila, emulatore]
+    if: >-
+      always() && needs.compila.result == 'success' &&
+      (needs.emulatore.result == 'success' || needs.emulatore.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: palina-roma-apk
+          path: /tmp/apk
+
+      - name: Sposta l'etichetta "ultima" su questo commit
+        run: |
+          git tag -f ultima
+          git push -f origin refs/tags/ultima
+
+      # Con lo strumento "gh" gia' presente su GitHub, senza azioni di terzi
+      - name: Pubblica l'APK nella release "ultima"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          note="$(cat /tmp/apk/note.txt)"
+          apk=$(find /tmp/apk -name app-release.apk | head -1)
+          gh release view ultima > /dev/null 2>&1 || gh release create ultima --title "Ultima versione" --notes "$note"
+          gh release edit ultima --title "Ultima versione" --notes "$note" --latest
+          gh release upload ultima "$apk" --clobber

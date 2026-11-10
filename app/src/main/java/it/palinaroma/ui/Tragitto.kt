@@ -76,6 +76,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -452,6 +453,7 @@ private fun CampoLuogo(etichetta: String, luogo: Luogo?, vuoto: String, partenza
     Row(
         Modifier
             .fillMaxWidth()
+            .testTag(if (partenza) "campo-da" else "campo-a")
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -579,6 +581,7 @@ private fun CartaTragitto(t: Tragitto, adesso: Long, onClick: () -> Unit) {
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .testTag("tragitto")
             .clickable(onClick = onClick),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -638,6 +641,7 @@ private fun CartaAPiedi(t: Tragitto, onClick: () -> Unit) {
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .testTag("tragitto-a-piedi")
             .clickable(onClick = onClick),
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -865,6 +869,7 @@ private fun RigaLuogo(icona: @Composable () -> Unit, nome: String, dettaglio: St
     Row(
         Modifier
             .fillMaxWidth()
+            .testTag("luogo")
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

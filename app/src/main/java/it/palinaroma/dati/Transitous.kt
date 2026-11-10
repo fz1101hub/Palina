@@ -193,7 +193,7 @@ object Transitous {
             .header("Accept", "application/json")
             .build()
         http.newCall(richiesta).execute().use { risposta ->
-            val corpo = risposta.body?.string().orEmpty()
+            val corpo = risposta.body.string()
             if (!risposta.isSuccessful) throw ErroreTransitous(messaggioErrore(risposta.code, corpo))
             return corpo
         }

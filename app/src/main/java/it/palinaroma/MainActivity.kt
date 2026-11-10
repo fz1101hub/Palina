@@ -9,8 +9,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -34,7 +39,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Porpora.toArgb()))
         setContent {
-            TemaPalina { Navigazione() }
+            // le etichette di prova (testTag) diventano identificativi visibili alla
+            // prova automatica sull'emulatore; per chi usa l'app non cambia nulla
+            @OptIn(ExperimentalComposeUiApi::class)
+            Box(Modifier.semantics { testTagsAsResourceId = true }) {
+                TemaPalina { Navigazione() }
+            }
         }
     }
 }

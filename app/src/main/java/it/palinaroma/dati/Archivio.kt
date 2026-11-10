@@ -210,7 +210,7 @@ object Archivio {
         val richiesta = Request.Builder().url(URL_ORARIO).header("User-Agent", agenteUtente).build()
         http.newCall(richiesta).execute().use { risposta ->
             if (!risposta.isSuccessful) throw IOException("Il server ha risposto ${risposta.code}")
-            val corpo = risposta.body ?: throw IOException("Risposta vuota")
+            val corpo = risposta.body
             val totale = corpo.contentLength()
             corpo.byteStream().use { ingresso ->
                 destinazione.outputStream().use { uscita ->

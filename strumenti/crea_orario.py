@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Crea il database dell'orario da includere nell'APK.
 
-Uso: crea_orario.py ISTRUZIONI.sql CARTELLA_ASSET
+Uso: crea_orario.py ISTRUZIONI.sql CARTELLA_ASSET  (di solito app/src/main/assets)
 
 Esegue le istruzioni SQL scritte da GeneraOrarioIncluso (test JVM), controlla
 che l'orario sia completo e salva in CARTELLA_ASSET:
