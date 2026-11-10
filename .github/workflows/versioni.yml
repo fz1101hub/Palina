@@ -1,0 +1,30 @@
+name: Ultime versioni
+on:
+  push:
+    branches: [versioni]
+permissions:
+  contents: write
+jobs:
+  versioni:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cerca le ultime versioni
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 strumenti/versioni.py > /tmp/versioni.txt 2>&1 || true
+          {
+            echo; echo "== SDK Android disponibili =="
+            SM=$(ls -d $ANDROID_HOME/cmdline-tools/*/bin/sdkmanager | tail -1)
+            echo "sdkmanager: $SM"
+            yes | $SM --licenses > /dev/null 2>&1 || true
+            $SM --list 2>/dev/null | grep -E "^ *(platforms;android-|build-tools;|system-images;android-(2[6-9]|3[0-9]);(google_apis|default|google_apis_playstore);x86_64|emulator )" | sed 's/  */ /g' | sort -u
+            echo; echo "== installati sul runner =="
+            ls $ANDROID_HOME/platforms $ANDROID_HOME/build-tools 2>/dev/null
+            java -version 2>&1 | head -1
+            ls /usr/lib/jvm 2>/dev/null
+          } >> /tmp/versioni.txt 2>&1
+          mkdir -p /tmp/esito && cp /tmp/versioni.txt /tmp/esito/
+          cd /tmp/esito && git init -q -b risultati-versioni && git config user.name gh && git config user.email gh@users.noreply.github.com
+          git add -A && git commit -q -m versioni && git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" risultati-versioni
