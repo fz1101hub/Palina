@@ -139,11 +139,15 @@ class ProvaSchermate {
         aspettaUnoDi(30_000, "i luoghi trovati", By.text("FERMATE"), By.text("INDIRIZZI E LUOGHI"))
         attendi(1_500)
         aspetta(By.res("luogo"), 10_000, "un luogo da scegliere").click()
-        // non "Transitous" da solo: c'e' sempre, nella riga dell'attribuzione in fondo
+        // Le soluzioni stesse, non la riga "Calcolato alle" che con molte soluzioni
+        // resta fuori dallo schermo; e non "Transitous" da solo, che c'e' sempre
+        // nella riga dell'attribuzione in fondo.
         val esito = aspettaUnoDi(
             90_000,
             "i tragitti",
-            By.textContains("Calcolato alle"),
+            By.res("tragitto"),
+            By.res("tragitto-a-piedi"),
+            By.textContains("Nessun tragitto"),
             By.textContains("Non riesco a contattare Transitous"),
             By.textContains("Transitous non"),
             By.textContains("Transitous ha"),
@@ -151,7 +155,7 @@ class ProvaSchermate {
         )
         attendi(1_500)
         schermata("08-tragitti")
-        if (esito == 0) {
+        if (esito <= 1) {
             val scelta = telefono.findObject(By.res("tragitto")) ?: telefono.findObject(By.res("tragitto-a-piedi"))
             if (scelta != null) {
                 scelta.click()
