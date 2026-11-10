@@ -2,6 +2,7 @@ package it.palinaroma.dati
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
 import java.time.Instant
@@ -166,7 +167,7 @@ object Transitous {
     private val agente: String get() = Archivio.agenteUtente + " (+" + SITO_APP + ")"
 
     suspend fun cerca(testo: String, vicino: Punto?): List<Luogo> = withContext(Dispatchers.IO) {
-        leggiLuoghi(scarica(urlLuoghi(testo, vicino ?: ROMA)))
+        leggiLuoghi(scarica(urlLuoghi(testo, vicino ?: ROMA), Archivio.httpBreve))
     }
 
     suspend fun tragitti(
@@ -176,22 +177,22 @@ object Transitous {
         arrivaEntro: Boolean,
         cursore: String?,
     ): RisultatoTragitti = withContext(Dispatchers.IO) {
-        leggiTragitti(scarica(urlTragitti(da, a, istante, arrivaEntro, cursore)), da.nome, a.nome)
+        leggiTragitti(scarica(urlTragitti(da, a, istante, arrivaEntro, cursore), Archivio.httpMedio), da.nome, a.nome)
     }
 
     /** Le prossime partenze (90 minuti) dalla fermata dell'app [fermataId]. */
     suspend fun partenze(fermataId: String, lat: Double, lon: Double): List<PartenzaTransitous> =
         withContext(Dispatchers.IO) {
-            leggiPartenze(scarica(urlPartenze(fermataId, lat, lon)), fermataId, lat, lon)
+            leggiPartenze(scarica(urlPartenze(fermataId, lat, lon), Archivio.httpBreve), fermataId, lat, lon)
         }
 
-    private fun scarica(url: String): String {
+    private fun scarica(url: String, http: OkHttpClient): String {
         val richiesta = Request.Builder()
             .url(url)
             .header("User-Agent", agente)
             .header("Accept", "application/json")
             .build()
-        Archivio.http.newCall(richiesta).execute().use { risposta ->
+        http.newCall(richiesta).execute().use { risposta ->
             val corpo = risposta.body?.string().orEmpty()
             if (!risposta.isSuccessful) throw ErroreTransitous(messaggioErrore(risposta.code, corpo))
             return corpo
@@ -201,10 +202,14 @@ object Transitous {
 
 private fun codifica(valore: String): String = URLEncoder.encode(valore, "UTF-8")
 
+/**
+ * Ricerca di indirizzi e luoghi. [vicino] serve solo a preferire i risultati in
+ * zona: si manda arrotondato a circa un chilometro, non la posizione esatta.
+ */
 fun urlLuoghi(testo: String, vicino: Punto): String =
     Transitous.API + "/v1/geocode?text=" + codifica(testo.trim()) +
         "&language=it&numResults=8&place=" +
-        codifica(String.format(Locale.ROOT, "%.5f,%.5f", vicino.lat, vicino.lon))
+        codifica(String.format(Locale.ROOT, "%.2f,%.2f", vicino.lat, vicino.lon))
 
 fun urlTragitti(da: Luogo, a: Luogo, istante: Long?, arrivaEntro: Boolean, cursore: String?): String {
     val parametri = mutableListOf(
@@ -380,10 +385,12 @@ private fun leggiColore(esadecimale: String?): Int? {
     return (0xFF000000L or valore).toInt()
 }
 
+private val SIGLA_METRO = Regex("^ME([A-C]\\d?)$")
+
 /** "MEA" -> "Metro A" per le linee della metropolitana di Roma. */
 fun nomeLinea(breve: String?, lungo: String?, modo: String): String {
     val nome = breve?.trim().orEmpty().ifEmpty { lungo?.trim().orEmpty() }
-    val metro = Regex("^ME([A-C]\\d?)$").find(nome)
+    val metro = SIGLA_METRO.find(nome)
     if (metro != null && (modo == "SUBWAY" || modo == "METRO")) return "Metro " + metro.groupValues[1]
     return nome
 }
@@ -469,7 +476,9 @@ fun testoDurata(secondi: Int): String {
     return if (minuti < 60) "$minuti min" else "${minuti / 60} h " + String.format(Locale.ROOT, "%02d", minuti % 60) + " min"
 }
 
-/** "450 m", "3,2 km". */
-fun testoMetri(metri: Double): String =
-    if (metri < 1000) "${(metri / 10).toInt() * 10} m"
-    else String.format(Locale.ITALY, "%.1f km", metri / 1000)
+/** "meno di 10 m", "450 m", "3,2 km". */
+fun testoMetri(metri: Double): String = when {
+    metri < 10 -> "meno di 10 m"
+    metri < 1000 -> "${(metri / 10).toInt() * 10} m"
+    else -> String.format(Locale.ITALY, "%.1f km", metri / 1000)
+}

@@ -13,8 +13,12 @@ object Json {
         return valore
     }
 
+    /** Oltre questi livelli annidati il testo si rifiuta, invece di esaurire la memoria della pila. */
+    private const val LIVELLI_MASSIMI = 200
+
     private class Lettore(val s: String) {
         var i = 0
+        private var livello = 0
 
         fun errore(motivo: String): Nothing =
             throw IllegalArgumentException("JSON non valido: $motivo (posizione $i)")
@@ -27,14 +31,19 @@ object Json {
             spazi()
             if (i >= s.length) errore("fine inattesa")
             return when (val c = s[i]) {
-                '{' -> oggetto()
-                '[' -> array()
+                '{' -> annidato { oggetto() }
+                '[' -> annidato { array() }
                 '"' -> stringa()
                 't' -> parola("true", true)
                 'f' -> parola("false", false)
                 'n' -> parola("null", null)
                 else -> if (c == '-' || c in '0'..'9') numero() else errore("carattere '$c'")
             }
+        }
+
+        private inline fun <T> annidato(leggi: () -> T): T {
+            if (++livello > LIVELLI_MASSIMI) errore("troppi livelli annidati")
+            return leggi().also { livello-- }
         }
 
         private fun parola(attesa: String, valore: Any?): Any? {

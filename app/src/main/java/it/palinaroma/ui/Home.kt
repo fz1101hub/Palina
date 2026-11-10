@@ -2,7 +2,6 @@
 
 package it.palinaroma.ui
 
-import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -10,8 +9,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -53,7 +55,6 @@ import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.Linea
 import it.palinaroma.dati.Orario
 import it.palinaroma.dati.StatoAggiornamento
-import it.palinaroma.dati.haPermessoPosizione
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.posizioni
 import it.palinaroma.dati.precisione
@@ -65,6 +66,9 @@ data class FermataConLinee(val fermata: Fermata, val distanza: Double?, val line
 
 private fun Orario.conLinee(fermata: Fermata, distanza: Double?) =
     FermataConLinee(fermata, distanza, lineeAllaFermata(fermata.id).map { it.linea.nome }.distinct())
+
+/** Spazio in fondo agli elenchi, perche' il pulsante "Come arrivo…" non copra le ultime righe. */
+private val SOTTO_IL_PULSANTE = PaddingValues(bottom = 88.dp)
 
 @Composable
 fun HomeSchermo(
@@ -99,6 +103,8 @@ fun HomeSchermo(
         Column(
             Modifier
                 .padding(margini)
+                .consumeWindowInsets(margini)
+                .imePadding() // con la tastiera aperta l'elenco finisce sopra la tastiera, non sotto
                 .fillMaxSize(),
         ) {
             val o = orario
@@ -146,7 +152,8 @@ fun HomeSchermo(
 @Composable
 private fun SchedaVicino(orario: Orario, apriFermata: (String) -> Unit) {
     val context = LocalContext.current
-    var permesso by remember { mutableStateOf(haPermessoPosizione(context)) }
+    var permesso by rememberPermessoPosizione()
+    var negatoPerSempre by remember { mutableStateOf(false) }
     var messaggio by remember { mutableStateOf<String?>(null) }
     var vicine by remember { mutableStateOf<List<FermataConLinee>>(emptyList()) }
     var tentativo by remember { mutableIntStateOf(0) }
@@ -154,7 +161,7 @@ private fun SchedaVicino(orario: Orario, apriFermata: (String) -> Unit) {
     var affinando by remember { mutableStateOf(false) }
     val richiesta = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { esiti ->
         permesso = esiti.values.any { it }
-        if (permesso) tentativo++
+        if (permesso) tentativo++ else negatoPerSempre = permessoNegatoPerSempre(context)
     }
 
     // le fermate compaiono con la prima posizione (anche approssimativa) e si
@@ -192,16 +199,21 @@ private fun SchedaVicino(orario: Orario, apriFermata: (String) -> Unit) {
     if (!permesso) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Per mostrarti le fermate qui intorno serve la tua posizione. Resta sul telefono.")
-            Button(onClick = {
-                richiesta.launch(
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+            if (negatoPerSempre) {
+                // Android non mostra piu' la richiesta: il permesso si da' solo dalle impostazioni
+                Text(
+                    "Il permesso è stato negato: puoi darlo dalle impostazioni dell'app, alla voce Autorizzazioni.",
+                    color = Secondario,
                 )
-            }) { Text("Usa la mia posizione") }
+                Button(onClick = { apriImpostazioniApp(context) }) { Text("Apri le impostazioni") }
+            } else {
+                Button(onClick = { richiesta.launch(PERMESSI_POSIZIONE) }) { Text("Usa la mia posizione") }
+            }
         }
         return
     }
 
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = SOTTO_IL_PULSANTE) {
         if (affinando) {
             item { LinearProgressIndicator(color = Porpora, modifier = Modifier.fillMaxWidth()) }
         }
@@ -260,7 +272,7 @@ private fun SchedaCerca(orario: Orario, apriFermata: (String) -> Unit, apriLinea
                 .fillMaxWidth()
                 .padding(16.dp),
         )
-        LazyColumn(Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = SOTTO_IL_PULSANTE) {
             if (linee.isNotEmpty()) {
                 item { Intestazione("Linee") }
                 item {
@@ -306,7 +318,7 @@ private fun SchedaPreferiti(orario: Orario, apriFermata: (String) -> Unit) {
         )
         return
     }
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = SOTTO_IL_PULSANTE) {
         items(elenco, key = { it.fermata.id }) { f ->
             RigaFermata(f.fermata, null, f.linee) { apriFermata(f.fermata.id) }
         }

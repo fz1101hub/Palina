@@ -8,6 +8,8 @@
 
     <application
         android:name=".PalinaApp"
+        android:dataExtractionRules="@xml/regole_estrazione"
+        android:fullBackupContent="@xml/regole_backup"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"

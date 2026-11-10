@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nel backup di Android (fino alla versione 11) vanno preferiti e luoghi recenti,
+     non l'orario: e' gia' dentro l'app e si riscarica da solo. -->
+<full-backup-content>
+    <exclude domain="file" path="orario.db" />
+    <exclude domain="file" path="orario-nuovo.db" />
+    <exclude domain="sharedpref" path="osmdroid.xml" />
+</full-backup-content>

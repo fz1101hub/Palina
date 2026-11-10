@@ -2,11 +2,8 @@
 
 package it.palinaroma.ui
 
-import android.Manifest
 import android.graphics.DashPathEffect
 import android.location.Location
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import android.graphics.Paint
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -76,7 +73,6 @@ import it.palinaroma.dati.Tratto
 import it.palinaroma.dati.completaMezzi
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.etaRilevamento
-import it.palinaroma.dati.haPermessoPosizione
 import it.palinaroma.dati.mezzoDellaCorsa
 import it.palinaroma.dati.testoDurata
 import it.palinaroma.dati.testoMetri
@@ -91,6 +87,7 @@ import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.CopyrightOverlay
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.Polyline
 
 @Composable
@@ -114,7 +111,8 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
                     } catch (_: Exception) {
                         emptyList()
                     }
-                    mezzi = completaMezzi(TempoReale.mezzi(), corse)
+                    val grezzi = TempoReale.mezzi()
+                    mezzi = withContext(Dispatchers.Default) { completaMezzi(grezzi, corse) }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
@@ -126,14 +124,7 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
         }
     }
     // "sei qui" sulla mappa del tragitto
-    val contesto = LocalContext.current
-    var permessoPosizione by remember { mutableStateOf(haPermessoPosizione(contesto)) }
-    var richiestaCentra by remember { mutableIntStateOf(0) }
-    val chiediPermesso = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { esiti ->
-        permessoPosizione = esiti.values.any { it }
-        if (permessoPosizione) richiestaCentra++
-    }
-    val miaPosizione = rememberMiaPosizione(permessoPosizione)
+    val seiQui = rememberSeiQui()
 
     val vetture: Map<Int, MezzoRT> = remember(tragitto, mezzi) {
         tragitto?.tratti.orEmpty().withIndex()
@@ -181,25 +172,11 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
                     tragitto,
                     vetture.map { (i, v) -> tragitto.tratti[i] to v },
                     adesso,
-                    miaPosizione,
-                    richiestaCentra,
+                    seiQui.posizione,
+                    seiQui.richiestaCentra,
                     Modifier.fillMaxSize(),
                 )
-                PulsanteMiaPosizione(
-                    attivo = miaPosizione != null,
-                    onClick = {
-                        if (permessoPosizione) {
-                            richiestaCentra++
-                        } else {
-                            chiediPermesso.launch(
-                                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-                            )
-                        }
-                    },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(10.dp),
-                )
+                ComandiSeiQui(seiQui)
             }
             LazyColumn(
                 Modifier
@@ -562,44 +539,53 @@ private fun MappaTragitto(
         }
     }
 
-    AndroidView(factory = { mappa }, modifier = modifier, update = { m ->
-        m.overlays.clear()
-        tracciati.forEach { (t, punti) ->
-            if (punti.size < 2) return@forEach
-            m.overlays.add(Polyline(m).apply {
-                setPoints(punti)
-                outlinePaint.strokeCap = Paint.Cap.ROUND
-                if (t.aPiedi) {
-                    outlinePaint.color = Secondario.toArgb()
-                    outlinePaint.strokeWidth = 4 * densita
-                    outlinePaint.pathEffect = DashPathEffect(floatArrayOf(2 * densita, 8 * densita), 0f)
-                } else {
-                    outlinePaint.color = t.colore ?: Porpora.toArgb()
-                    outlinePaint.strokeWidth = 6 * densita
+    // Il percorso e le fermate non cambiano: si preparano una volta, non a ogni
+    // aggiornamento delle vetture o della posizione (ogni pochi secondi).
+    val fissi: List<Overlay> = remember(mappa, tragitto, tracciati) {
+        buildList<Overlay> {
+            tracciati.forEach { (t, punti) ->
+                if (punti.size < 2) return@forEach
+                add(Polyline(mappa).apply {
+                    setPoints(punti)
+                    outlinePaint.strokeCap = Paint.Cap.ROUND
+                    if (t.aPiedi) {
+                        outlinePaint.color = Secondario.toArgb()
+                        outlinePaint.strokeWidth = 4 * densita
+                        outlinePaint.pathEffect = DashPathEffect(floatArrayOf(2 * densita, 8 * densita), 0f)
+                    } else {
+                        outlinePaint.color = t.colore ?: Porpora.toArgb()
+                        outlinePaint.strokeWidth = 6 * densita
+                    }
+                })
+            }
+            tragitto.mezzi.forEach { t ->
+                listOf(t.da, t.a).filter { !it.lat.isNaN() && !it.lon.isNaN() }.forEach { tappa ->
+                    add(Marker(mappa).apply {
+                        position = GeoPoint(tappa.lat, tappa.lon)
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        icon = iconaFermata
+                        title = tappa.nome
+                    })
                 }
-            })
-        }
-        tragitto.mezzi.forEach { t ->
-            listOf(t.da, t.a).filter { !it.lat.isNaN() && !it.lon.isNaN() }.forEach { tappa ->
-                m.overlays.add(Marker(m).apply {
+            }
+            val inizio = tragitto.tratti.first().da
+            val fine = tragitto.tratti.last().a
+            listOf(inizio to iconaPartenza, fine to iconaArrivo).forEach { (tappa, icona) ->
+                if (tappa.lat.isNaN() || tappa.lon.isNaN()) return@forEach
+                add(Marker(mappa).apply {
                     position = GeoPoint(tappa.lat, tappa.lon)
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                    icon = iconaFermata
+                    icon = icona
                     title = tappa.nome
                 })
             }
         }
-        val inizio = tragitto.tratti.first().da
-        val fine = tragitto.tratti.last().a
-        listOf(inizio to iconaPartenza, fine to iconaArrivo).forEach { (tappa, icona) ->
-            if (tappa.lat.isNaN() || tappa.lon.isNaN()) return@forEach
-            m.overlays.add(Marker(m).apply {
-                position = GeoPoint(tappa.lat, tappa.lon)
-                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                icon = icona
-                title = tappa.nome
-            })
-        }
+    }
+    val diritti = remember(mappa) { CopyrightOverlay(mappa.context) }
+
+    AndroidView(factory = { mappa }, modifier = modifier, update = { m ->
+        m.overlays.clear()
+        m.overlays.addAll(fissi)
         miaPosizione?.let { disegnaMiaPosizione(m, it, densita) }
         // le vetture in tempo reale, sopra a tutto
         vetture.forEach { (t, v) ->
@@ -611,7 +597,7 @@ private fun MappaTragitto(
                 title = "Vettura " + v.etichetta
             })
         }
-        m.overlays.add(CopyrightOverlay(m.context))
+        m.overlays.add(diritti)
         m.invalidate()
     })
 

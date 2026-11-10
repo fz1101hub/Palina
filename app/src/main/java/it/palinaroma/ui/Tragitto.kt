@@ -2,7 +2,6 @@
 
 package it.palinaroma.ui
 
-import android.Manifest
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,9 +17,11 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -75,6 +76,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -91,7 +95,6 @@ import it.palinaroma.dati.Tragitto
 import it.palinaroma.dati.Tratto
 import it.palinaroma.dati.Transitous
 import it.palinaroma.dati.distanzaMetri
-import it.palinaroma.dati.haPermessoPosizione
 import it.palinaroma.dati.inRiga
 import it.palinaroma.dati.Punto
 import it.palinaroma.dati.posizioneAttuale
@@ -243,9 +246,11 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
     val context = LocalContext.current
     val ambito = rememberCoroutineScope()
     val stato = StatoTragitto
-    var permesso by remember { mutableStateOf(haPermessoPosizione(context)) }
+    var permesso by rememberPermessoPosizione()
+    var negatoPerSempre by remember { mutableStateOf(false) }
     val richiestaPermesso = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { esiti ->
         permesso = esiti.values.any { it }
+        if (!permesso) negatoPerSempre = permessoNegatoPerSempre(context)
     }
     var sceltaOrario by remember { mutableStateOf<Boolean?>(null) } // false = partenza, true = arrivo
     var adesso by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -305,15 +310,17 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
             }
             if (serveLaPosizione && !permesso) {
                 item {
-                    Avviso("Per partire o arrivare alla tua posizione serve il permesso di localizzazione. Resta sul telefono.") {
+                    Avviso(
+                        "Per partire o arrivare alla tua posizione serve il permesso di localizzazione. " +
+                            "Le coordinate vengono inviate a Transitous solo per calcolare il tragitto." +
+                            if (negatoPerSempre) " Il permesso è stato negato: puoi darlo dalle impostazioni dell'app." else "",
+                    ) {
                         Button(
                             onClick = {
-                                richiestaPermesso.launch(
-                                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-                                )
+                                if (negatoPerSempre) apriImpostazioniApp(context) else richiestaPermesso.launch(PERMESSI_POSIZIONE)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Porpora),
-                        ) { Text("Usa la mia posizione") }
+                        ) { Text(if (negatoPerSempre) "Apri le impostazioni" else "Usa la mia posizione") }
                     }
                 }
             }
@@ -424,8 +431,17 @@ private fun ModuloLuoghi(da: Luogo?, a: Luogo?, scegli: (String) -> Unit, invert
                 HorizontalDivider(color = Color(0xFFE2DDD8), modifier = Modifier.padding(start = 44.dp))
                 CampoLuogo("A", a, "Dove vuoi andare?", partenza = false) { scegli("a") }
             }
-            IconButton(onClick = inverti) {
-                Text("⇅", fontSize = 24.sp, color = Porpora, fontWeight = FontWeight.Bold)
+            IconButton(
+                onClick = inverti,
+                modifier = Modifier.semantics { contentDescription = "Scambia partenza e arrivo" },
+            ) {
+                Text(
+                    "⇅",
+                    fontSize = 24.sp,
+                    color = Porpora,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clearAndSetSemantics { },
+                )
             }
         }
     }
@@ -694,7 +710,7 @@ fun Attribuzione() {
         color = Secondario,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { collegamento.openUri(Transitous.FONTI) }
+            .clickable { runCatching { collegamento.openUri(Transitous.FONTI) } } // senza un browser non succede nulla
             .padding(horizontal = 8.dp, vertical = 12.dp),
     )
 }
@@ -757,6 +773,8 @@ fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit) {
         Column(
             Modifier
                 .padding(margini)
+                .consumeWindowInsets(margini)
+                .imePadding() // i risultati restano sopra la tastiera
                 .fillMaxSize(),
         ) {
             OutlinedTextField(
@@ -786,7 +804,7 @@ fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit) {
                         RigaLuogo(
                             icona = { Icon(Icons.Filled.LocationOn, contentDescription = null, tint = Porpora) },
                             nome = "La mia posizione",
-                            dettaglio = "Dal GPS del telefono",
+                            dettaglio = "Dal telefono: va a Transitous solo per calcolare il tragitto",
                         ) { scegli(Luogo.posizione()) }
                     }
                     if (recenti.isNotEmpty()) {

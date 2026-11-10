@@ -28,7 +28,7 @@ class LettoreProto(
     fun leggiTag(): Int = leggiVarint().toInt()
 
     fun leggiFloat(): Float {
-        check(pos + 4 <= fine) { "float troncato" }
+        check(fine - pos >= 4) { "float troncato" }
         val bit = (buf[pos].toInt() and 0xFF) or
             ((buf[pos + 1].toInt() and 0xFF) shl 8) or
             ((buf[pos + 2].toInt() and 0xFF) shl 16) or
@@ -37,17 +37,31 @@ class LettoreProto(
         return java.lang.Float.intBitsToFloat(bit)
     }
 
+    /**
+     * Una lunghezza dichiarata nel feed: deve stare in cio' che resta da leggere.
+     * Il confronto e' sui Long, cosi' un numero enorme non diventa per sbaglio
+     * una lunghezza piccola o negativa.
+     */
+    private fun lunghezza(cosa: String): Int {
+        val n = leggiVarint()
+        check(n >= 0 && n <= (fine - pos).toLong()) { "$cosa oltre la fine dei dati" }
+        return n.toInt()
+    }
+
+    private fun avanza(n: Int) {
+        check(n <= fine - pos) { "campo troncato" }
+        pos += n
+    }
+
     fun leggiMessaggio(): LettoreProto {
-        val n = leggiVarint().toInt()
-        check(n >= 0 && pos + n <= fine) { "messaggio troncato" }
+        val n = lunghezza("messaggio")
         val figlio = LettoreProto(buf, pos, pos + n)
         pos += n
         return figlio
     }
 
     fun leggiStringa(): String {
-        val n = leggiVarint().toInt()
-        check(n >= 0 && pos + n <= fine) { "stringa troncata" }
+        val n = lunghezza("stringa")
         val s = String(buf, pos, n, Charsets.UTF_8)
         pos += n
         return s
@@ -56,16 +70,11 @@ class LettoreProto(
     fun salta(tipo: Int) {
         when (tipo) {
             0 -> leggiVarint()
-            1 -> pos += 8
-            2 -> {
-                val n = leggiVarint().toInt()
-                check(n >= 0) { "lunghezza negativa" }
-                pos += n
-            }
-            5 -> pos += 4
+            1 -> avanza(8)
+            2 -> avanza(lunghezza("campo"))
+            5 -> avanza(4)
             else -> error("tipo di campo $tipo non supportato")
         }
-        check(pos <= fine) { "campo troncato" }
     }
 }
 

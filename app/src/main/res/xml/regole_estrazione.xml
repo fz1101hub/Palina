@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Come regole_backup.xml, per Android 12 e successivi. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="orario.db" />
+        <exclude domain="file" path="orario-nuovo.db" />
+        <exclude domain="sharedpref" path="osmdroid.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="orario.db" />
+        <exclude domain="file" path="orario-nuovo.db" />
+        <exclude domain="sharedpref" path="osmdroid.xml" />
+    </device-transfer>
+</data-extraction-rules>

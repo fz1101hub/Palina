@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  actions: write # solo per tenere attiva la compilazione settimanale (ultimo passo)
 
 concurrency:
   group: compila
@@ -18,8 +19,7 @@ concurrency:
 jobs:
   compila:
     runs-on: ubuntu-latest
-    env:
-      FIRMA_PASSWORD: ${{ secrets.FIRMA_PASSWORD }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -57,18 +57,26 @@ jobs:
           python3 strumenti/crea_orario.py /tmp/orario/orario.sql app/build/orario-incluso | tee -a orario.log
           rm -f /tmp/orario/orario.sql
 
+      # La password della firma arriva solo a questo passo: gli altri (e le azioni
+      # di terzi) non la vedono. Agli altri passi dice solo se c'era.
       - name: Test e compilazione
+        id: compila
+        env:
+          FIRMA_PASSWORD: ${{ secrets.FIRMA_PASSWORD }}
         run: |
           set -o pipefail
+          echo "firma=${FIRMA_PASSWORD:+presente}" >> "$GITHUB_OUTPUT"
           ./gradlew --no-daemon --console=plain testDebugUnitTest assembleRelease 2>&1 | tee compilazione.log
 
       # Salva l'esito nel ramo "esito", leggibile senza accedere a GitHub
       - name: Salva l'esito della compilazione
         if: always()
+        env:
+          FIRMA: ${{ steps.compila.outputs.firma }}
         run: |
           esito="${{ job.status }}"
           mkdir -p /tmp/esito
-          { echo "commit: $GITHUB_SHA"; echo "esito: $esito"; echo "firma: ${FIRMA_PASSWORD:+presente}"; grep "^orario incluso" orario.log || echo "orario incluso: passo non eseguito"; } > /tmp/esito/ESITO.txt
+          { echo "commit: $GITHUB_SHA"; echo "esito: $esito"; echo "firma: $FIRMA"; grep "^orario incluso" orario.log || echo "orario incluso: passo non eseguito"; } > /tmp/esito/ESITO.txt
           { grep -E "^e: |error:|FAILED|BUILD (SUCCESSFUL|FAILED)|tests completed" compilazione.log | head -300; grep -A12 "What went wrong" compilazione.log | head -120; } > /tmp/esito/errori.txt || true
           tail -400 compilazione.log > /tmp/esito/coda.log || true
           tail -200 orario.log > /tmp/esito/orario.log 2>/dev/null || true
@@ -91,13 +99,32 @@ jobs:
           git tag -f ultima
           git push -f origin refs/tags/ultima
 
+      # Con lo strumento "gh" gia' presente su GitHub, senza azioni di terzi
       - name: Pubblica l'APK nella release "ultima"
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ultima
-          name: Ultima versione
-          body: >-
-            Compilata dal commit ${{ github.sha }}. Dal telefono scarica app-release.apk e installala.
-            ${{ env.FIRMA_PASSWORD == '' && 'Versione di prova - per aggiornarla disinstalla prima quella vecchia (perderai i preferiti).' || '' }}
-          files: app/build/outputs/apk/release/app-release.apk
-          make_latest: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FIRMA: ${{ steps.compila.outputs.firma }}
+        run: |
+          note="Compilata dal commit $GITHUB_SHA. Dal telefono scarica app-release.apk e installala."
+          orario=$(grep -m1 "^orario incluso: si" orario.log 2>/dev/null | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}" | head -1 || true)
+          if [ -n "$orario" ]; then
+            note="$note Contiene l'orario di Roma Mobilità del $orario."
+          else
+            note="$note Senza orario incluso: l'app lo scarica al primo avvio."
+          fi
+          if [ -z "$FIRMA" ]; then
+            note="$note Versione di prova: per aggiornarla disinstalla prima quella vecchia (perderai i preferiti)."
+          fi
+          gh release view ultima > /dev/null 2>&1 || gh release create ultima --title "Ultima versione" --notes "$note"
+          gh release edit ultima --title "Ultima versione" --notes "$note" --latest
+          gh release upload ultima app/build/outputs/apk/release/app-release.apk --clobber
+
+      # GitHub sospende le compilazioni programmate dopo 60 giorni senza modifiche
+      # al repository: riattivare il flusso di lavoro fa ripartire il conto.
+      - name: Tiene attiva la compilazione settimanale
+        if: github.event_name == 'schedule'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/compila.yml/enable"

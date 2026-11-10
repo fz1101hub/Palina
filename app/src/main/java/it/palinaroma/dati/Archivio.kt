@@ -43,6 +43,12 @@ object Archivio {
             .build()
     }
 
+    /** Per le risposte piccole (partenze di una fermata, ricerca di indirizzi): al massimo 20 secondi in tutto. */
+    val httpBreve: OkHttpClient by lazy { http.newBuilder().callTimeout(20, TimeUnit.SECONDS).build() }
+
+    /** Per i feed in tempo reale (alcuni MB) e il calcolo dei tragitti: al massimo 45 secondi in tutto. */
+    val httpMedio: OkHttpClient by lazy { http.newBuilder().callTimeout(45, TimeUnit.SECONDS).build() }
+
     val agenteUtente = "PalinaRoma-Android/" + BuildConfig.VERSION_NAME
 
     private val _orario = MutableStateFlow<Orario?>(null)
@@ -64,6 +70,7 @@ object Archivio {
         app = context.applicationContext
         _preferiti.value = impostazioni.getStringSet("preferiti", emptySet())?.toSet() ?: emptySet()
         ambito.launch {
+            pulisciAvanzi()
             try {
                 installaOrarioIncluso()
             } catch (e: Exception) {
@@ -76,6 +83,18 @@ object Archivio {
     }
 
     private fun fileDb() = File(app.filesDir, "orario.db")
+
+    /** File lasciati a meta' da un aggiornamento interrotto (app chiusa mentre lavorava). */
+    private fun pulisciAvanzi() {
+        listOf(
+            File(app.filesDir, "orario-nuovo.db"),
+            File(app.filesDir, "orario-nuovo.db-journal"),
+            File(app.filesDir, "orario-nuovo.db-wal"),
+            File(app.filesDir, "orario-nuovo.db-shm"),
+            File(app.filesDir, "orario-incluso.tmp"),
+            File(app.cacheDir, "orario.zip"),
+        ).forEach { runCatching { it.delete() } }
+    }
 
     /** Quando e' stato creato l'orario incluso nell'APK, o null se l'APK non lo contiene. */
     private fun dataOrarioIncluso(): Long? =
@@ -140,8 +159,10 @@ object Archivio {
     fun daAggiornare(): Boolean =
         System.currentTimeMillis() - ultimoAggiornamento() > GIORNI_VALIDITA * 24L * 3600 * 1000
 
+    /** Scarica e prepara l'orario nuovo. Una sola volta per volta, e solo dopo l'avvio. */
+    @Synchronized
     fun aggiorna() {
-        if (_aggiornamento.value is StatoAggiornamento.InCorso) return
+        if (!_pronto.value || _aggiornamento.value is StatoAggiornamento.InCorso) return
         _aggiornamento.value = StatoAggiornamento.InCorso("Avvio", 0f)
         ambito.launch {
             try {
@@ -160,24 +181,27 @@ object Archivio {
 
     private fun esegui() {
         val zip = File(app.cacheDir, "orario.zip")
-        scarica(zip) { stato("Scarico l'orario di Roma Mobilità", 0.4f * it) }
-
         val nuovo = File(app.filesDir, "orario-nuovo.db")
-        nuovo.delete()
-        File(nuovo.path + "-journal").delete()
-        val scrittore = ScrittoreDb(nuovo)
         try {
-            ZipFile(zip).use { z ->
-                CostruttoreOrario(z, scrittore) { fase, p -> stato(fase, 0.4f + 0.6f * p) }.costruisci()
-            }
-            scrittore.completa()
-        } catch (e: Throwable) {
-            scrittore.annulla()
+            scarica(zip) { stato("Scarico l'orario di Roma Mobilità", 0.4f * it) }
             nuovo.delete()
-            throw e
+            File(nuovo.path + "-journal").delete()
+            val scrittore = ScrittoreDb(nuovo)
+            try {
+                ZipFile(zip).use { z ->
+                    CostruttoreOrario(z, scrittore) { fase, p -> stato(fase, 0.4f + 0.6f * p) }.costruisci()
+                }
+                scrittore.completa()
+            } catch (e: Throwable) {
+                runCatching { scrittore.annulla() }
+                throw e
+            }
+            if (!nuovo.renameTo(fileDb())) throw IOException("Impossibile salvare l'orario")
+        } finally {
+            // riuscito o no, non restano 45 MB di zip ne' un database a meta'
+            zip.delete()
+            nuovo.delete()
         }
-        if (!nuovo.renameTo(fileDb())) throw IOException("Impossibile salvare l'orario")
-        zip.delete()
         impostazioni.edit().putLong("orario_aggiornato", System.currentTimeMillis()).apply()
         apri()
     }

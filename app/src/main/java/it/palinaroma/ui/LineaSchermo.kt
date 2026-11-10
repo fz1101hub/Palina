@@ -2,12 +2,9 @@
 
 package it.palinaroma.ui
 
-import android.Manifest
 import android.graphics.DashPathEffect
-import android.location.Location
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import android.graphics.Paint
+import android.location.Location
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import androidx.compose.foundation.background
@@ -49,6 +46,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,6 +55,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -74,7 +75,6 @@ import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.distanzaDalTracciato
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.etaRilevamento
-import it.palinaroma.dati.haPermessoPosizione
 import it.palinaroma.dati.completaMezzi
 import it.palinaroma.dati.vettureDellaLinea
 import it.palinaroma.dati.mezzoDellaCorsa
@@ -91,6 +91,7 @@ import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.CopyrightOverlay
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.Polyline
 
 /**
@@ -132,14 +133,8 @@ fun LineaSchermo(
     val fermataAttesa = remember(o, fermataEvidenziata) { fermataEvidenziata?.let { o?.fermata(it) } }
 
     // "sei qui": la posizione del telefono sulla mappa
-    val contesto = LocalContext.current
-    var permessoPosizione by remember { mutableStateOf(haPermessoPosizione(contesto)) }
-    var richiestaCentra by remember { mutableIntStateOf(0) }
-    val chiediPermesso = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { esiti ->
-        permessoPosizione = esiti.values.any { it }
-        if (permessoPosizione) richiestaCentra++
-    }
-    val miaPosizione = rememberMiaPosizione(permessoPosizione)
+    val seiQui = rememberSeiQui()
+    val miaPosizione = seiQui.posizione
     val fermataVicina = remember(miaPosizione, fermate) {
         miaPosizione?.let { p ->
             fermate.map { it to distanzaMetri(p.latitude, p.longitude, it.lat, it.lon) }.minByOrNull { it.second }
@@ -168,9 +163,10 @@ fun LineaSchermo(
                         emptyList()
                     }
                     // le vetture senza corsa o linea si completano con le corse in tempo reale
-                    val tutti = completaMezzi(TempoReale.mezzi(), corse)
-                    val vetture = withContext(Dispatchers.IO) {
-                        vettureDellaLinea(tutti, lineaId, linea?.nome, percorso?.direzione, o)
+                    val grezzi = TempoReale.mezzi()
+                    val (tutti, vetture) = withContext(Dispatchers.IO) {
+                        val completi = completaMezzi(grezzi, corse)
+                        completi to vettureDellaLinea(completi, lineaId, linea?.nome, percorso?.direzione, o)
                     }
                     mezzi = vetture.inDirezione
                     altre = vetture.altre
@@ -230,8 +226,16 @@ fun LineaSchermo(
                 indietro = indietro,
                 azioni = {
                     if (percorsi.size > 1) {
-                        IconButton(onClick = cambiaDirezione) {
-                            Text("⇄", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                        IconButton(
+                            onClick = cambiaDirezione,
+                            modifier = Modifier.semantics { contentDescription = "Cambia direzione" },
+                        ) {
+                            Text(
+                                "⇄",
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.clearAndSetSemantics { },
+                            )
                         }
                     }
                 },
@@ -272,7 +276,10 @@ fun LineaSchermo(
                             onClick = cambiaDirezione,
                             colors = ButtonDefaults.buttonColors(containerColor = Porpora),
                             modifier = Modifier.padding(start = 12.dp),
-                        ) { Text("⇄ Cambia") }
+                        ) {
+                            Text("⇄ ", modifier = Modifier.clearAndSetSemantics { })
+                            Text("Cambia")
+                        }
                     }
                 }
                 HorizontalDivider(color = Color(0xFFE2DDD8))
@@ -333,24 +340,10 @@ fun LineaSchermo(
                     apriFermata = apriFermata,
                     seleziona = { selezionato = it.chiave() },
                     miaPosizione = miaPosizione,
-                    richiestaCentra = richiestaCentra,
+                    richiestaCentra = seiQui.richiestaCentra,
                     modifier = Modifier.fillMaxSize(),
                 )
-                PulsanteMiaPosizione(
-                    attivo = miaPosizione != null,
-                    onClick = {
-                        if (permessoPosizione) {
-                            richiestaCentra++
-                        } else {
-                            chiediPermesso.launch(
-                                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-                            )
-                        }
-                    },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(10.dp),
-                )
+                ComandiSeiQui(seiQui)
                 when {
                     inScheda != null -> SchedaVettura(
                         mezzo = inScheda,
@@ -417,7 +410,7 @@ fun LineaSchermo(
                         if (metri > 3_000) "Sei a ${testoMetri(metri)} da questa linea"
                         else "Sei a ${testoMetri(metri)} da ${f.nome}, la sua fermata più vicina ›",
                         style = MaterialTheme.typography.bodySmall,
-                        color = BluPosizione,
+                        color = BluPosizioneTesto,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(start = 8.dp),
@@ -673,37 +666,47 @@ private fun MappaLinea(
         }
     }
 
+    // Tracciati e fermate cambiano solo con la direzione: si preparano una volta,
+    // non a ogni aggiornamento delle vetture o della posizione (ogni pochi secondi).
+    val apriFermataAttuale by rememberUpdatedState(apriFermata)
+    val fissi: List<Overlay> = remember(mappa, forma, formaAltra, fermate, fermataAttesa?.id) {
+        buildList<Overlay> {
+            if (formaAltra.size >= 2) {
+                add(Polyline(mappa).apply {
+                    setPoints(formaAltra.map { GeoPoint(it.lat, it.lon) })
+                    outlinePaint.color = Secondario.copy(alpha = 0.55f).toArgb()
+                    outlinePaint.strokeWidth = 3 * densita
+                    outlinePaint.strokeCap = Paint.Cap.ROUND
+                    outlinePaint.pathEffect = DashPathEffect(floatArrayOf(6 * densita, 6 * densita), 0f)
+                })
+            }
+            if (forma.size >= 2) {
+                add(Polyline(mappa).apply {
+                    setPoints(forma.map { GeoPoint(it.lat, it.lon) })
+                    outlinePaint.color = Porpora.copy(alpha = 0.75f).toArgb()
+                    outlinePaint.strokeWidth = 5 * densita
+                    outlinePaint.strokeCap = Paint.Cap.ROUND
+                })
+            }
+            fermate.forEach { f ->
+                add(Marker(mappa).apply {
+                    position = GeoPoint(f.lat, f.lon)
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    icon = if (f.id == fermataAttesa?.id) iconaAttesa else iconaFermata
+                    title = f.nome
+                    setOnMarkerClickListener { _, _ ->
+                        apriFermataAttuale(f.id)
+                        true
+                    }
+                })
+            }
+        }
+    }
+    val diritti = remember(mappa) { CopyrightOverlay(mappa.context) }
+
     AndroidView(factory = { mappa }, modifier = modifier, update = { m ->
         m.overlays.clear()
-        if (formaAltra.size >= 2) {
-            m.overlays.add(Polyline(m).apply {
-                setPoints(formaAltra.map { GeoPoint(it.lat, it.lon) })
-                outlinePaint.color = Secondario.copy(alpha = 0.55f).toArgb()
-                outlinePaint.strokeWidth = 3 * densita
-                outlinePaint.strokeCap = Paint.Cap.ROUND
-                outlinePaint.pathEffect = DashPathEffect(floatArrayOf(6 * densita, 6 * densita), 0f)
-            })
-        }
-        if (forma.size >= 2) {
-            m.overlays.add(Polyline(m).apply {
-                setPoints(forma.map { GeoPoint(it.lat, it.lon) })
-                outlinePaint.color = Porpora.copy(alpha = 0.75f).toArgb()
-                outlinePaint.strokeWidth = 5 * densita
-                outlinePaint.strokeCap = Paint.Cap.ROUND
-            })
-        }
-        fermate.forEach { f ->
-            m.overlays.add(Marker(m).apply {
-                position = GeoPoint(f.lat, f.lon)
-                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                icon = if (f.id == fermataAttesa?.id) iconaAttesa else iconaFermata
-                title = f.nome
-                setOnMarkerClickListener { _, _ ->
-                    apriFermata(f.id)
-                    true
-                }
-            })
-        }
+        m.overlays.addAll(fissi)
         miaPosizione?.let { disegnaMiaPosizione(m, it, densita) }
         // le vetture sopra a tutto; quella attesa per ultima, cosi' resta in cima
         // prima quelle dell'altra direzione, in grigio e sotto alle altre
@@ -733,7 +736,7 @@ private fun MappaLinea(
                 }
             })
         }
-        m.overlays.add(CopyrightOverlay(m.context))
+        m.overlays.add(diritti)
         m.invalidate()
     })
 

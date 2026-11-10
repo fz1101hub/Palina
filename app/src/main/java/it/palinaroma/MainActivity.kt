@@ -6,8 +6,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.toArgb
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -35,21 +39,43 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** Millisecondi della dissolvenza tra una schermata e l'altra. */
+private const val DURATA_PASSAGGIO = 220
+
 @Composable
 private fun Navigazione() {
     val nav = rememberNavController()
-    val apriFermata: (String) -> Unit = { nav.navigate("fermata/" + Uri.encode(it)) }
-    val apriLinea: (String, Int?) -> Unit = { id, direzione ->
-        nav.navigate("linea/" + Uri.encode(id) + "?dir=" + (direzione ?: -1))
+    // Un doppio tocco veloce non deve aprire due volte la stessa schermata...
+    val vai: (String) -> Unit = { rotta -> nav.navigate(rotta) { launchSingleTop = true } }
+    // ...ne' chiuderne due insieme o lasciare lo schermo vuoto: si torna indietro
+    // solo dalla schermata in primo piano, e mai oltre la prima.
+    val indietro: () -> Unit = {
+        if (nav.previousBackStackEntry != null &&
+            nav.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED
+        ) {
+            nav.popBackStack()
+        }
     }
-    val apriTragitto: () -> Unit = { nav.navigate("tragitto") { launchSingleTop = true } }
+    val apriFermata: (String) -> Unit = { vai("fermata/" + Uri.encode(it)) }
+    val apriLinea: (String, Int?) -> Unit = { id, direzione ->
+        vai("linea/" + Uri.encode(id) + "?dir=" + (direzione ?: -1))
+    }
+    val apriTragitto: () -> Unit = { vai("tragitto") }
 
-    NavHost(navController = nav, startDestination = "home") {
+    NavHost(
+        navController = nav,
+        startDestination = "home",
+        // passaggio rapido tra le schermate (di serie dura 0,7 secondi)
+        enterTransition = { fadeIn(tween(DURATA_PASSAGGIO)) },
+        exitTransition = { fadeOut(tween(DURATA_PASSAGGIO)) },
+        popEnterTransition = { fadeIn(tween(DURATA_PASSAGGIO)) },
+        popExitTransition = { fadeOut(tween(DURATA_PASSAGGIO)) },
+    ) {
         composable("home") {
             HomeSchermo(
                 apriFermata = apriFermata,
                 apriLinea = { apriLinea(it, null) },
-                apriOrario = { nav.navigate("orario") },
+                apriOrario = { vai("orario") },
                 apriTragitto = apriTragitto,
             )
         }
@@ -60,10 +86,10 @@ private fun Navigazione() {
             val fermataId = voce.arguments?.getString("id").orEmpty()
             FermataSchermo(
                 fermataId = fermataId,
-                indietro = { nav.popBackStack() },
+                indietro = indietro,
                 apriLinea = apriLinea,
                 apriVettura = { linea, direzione, corsa ->
-                    nav.navigate(
+                    vai(
                         "linea/" + Uri.encode(linea) + "?dir=" + (direzione ?: -1) +
                             "&corsa=" + Uri.encode(corsa) + "&fermata=" + Uri.encode(fermataId),
                     )
@@ -99,18 +125,18 @@ private fun Navigazione() {
                 direzioneIniziale = voce.arguments?.getInt("dir")?.takeIf { it >= 0 },
                 corsaEvidenziata = voce.arguments?.getString("corsa")?.takeIf { it.isNotEmpty() },
                 fermataEvidenziata = voce.arguments?.getString("fermata")?.takeIf { it.isNotEmpty() },
-                indietro = { nav.popBackStack() },
+                indietro = indietro,
                 apriFermata = apriFermata,
             )
         }
         composable("orario") {
-            OrarioSchermo(indietro = { nav.popBackStack() })
+            OrarioSchermo(indietro = indietro)
         }
         composable("tragitto") {
             TragittoSchermo(
-                indietro = { nav.popBackStack() },
-                scegliLuogo = { campo -> nav.navigate("luogo/$campo") },
-                apriDettaglio = { indice -> nav.navigate("tragitto/$indice") },
+                indietro = indietro,
+                scegliLuogo = { campo -> vai("luogo/$campo") },
+                apriDettaglio = { indice -> vai("tragitto/$indice") },
             )
         }
         composable(
@@ -119,7 +145,7 @@ private fun Navigazione() {
         ) { voce ->
             SceltaLuogoSchermo(
                 campo = voce.arguments?.getString("campo") ?: "a",
-                indietro = { nav.popBackStack() },
+                indietro = indietro,
             )
         }
         composable(
@@ -128,7 +154,7 @@ private fun Navigazione() {
         ) { voce ->
             DettaglioTragittoSchermo(
                 indice = voce.arguments?.getInt("indice") ?: 0,
-                indietro = { nav.popBackStack() },
+                indietro = indietro,
                 apriFermata = apriFermata,
             )
         }

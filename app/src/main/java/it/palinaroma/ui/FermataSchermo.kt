@@ -50,9 +50,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Arrivo
+import it.palinaroma.dati.CorsaRT
 import it.palinaroma.dati.Fermata
+import it.palinaroma.dati.MezzoRT
+import it.palinaroma.dati.PartenzaTransitous
 import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.Transitous
+import it.palinaroma.dati.ancoraAttesi
 import it.palinaroma.dati.passaggiProgrammati
 import it.palinaroma.dati.passaggiTempoReale
 import it.palinaroma.dati.raggruppa
@@ -63,6 +67,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -97,6 +102,17 @@ fun FermataSchermo(
             null
         }
 
+    // Mette insieme le fonti arrivate finora: ognuna puo' mancare.
+    suspend fun componi(corse: List<CorsaRT>?, mezzi: List<MezzoRT>, partenze: List<PartenzaTransitous>?): List<Arrivo> {
+        val istante = System.currentTimeMillis() / 1000
+        val tracciate = mezzi.mapNotNull { it.corsaId.ifEmpty { null } }.toSet()
+        return withContext(Dispatchers.IO) {
+            val inTempoReale = corse?.let { passaggiTempoReale(it, fermataId, o, istante, tracciate = tracciate) }.orEmpty()
+            val programmati = partenze?.let { passaggiProgrammati(it, o, istante, mezzi = mezzi) }.orEmpty()
+            raggruppa(uniscPassaggi(inTempoReale, programmati), o)
+        }
+    }
+
     // Tre fonti in parallelo, ognuna puo' mancare:
     // - tempo reale di Roma Mobilita' (vetture seguite via GPS),
     // - posizioni delle vetture,
@@ -109,16 +125,24 @@ fun FermataSchermo(
                 val c = async { seRiesce { TempoReale.corse(forza) } }
                 val m = async { seRiesce { TempoReale.mezzi(forza) } }
                 val p = async { if (f == null) null else seRiesce { Transitous.partenze(fermataId, f.lat, f.lon) } }
+                if (arrivi == null) {
+                    // Alla prima apertura si mostra subito la fonte che risponde per prima (di solito
+                    // Transitous: poche righe contro i MB del feed); il resto si aggiunge appena arriva.
+                    val primaTransitous = select<Boolean> {
+                        p.onAwait { true }
+                        c.onAwait { false }
+                    }
+                    val parziale = if (primaTransitous) {
+                        componi(null, emptyList(), p.await())
+                    } else {
+                        componi(c.await(), if (m.isCompleted) m.await().orEmpty() else emptyList(), null)
+                    }
+                    if (parziale.isNotEmpty() && arrivi == null) arrivi = parziale
+                }
                 Triple(c.await(), m.await().orEmpty(), p.await())
             }
             if (corse == null && partenze == null) throw IllegalStateException("nessuna fonte disponibile")
-            val istante = System.currentTimeMillis() / 1000
-            val tracciate = mezzi.map { it.corsaId }.toSet()
-            arrivi = withContext(Dispatchers.IO) {
-                val inTempoReale = corse?.let { passaggiTempoReale(it, fermataId, o, istante, tracciate = tracciate) }.orEmpty()
-                val programmati = partenze?.let { passaggiProgrammati(it, o, istante, mezzi = mezzi) }.orEmpty()
-                raggruppa(uniscPassaggi(inTempoReale, programmati), o)
-            }
+            arrivi = componi(corse, mezzi, partenze)
             soloTempoReale = partenze == null
             errore = null
             aggiornatoAlle = System.currentTimeMillis()
@@ -146,6 +170,9 @@ fun FermataSchermo(
             delay(5_000)
         }
     }
+
+    // Se l'aggiornamento non riesce (per esempio senza rete) i mezzi gia' passati spariscono da soli.
+    val visibili = remember(arrivi, adesso) { arrivi?.let { ancoraAttesi(it, adesso) } }
 
     Scaffold(
         topBar = {
@@ -207,8 +234,8 @@ fun FermataSchermo(
                         }
                     }
                 }
-                val elenco = arrivi
-                if (elenco != null && elenco.isEmpty() && errore == null) {
+                val elenco = visibili
+                if (elenco != null && elenco.isEmpty() && errore == null && aggiornatoAlle > 0) {
                     item {
                         Text(
                             if (soloTempoReale) "Nessun mezzo seguito in tempo reale nei prossimi 90 minuti."

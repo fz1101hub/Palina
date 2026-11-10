@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.util.Base64
 
@@ -154,7 +155,11 @@ class FeedTempoRealeTest {
         assertEquals("913", codiceDaTransitous("it-Lazio-Rome_913"))
         assertNull(codiceDaTransitous("913"))
         // nessun pezzo corto che potrebbe essere la corsa di un'altra linea
-        assertEquals(listOf("913_1_5", "20261109_17:05_it-Lazio-Rome_913_1_5"), candidatiLocali("20261109_17:05_it-Lazio-Rome_913_1_5"))
+        assertEquals(listOf("913_1_5", "20261109_17:05_it-Lazio-Rome_913_1_5"), candidatiCorsa("20261109_17:05_it-Lazio-Rome_913_1_5"))
+        // un codice dell'orario con i trattini bassi resta intero: "1_5" sarebbe un'altra corsa
+        assertEquals(listOf("913_1_5"), candidatiCorsa("913_1_5"))
+        assertNull(corsaDaTransitous("913_1_5"))
+        assertEquals(listOf("913", "it-Lazio-Rome_913"), candidatiLinea("it-Lazio-Rome_913"))
         val vettura = MezzoRT("5", "90", 0, 41.9, 12.5, "1")
         assertNull(mezzoDellaCorsa(listOf(vettura), "20261109_17:05_it-Lazio-Rome_913_1_5"))
     }
@@ -183,5 +188,135 @@ class FeedTempoRealeTest {
         val lista = FeedTempoReale.corse(corse)
         assertTrue(arriviAllaFermata(lista, "70243", null, adesso = t0 + 5000).isEmpty())
         assertTrue(arriviAllaFermata(lista, "70243", null, adesso = t0 - 3 * 3600).isEmpty())
+    }
+
+    @Test
+    fun nonUnisceUnaCorsaColPezzoDiUnAltra() {
+        // in tempo reale c'e' la corsa "1_5" di un'altra linea; il programmato "913_1_5" deve restare
+        val rt = listOf(PassaggioLinea("64", null, 0, "Termini", Passaggio(t0 + 600, "1_5", true)))
+        val programmati = listOf(PassaggioLinea("913", null, 0, "Augusto Imperatore", Passaggio(t0 + 300, "913_1_5", false)))
+        val uniti = uniscPassaggi(rt, programmati)
+        assertEquals(listOf("1_5", "913_1_5"), uniti.map { it.passaggio.corsaId })
+    }
+
+    @Test
+    fun unaVetturaSenzaCorsaNonSegnaComeTracciateLeAltre() {
+        val senzaCodice = listOf(CorsaRT("", "64", 0, false, "", listOf(FermataRT("70243", t0 + 120, false))))
+        val arrivi = arriviAllaFermata(senzaCodice, "70243", orario = null, adesso = t0, tracciate = setOf(""))
+        assertFalse(arrivi.single().passaggi.single().tracciato)
+    }
+
+    @Test
+    fun togliIPassaggiGiaAvvenuti() {
+        val arrivi = listOf(
+            Arrivo("64", "64", 0, "Termini", listOf(Passaggio(t0 - 300, "a", true), Passaggio(t0 + 600, "b", true))),
+            Arrivo("40", "40", 0, "Termini", listOf(Passaggio(t0 - 200, "c", true))),
+            Arrivo("8", "8", 0, "Casaletto", listOf(Passaggio(t0 - 30, "d", true), Passaggio(t0 + 400, "e", false))),
+        )
+        val rimasti = ancoraAttesi(arrivi, adesso = t0)
+        // la 40 e' passata; della 64 resta la corsa successiva; la 8 e' appena passata (entro un minuto) e resta prima
+        assertEquals(listOf("8", "64"), rimasti.map { it.lineaId })
+        assertEquals(listOf("d", "e"), rimasti[0].passaggi.map { it.corsaId })
+        assertEquals(listOf("b"), rimasti[1].passaggi.map { it.corsaId })
+        assertTrue(ancoraAttesi(arrivi, adesso = t0 + 7200).isEmpty())
+    }
+
+    @Test
+    fun rifiutaIFeedRovinatiSenzaUscireDaiDati() {
+        // troncati in ogni punto: o si leggono (meno entita') o danno un errore previsto, mai un indice fuori dai dati
+        for (dati in listOf(corse, mezzi)) {
+            for (n in 0 until dati.size) {
+                val pezzo = dati.copyOf(n)
+                try {
+                    FeedTempoReale.corse(pezzo)
+                    FeedTempoReale.mezzi(pezzo)
+                } catch (_: IllegalStateException) {
+                    // previsto
+                }
+            }
+        }
+        // una lunghezza dichiarata enorme (2^31 - 1 e 2^35) non deve far saltare oltre la fine
+        val enorme = byteArrayOf(0x12, 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0x07, 1, 2, 3)
+        val oltreInt = byteArrayOf(0x12, 0x80.toByte(), 0x80.toByte(), 0x80.toByte(), 0x80.toByte(), 0x80.toByte(), 0x01, 1, 2)
+        val daSaltare = byteArrayOf(0x0A, 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0x07, 1, 2, 3)
+        for (dati in listOf(enorme, oltreInt, daSaltare)) {
+            var errore: Exception? = null
+            try {
+                FeedTempoReale.corse(dati)
+            } catch (e: Exception) {
+                errore = e
+            }
+            assertTrue("atteso un errore previsto, non $errore", errore is IllegalStateException)
+        }
+    }
+
+    @Test
+    fun ilFeedInMemoriaNonRiscaricaSeNonServe(): Unit = runBlocking {
+        var ora = 1_000_000L
+        var richieste = 0
+        var validatori: Pair<String?, String?>? = null
+        var risposta: () -> RispostaFeed? = { RispostaFeed(byteArrayOf(1), "\"v1\"", "lun") }
+        var decodifiche = 0
+        val feed = FeedInMemoria(
+            validitaMs = 20_000,
+            orologio = { ora },
+            scarica = { etag, modificato ->
+                richieste++
+                validatori = etag to modificato
+                risposta()
+            },
+            decodifica = { dati ->
+                decodifiche++
+                dati.map { it.toInt() }
+            },
+        )
+        assertEquals(listOf(1), feed.ottieni())
+        assertEquals(null to null, validatori)
+        ora += 5_000
+        assertEquals(listOf(1), feed.ottieni())          // ancora valido: nessuna richiesta
+        assertEquals(1, richieste)
+        assertEquals(listOf(1), feed.ottieni(forza = true))
+        assertEquals(2, richieste)
+        assertEquals("\"v1\"" to "lun", validatori)        // chiede "e' cambiato?" con i validatori ricevuti
+
+        // 304: restano i dati, senza decodificare di nuovo
+        ora += 30_000
+        risposta = { null }
+        assertEquals(listOf(1), feed.ottieni())
+        assertEquals(3, richieste)
+        assertEquals(2, decodifiche)
+
+        // un errore passeggero: valgono gli ultimi dati per due minuti, poi l'errore arriva a chi chiama
+        ora += 30_000
+        risposta = { throw java.io.IOException("senza rete") }
+        assertEquals(listOf(1), feed.ottieni())
+        ora += 200_000
+        var errore: Exception? = null
+        try {
+            feed.ottieni()
+        } catch (e: java.io.IOException) {
+            errore = e
+        }
+        assertEquals("senza rete", errore?.message)
+
+        // tornata la rete, i dati nuovi
+        risposta = { RispostaFeed(byteArrayOf(7, 8), null, null) }
+        assertEquals(listOf(7, 8), feed.ottieni())
+    }
+
+    @Test
+    fun ilFeedInMemoriaSenzaDatiDaSubitoLErrore(): Unit = runBlocking {
+        val feed = FeedInMemoria<Int>(
+            validitaMs = 20_000,
+            scarica = { _, _ -> throw java.io.IOException("senza rete") },
+            decodifica = { emptyList() },
+        )
+        var errore: Exception? = null
+        try {
+            feed.ottieni()
+        } catch (e: java.io.IOException) {
+            errore = e
+        }
+        assertEquals("senza rete", errore?.message)
     }
 }

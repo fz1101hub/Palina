@@ -24,6 +24,20 @@ class TransitousTest {
     }
 
     @Test
+    fun rifiutaIlJsonTroppoAnnidato() {
+        assertEquals(1, (Json.leggi("[".repeat(150) + "]".repeat(150)) as List<*>).size)
+        var errore: Exception? = null
+        try {
+            Json.leggi("[".repeat(100_000))
+        } catch (e: IllegalArgumentException) {
+            errore = e
+        }
+        assertTrue(errore?.message.orEmpty().contains("troppi livelli"))
+        // dopo due valori annidati uno accanto all'altro il conteggio riparte
+        assertEquals(2, (Json.leggi("[" + "[[[]]],".repeat(1) + "[[[]]]" + "]") as List<*>).size)
+    }
+
+    @Test
     fun decodificaLePolilinee() {
         // esempio della documentazione di Google (precisione 5)
         val punti = decodificaPolilinea("_p~iF~ps|U_ulLnnqC_mqNvxq`@", 5)
@@ -62,9 +76,11 @@ class TransitousTest {
         assertFalse(adesso.contains("arriveBy"))
         val cerca = urlLuoghi("via del corso 12", Punto(41.9028, 12.4964))
         assertEquals(
-            "https://api.transitous.org/api/v1/geocode?text=via+del+corso+12&language=it&numResults=8&place=41.90280%2C12.49640",
+            "https://api.transitous.org/api/v1/geocode?text=via+del+corso+12&language=it&numResults=8&place=41.90%2C12.50",
             cerca,
         )
+        // la posizione serve solo a preferire i risultati in zona: mai quella esatta
+        assertFalse(urlLuoghi("bar", Punto(41.912345, 12.498765)).contains("41.912"))
     }
 
     @Test
@@ -162,6 +178,8 @@ class TransitousTest {
         assertEquals("35 min", testoDurata(35 * 60))
         assertEquals("1 h 05 min", testoDurata(65 * 60))
         assertEquals("450 m", testoMetri(456.0))
+        assertEquals("meno di 10 m", testoMetri(4.0))
+        assertEquals("10 m", testoMetri(10.0))
         assertEquals("3,2 km", testoMetri(3240.0))
         assertTrue(messaggioErrore(500, "").contains("non risponde"))
         assertTrue(messaggioErrore(400, """{"error":"no stop found"}""").contains("no stop found"))

@@ -1,5 +1,6 @@
 package it.palinaroma.dati
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -24,43 +25,90 @@ data class Arrivo(
     val orari: List<Long> get() = passaggi.map { it.orario }
 }
 
+/** Il contenuto di un feed e i suoi validatori HTTP, per chiedere poi "e' cambiato?". */
+class RispostaFeed(val dati: ByteArray, val etag: String?, val modificato: String?)
+
+/**
+ * Un feed tenuto in memoria. Si richiede di nuovo dopo [validitaMs]; se il server
+ * risponde che non e' cambiato (304) restano i dati gia' letti, senza riscaricare
+ * alcuni MB. La decodifica avviene fuori dal thread dell'interfaccia. Dopo un
+ * errore passeggero valgono gli ultimi dati, per al massimo [tolleranzaMs].
+ *
+ * [scarica] riceve i validatori dell'ultima risposta e restituisce null se il
+ * feed non e' cambiato.
+ */
+class FeedInMemoria<T>(
+    private val validitaMs: Long,
+    private val tolleranzaMs: Long = 120_000,
+    private val orologio: () -> Long = System::currentTimeMillis,
+    private val scarica: suspend (etag: String?, modificato: String?) -> RispostaFeed?,
+    private val decodifica: (ByteArray) -> List<T>,
+) {
+    private val mutex = Mutex()
+    private var dati: List<T> = emptyList()
+    private var caricato = false
+    private var quando = 0L
+    private var etag: String? = null
+    private var modificato: String? = null
+
+    suspend fun ottieni(forza: Boolean = false): List<T> = mutex.withLock {
+        val adesso = orologio()
+        if (!forza && caricato && adesso - quando in 0..validitaMs) return@withLock dati
+        try {
+            val risposta = scarica(etag, modificato)
+            if (risposta != null) {
+                dati = withContext(Dispatchers.Default) { decodifica(risposta.dati) }
+                etag = risposta.etag
+                modificato = risposta.modificato
+            }
+            caricato = true
+            quando = adesso
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (!caricato || adesso - quando !in 0..tolleranzaMs) throw e
+        }
+        dati
+    }
+}
+
 /** Feed in tempo reale di Roma Mobilita', con una piccola cache. */
 object TempoReale {
     const val URL_CORSE = "https://romamobilita.it/sites/default/files/rome_rtgtfs_trip_updates_feed.pb"
     const val URL_MEZZI = "https://romamobilita.it/sites/default/files/rome_rtgtfs_vehicle_positions_feed.pb"
 
-    private val mutexCorse = Mutex()
-    private val mutexMezzi = Mutex()
-    private var corse: List<CorsaRT> = emptyList()
-    private var quandoCorse = 0L
-    private var mezzi: List<MezzoRT> = emptyList()
-    private var quandoMezzi = 0L
+    private val feedCorse = FeedInMemoria(
+        validitaMs = 20_000,
+        scarica = { etag, modificato -> scarica(URL_CORSE, etag, modificato) },
+        decodifica = { FeedTempoReale.corse(it) },
+    )
+    private val feedMezzi = FeedInMemoria(
+        validitaMs = 15_000,
+        scarica = { etag, modificato -> scarica(URL_MEZZI, etag, modificato) },
+        decodifica = { FeedTempoReale.mezzi(it) },
+    )
 
-    suspend fun corse(forza: Boolean = false): List<CorsaRT> = mutexCorse.withLock {
-        val adesso = System.currentTimeMillis()
-        if (forza || adesso - quandoCorse > 20_000 || corse.isEmpty()) {
-            corse = FeedTempoReale.corse(scarica(URL_CORSE))
-            quandoCorse = adesso
-        }
-        corse
-    }
+    suspend fun corse(forza: Boolean = false): List<CorsaRT> = feedCorse.ottieni(forza)
 
-    suspend fun mezzi(forza: Boolean = false): List<MezzoRT> = mutexMezzi.withLock {
-        val adesso = System.currentTimeMillis()
-        if (forza || adesso - quandoMezzi > 15_000 || mezzi.isEmpty()) {
-            mezzi = FeedTempoReale.mezzi(scarica(URL_MEZZI))
-            quandoMezzi = adesso
-        }
-        mezzi
-    }
+    suspend fun mezzi(forza: Boolean = false): List<MezzoRT> = feedMezzi.ottieni(forza)
 
-    private suspend fun scarica(url: String): ByteArray = withContext(Dispatchers.IO) {
-        val richiesta = Request.Builder().url(url).header("User-Agent", Archivio.agenteUtente).build()
-        Archivio.http.newCall(richiesta).execute().use { risposta ->
-            if (!risposta.isSuccessful) throw IOException("Il server ha risposto ${risposta.code}")
-            risposta.body?.bytes() ?: throw IOException("Risposta vuota")
+    private suspend fun scarica(url: String, etag: String?, modificato: String?): RispostaFeed? =
+        withContext(Dispatchers.IO) {
+            val richiesta = Request.Builder().url(url).header("User-Agent", Archivio.agenteUtente)
+            if (etag != null) richiesta.header("If-None-Match", etag)
+            if (modificato != null) richiesta.header("If-Modified-Since", modificato)
+            Archivio.httpMedio.newCall(richiesta.build()).execute().use { risposta ->
+                when {
+                    risposta.code == 304 -> null
+                    !risposta.isSuccessful -> throw IOException("Il server ha risposto ${risposta.code}")
+                    else -> RispostaFeed(
+                        risposta.body?.bytes() ?: throw IOException("Risposta vuota"),
+                        risposta.header("ETag"),
+                        risposta.header("Last-Modified"),
+                    )
+                }
+            }
         }
-    }
 }
 
 /** Un passaggio con la sua linea, prima di raggruppare per linea e direzione. */
@@ -115,7 +163,7 @@ fun passaggiTempoReale(
                 it.linea.id == corsa.lineaId && (direzione == null || it.direzione == direzione)
             }?.capolinea ?: ""
         }
-        val tracciato = corsa.veicolo.isNotEmpty() || corsa.corsaId in tracciate
+        val tracciato = corsa.veicolo.isNotEmpty() || (corsa.corsaId.isNotEmpty() && corsa.corsaId in tracciate)
         PassaggioLinea(corsa.lineaId, null, direzione, capolinea, Passaggio(quando, corsa.corsaId, tracciato))
     }
 }
@@ -123,20 +171,26 @@ fun passaggiTempoReale(
 /** Corsa di Transitous: "20261109_17:05_it-Lazio-Rome_" + codice della corsa nell'orario. */
 private val FORMATO_CORSA = Regex("^\\d{8}_\\d{2}:\\d{2}_[^_]+_(.+)$")
 
+/** Il codice della corsa nell'orario dentro quello di Transitous; null se il formato non e' quello. */
+fun corsaDaTransitous(id: String): String? = FORMATO_CORSA.find(id)?.groupValues?.get(1)
+
 /**
  * Il codice dell'orario dentro un codice di Transitous: per le corse quello dopo
  * data, ora e nome dei dati; per linee e fermate quello dopo il nome dei dati
  * ("it-Lazio-Rome_913" -> "913"). Null se il formato non e' questo.
  */
 fun codiceDaTransitous(id: String): String? =
-    FORMATO_CORSA.find(id)?.groupValues?.get(1) ?: id.substringAfter('_', "").ifEmpty { null }
+    corsaDaTransitous(id) ?: id.substringAfter('_', "").ifEmpty { null }
 
 /**
- * I codici dell'orario da provare per un codice di Transitous: quello ricavato
- * dal formato e il codice intero. Mai pezzi piu' corti: "5" o "1_5" possono
- * essere corse di tutt'altra linea.
+ * I codici dell'orario da provare per una corsa: quello dentro il codice di
+ * Transitous, se ha quel formato, e il codice intero. Mai pezzi piu' corti:
+ * di "913_1_5" non si prova "1_5", che puo' essere la corsa di tutt'altra linea.
  */
-internal fun candidatiLocali(id: String): List<String> = listOfNotNull(codiceDaTransitous(id), id).distinct()
+internal fun candidatiCorsa(id: String): List<String> = listOfNotNull(corsaDaTransitous(id), id).distinct()
+
+/** I codici dell'orario da provare per una linea di Transitous ("it-Lazio-Rome_913"). */
+internal fun candidatiLinea(id: String): List<String> = listOfNotNull(codiceDaTransitous(id), id).distinct()
 
 /**
  * I passaggi di Transitous (orario programmato, con il tempo reale quando c'e'),
@@ -153,7 +207,7 @@ fun passaggiProgrammati(
         !p.cancellata && (p.orario / 1000 - adesso) in -30..(orizzonteMinuti * 60L)
     }
     if (utili.isEmpty()) return emptyList()
-    val candidati = utili.associateWith { candidatiLocali(it.corsaId) }
+    val candidati = utili.associateWith { candidatiCorsa(it.corsaId) }
     val info = orario?.corse(candidati.values.flatten()) ?: emptyMap()
     return utili.map { p ->
         // la corsa dell'orario vale solo se e' della stessa linea indicata da Transitous
@@ -165,7 +219,7 @@ fun passaggiProgrammati(
         }
         val dati = locale?.let { info[it] }
         val lineaId = dati?.lineaId
-            ?: candidatiLocali(p.lineaId).firstOrNull { orario?.linea(it) != null }
+            ?: candidatiLinea(p.lineaId).firstOrNull { orario?.linea(it) != null }
             ?: p.linea
         val corsa = locale ?: p.corsaId
         val tracciato = p.tempoReale || mezzoDellaCorsa(mezzi, corsa) != null
@@ -187,7 +241,7 @@ fun passaggiProgrammati(
 fun uniscPassaggi(tempoReale: List<PassaggioLinea>, programmati: List<PassaggioLinea>): List<PassaggioLinea> {
     val corseRT = tempoReale.map { it.passaggio.corsaId }.toSet()
     val aggiunti = programmati.filter { p ->
-        candidatiLocali(p.passaggio.corsaId).none { it in corseRT } && tempoReale.none { r ->
+        candidatiCorsa(p.passaggio.corsaId).none { it in corseRT } && tempoReale.none { r ->
             r.lineaId == p.lineaId &&
                 (r.direzione == null || p.direzione == null || r.direzione == p.direzione) &&
                 kotlin.math.abs(r.passaggio.orario - p.passaggio.orario) < 90
@@ -212,12 +266,27 @@ fun raggruppa(elenco: List<PassaggioLinea>, orario: Orario?): List<Arrivo> {
 }
 
 /**
+ * Toglie i passaggi gia' avvenuti da piu' di [tolleranza] secondi e i gruppi
+ * rimasti vuoti: se l'aggiornamento non riesce (per esempio senza rete) un
+ * autobus gia' passato non resta "in arrivo".
+ */
+fun ancoraAttesi(arrivi: List<Arrivo>, adesso: Long, tolleranza: Long = 60): List<Arrivo> =
+    arrivi.mapNotNull { a ->
+        val futuri = a.passaggi.filter { it.orario >= adesso - tolleranza }
+        when {
+            futuri.isEmpty() -> null
+            futuri.size == a.passaggi.size -> a
+            else -> a.copy(passaggi = futuri)
+        }
+    }.sortedBy { it.orari.first() }
+
+/**
  * La vettura che sta facendo una corsa. Va bene anche un identificativo di
  * Transitous, che finisce con "_" + l'identificativo di Roma Mobilita'.
  */
 fun mezzoDellaCorsa(mezzi: List<MezzoRT>, corsaId: String): MezzoRT? {
     if (corsaId.isEmpty()) return null
-    val locale = FORMATO_CORSA.find(corsaId)?.groupValues?.get(1)
+    val locale = corsaDaTransitous(corsaId)
     return mezzi.firstOrNull { it.corsaId == corsaId } ?: locale?.let { l -> mezzi.firstOrNull { it.corsaId == l } }
 }
 

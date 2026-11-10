@@ -14,10 +14,9 @@ class LettoreCsv(private val lettore: BufferedReader) : Closeable {
 
     override fun close() = lettore.close()
 
-
     init {
         val prima = lettore.readLine() ?: ""
-        intestazione = dividi(prima.removePrefix("﻿")).map { it.trim() }
+        intestazione = dividi(prima.removePrefix("\uFEFF")).map { it.trim() }
     }
 
     fun indice(nome: String): Int = intestazione.indexOf(nome)
@@ -61,12 +60,16 @@ class LettoreCsv(private val lettore: BufferedReader) : Closeable {
 fun List<String>.campo(indice: Int): String =
     if (indice in indices) this[indice].trim() else ""
 
+private val ACCENTI = Regex("\\p{M}+")
+private val NON_ALFANUMERICI = Regex("[^a-z0-9]+")
+private val SPAZI = Regex("\\s+")
+
 /** Testo per la ricerca: minuscolo, senza accenti e punteggiatura. */
 fun normalizza(testo: String): String =
     Normalizer.normalize(testo, Normalizer.Form.NFD)
-        .replace(Regex("\\p{M}+"), "")
+        .replace(ACCENTI, "")
         .lowercase()
-        .replace(Regex("[^a-z0-9]+"), " ")
+        .replace(NON_ALFANUMERICI, " ")
         .trim()
 
 private val MINUSCOLE = setOf(
@@ -82,7 +85,7 @@ private fun sigleTraParentesi(p: String): Boolean =
 
 /** "STAZIONE TERMINI" -> "Stazione Termini"; i testi gia' scritti bene restano uguali. */
 fun bellaScrittura(testo: String): String {
-    val pulito = testo.trim().split(Regex("\\s+")).joinToString(" ")
+    val pulito = testo.trim().split(SPAZI).joinToString(" ")
     if (pulito.isEmpty() || pulito != pulito.uppercase()) return pulito
     return pulito.lowercase().split(" ").mapIndexed { i, p ->
         when {

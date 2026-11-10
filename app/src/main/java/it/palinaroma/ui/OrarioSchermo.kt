@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import it.palinaroma.BuildConfig
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.ORIGINE_INCLUSA
 import it.palinaroma.dati.StatoAggiornamento
@@ -40,12 +41,26 @@ fun OrarioSchermo(indietro: () -> Unit) {
             Scheda(
                 "Tempo reale",
                 "I tempi d'attesa e la posizione dei mezzi si leggono solo mentre una fermata o una linea è aperta, " +
-                    "ogni 30 e 15 secondi. Ogni lettura scarica alcuni MB: con il traffico dati tienilo presente.",
+                    "ogni 30 e 15 secondi. Ogni lettura può scaricare alcuni MB (niente, se i dati non sono cambiati): " +
+                    "con il traffico dati tienilo presente.",
+            )
+            Scheda(
+                "La tua posizione",
+                "Per le fermate vicine e per il segnalino \"sei qui\" sulle mappe la posizione resta sul telefono. " +
+                    "Solo quando calcoli un tragitto da o verso la tua posizione le coordinate vengono inviate a Transitous, " +
+                    "che calcola il percorso; quando cerchi un indirizzo gli arriva la zona in cui ti trovi, " +
+                    "arrotondata a circa un chilometro, per mostrarti prima i risultati vicini.",
             )
             Scheda(
                 "Fonti",
-                "Orario e tempo reale: open data di Roma Servizi per la Mobilità (licenza CC BY 3.0 IT). Mappe © OpenStreetMap contributors. " +
-                    "App personale, non affiliata ad ATAC né a Roma Servizi per la Mobilità.",
+                "Orario e tempo reale: open data di Roma Servizi per la Mobilità (licenza CC BY 3.0 IT). " +
+                    "Tragitti e orari programmati alle fermate: Transitous. Mappe © OpenStreetMap contributors. " +
+                    "App personale, non affiliata ad ATAC, a Roma Servizi per la Mobilità né a Transitous.",
+            )
+            Text(
+                "Palina Roma ${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Secondario,
             )
         }
     }
