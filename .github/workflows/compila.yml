@@ -199,7 +199,8 @@ jobs:
             [ -d "$d" ] || continue
             n=$(basename "$d")
             mkdir -p "/tmp/ramo/$n"
-            cp "$d"/riassunto.txt "$d"/logcat-app.txt "$d"/crash.txt "/tmp/ramo/$n/" 2>/dev/null || true
+            cp "$d"/riassunto.txt "$d"/logcat-app.txt "$d"/crash.txt "$d"/avdmanager.log "/tmp/ramo/$n/" 2>/dev/null || true
+            tail -100 "$d/emulatore.log" > "/tmp/ramo/$n/emulatore-coda.log" 2>/dev/null || true
             tail -300 "$d/prova.log" > "/tmp/ramo/$n/prova-coda.log" 2>/dev/null || true
             find "$d" -name "TEST-*.xml" -exec cp {} "/tmp/ramo/$n/" \; 2>/dev/null || true
             if [ -d "$d/schermate" ]; then

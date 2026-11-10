@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.BySelector
+import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
@@ -54,6 +55,8 @@ class ProvaSchermate {
 
     @Before
     fun avvia() {
+        // l'app ha animazioni continue (indicatori, mappa): non aspettare ogni volta 10 secondi che si fermino
+        Configurator.getInstance().waitForIdleTimeout = 1_000
         telefono.executeShellCommand("mkdir -p $CARTELLA")
         telefono.executeShellCommand("pm grant $pacchetto android.permission.ACCESS_FINE_LOCATION")
         telefono.executeShellCommand("pm grant $pacchetto android.permission.ACCESS_COARSE_LOCATION")
