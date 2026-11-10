@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # ogni lunedi' notte: APK con l'orario di Roma Mobilita' della settimana
+  schedule:
+    - cron: "17 2 * * 1"
 
 permissions:
   contents: write
@@ -27,6 +30,33 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Scarica l'orario di Roma Mobilita' (o la copia del Mobility Database) e lo
+      # trasforma nel database incluso nell'APK. Se non riesce, l'APK si compila
+      # lo stesso e l'app scarichera' l'orario al primo avvio.
+      - name: Prepara l'orario da includere nell'APK
+        continue-on-error: true
+        run: |
+          set -eo pipefail
+          mkdir -p /tmp/orario
+          fonte=""
+          for url in \
+            https://romamobilita.it/sites/default/files/rome_static_gtfs.zip \
+            https://files.mobilitydatabase.org/mdb-1294/latest.zip; do
+            if curl -fsSL --retry 2 --max-time 600 -A "PalinaRoma-CI (+https://github.com/fz1101hub/Palina)" \
+                 -o /tmp/orario/gtfs.zip "$url" && unzip -tq /tmp/orario/gtfs.zip > /dev/null; then
+              fonte="$url"
+              break
+            fi
+            echo "orario incluso: $url non raggiungibile" | tee -a orario.log
+          done
+          test -n "$fonte"
+          echo "orario incluso: fonte $fonte, $(du -h /tmp/orario/gtfs.zip | cut -f1)" | tee -a orario.log
+          ORARIO_GTFS=/tmp/orario/gtfs.zip ORARIO_SQL=/tmp/orario/orario.sql \
+            ./gradlew --no-daemon --console=plain testDebugUnitTest --tests it.palinaroma.dati.GeneraOrarioIncluso --rerun \
+            2>&1 | tee -a orario.log
+          python3 strumenti/crea_orario.py /tmp/orario/orario.sql app/build/orario-incluso | tee -a orario.log
+          rm -f /tmp/orario/orario.sql
+
       - name: Test e compilazione
         run: |
           set -o pipefail
@@ -38,9 +68,10 @@ jobs:
         run: |
           esito="${{ job.status }}"
           mkdir -p /tmp/esito
-          { echo "commit: $GITHUB_SHA"; echo "esito: $esito"; echo "firma: ${FIRMA_PASSWORD:+presente}"; } > /tmp/esito/ESITO.txt
+          { echo "commit: $GITHUB_SHA"; echo "esito: $esito"; echo "firma: ${FIRMA_PASSWORD:+presente}"; grep "^orario incluso" orario.log || echo "orario incluso: passo non eseguito"; } > /tmp/esito/ESITO.txt
           { grep -E "^e: |error:|FAILED|BUILD (SUCCESSFUL|FAILED)|tests completed" compilazione.log | head -300; grep -A12 "What went wrong" compilazione.log | head -120; } > /tmp/esito/errori.txt || true
           tail -400 compilazione.log > /tmp/esito/coda.log || true
+          tail -200 orario.log > /tmp/esito/orario.log 2>/dev/null || true
           find app/build/test-results -name "*.xml" -exec cp {} /tmp/esito/ \; 2>/dev/null || true
           cd /tmp/esito
           git init -q -b esito
@@ -67,6 +98,6 @@ jobs:
           name: Ultima versione
           body: >-
             Compilata dal commit ${{ github.sha }}. Dal telefono scarica app-release.apk e installala.
-            ${{ env.FIRMA_PASSWORD == '' && 'Versione di prova - per aggiornarla disinstalla prima quella vecchia (perderai preferiti e orario scaricato).' || '' }}
+            ${{ env.FIRMA_PASSWORD == '' && 'Versione di prova - per aggiornarla disinstalla prima quella vecchia (perderai i preferiti).' || '' }}
           files: app/build/outputs/apk/release/app-release.apk
           make_latest: true

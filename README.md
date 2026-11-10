@@ -13,8 +13,10 @@ L'APK pronto si trova nella release **Ultima versione** del repository: aprila d
 scarica `app-release.apk` e installalo (Android chiede di consentire l'installazione da quella app).
 Gli aggiornamenti si installano sopra la versione precedente.
 
-Al primo avvio l'app scarica l'orario di Roma Mobilità (circa 50 MB, meglio in Wi-Fi) e lo
-trasforma in un piccolo database: ci vuole qualche minuto. Conviene aggiornarlo una volta a settimana.
+L'APK contiene già l'orario di Roma Mobilità, preparato durante la compilazione: l'app funziona
+dal primo avvio. Quando l'orario ha più di una settimana l'app lo riscarica da sola in Wi-Fi
+(circa 50 MB); con i dati mobili si aggiorna a mano da *Orario e dati*. GitHub ricompila l'APK
+ogni lunedì, così chi lo installa parte sempre da un orario recente.
 
 ### Firma
 
@@ -22,7 +24,7 @@ trasforma in un piccolo database: ci vuole qualche minuto. Conviene aggiornarlo 
 `FIRMA_PASSWORD` del repository (Settings → Secrets and variables → Actions). Senza il segreto
 l'APK pubblicato è una versione di prova, firmata con una chiave temporanea diversa a ogni
 compilazione: per installare un aggiornamento bisogna prima disinstallare la versione precedente
-(si perdono preferiti e orario scaricato). Aggiungendo il segreto gli aggiornamenti si installano
+(si perdono i preferiti). Aggiungendo il segreto gli aggiornamenti si installano
 sopra, ma solo a partire dalla prima versione firmata con la chiave.
 
 L'esito di ogni compilazione (errori, test, ultime righe del log) viene salvato nel ramo `esito`.
@@ -31,6 +33,9 @@ L'esito di ogni compilazione (errori, test, ultime righe del log) viene salvato 
 
 - **Orario statico** (`rome_static_gtfs.zip`): `CostruttoreOrario` legge linee, fermate, corse,
   percorso tipico di ogni linea per direzione e tracciati, e `ScrittoreDb` li salva in SQLite.
+  Durante la compilazione lo stesso codice gira sul server (`GeneraOrarioIncluso`, poi
+  `strumenti/crea_orario.py`) e il database finisce tra gli asset dell'APK; se il sito di Roma
+  Mobilità non risponde si usa la copia del [Mobility Database](https://mobilitydatabase.org/feeds/gtfs/mdb-1294).
 - **Tempo reale**: i feed GTFS-Realtime (corse e posizione dei mezzi) sono letti da
   `FeedTempoReale`, un piccolo decodificatore protobuf senza librerie esterne, solo mentre
   una fermata o una linea è aperta.
@@ -53,7 +58,8 @@ app/src/test/   test del decodificatore, dell'orario, dei testi e del client Tra
 
 ## Fonti e licenza
 
-Dati open data di Roma Servizi per la Mobilità. Tragitti calcolati da
+Dati open data di Roma Servizi per la Mobilità (licenza CC BY 3.0 IT), inclusi nell'APK
+con attribuzione. Tragitti calcolati da
 [Transitous](https://transitous.org/sources/) (uso non commerciale, con attribuzione).
 Mappe © OpenStreetMap contributors. App personale, non affiliata ad ATAC, a Roma Servizi per la
 Mobilità né a Transitous.

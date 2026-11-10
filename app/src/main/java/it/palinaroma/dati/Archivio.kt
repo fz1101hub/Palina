@@ -2,6 +2,8 @@ package it.palinaroma.dati
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import it.palinaroma.BuildConfig
 import kotlinx.coroutines.CoroutineScope
@@ -46,6 +48,10 @@ object Archivio {
     private val _orario = MutableStateFlow<Orario?>(null)
     val orario: StateFlow<Orario?> = _orario.asStateFlow()
 
+    /** Diventa true quando l'orario salvato (o quello incluso nell'APK) e' stato aperto. */
+    private val _pronto = MutableStateFlow(false)
+    val pronto: StateFlow<Boolean> = _pronto.asStateFlow()
+
     private val _aggiornamento = MutableStateFlow<StatoAggiornamento>(StatoAggiornamento.Fermo)
     val aggiornamento: StateFlow<StatoAggiornamento> = _aggiornamento.asStateFlow()
 
@@ -57,10 +63,62 @@ object Archivio {
     fun inizializza(context: Context) {
         app = context.applicationContext
         _preferiti.value = impostazioni.getStringSet("preferiti", emptySet())?.toSet() ?: emptySet()
-        ambito.launch { apri() }
+        ambito.launch {
+            try {
+                installaOrarioIncluso()
+            } catch (e: Exception) {
+                Log.e("Archivio", "Orario incluso non installato", e)
+            }
+            apri()
+            _pronto.value = true
+            aggiornaInWiFi()
+        }
     }
 
     private fun fileDb() = File(app.filesDir, "orario.db")
+
+    /** Quando e' stato creato l'orario incluso nell'APK, o null se l'APK non lo contiene. */
+    private fun dataOrarioIncluso(): Long? =
+        runCatching {
+            app.assets.open("orario-incluso.txt").bufferedReader().use { it.readText().trim().toLong() }
+        }.getOrNull()
+
+    /**
+     * Al primo avvio (o se l'APK ha un orario piu' recente di quello salvato)
+     * copia l'orario incluso nell'APK: l'app funziona subito, senza scaricare nulla.
+     */
+    private fun installaOrarioIncluso() {
+        val data = dataOrarioIncluso() ?: return
+        if (fileDb().exists() && ultimoAggiornamento() >= data) return
+        val copia = File(app.filesDir, "orario-incluso.tmp")
+        try {
+            app.assets.open("orario.db").use { ingresso ->
+                copia.outputStream().use { ingresso.copyTo(it, 1 shl 16) }
+            }
+            // prima di sostituire quello salvato controlla che si apra
+            SQLiteDatabase.openDatabase(copia.path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+                db.rawQuery("SELECT count(*) FROM fermate", null).use { c ->
+                    if (!c.moveToFirst() || c.getInt(0) == 0) throw IOException("Orario incluso vuoto")
+                }
+            }
+            if (!copia.renameTo(fileDb())) throw IOException("Impossibile salvare l'orario incluso")
+        } finally {
+            copia.delete()
+        }
+        impostazioni.edit().putLong("orario_aggiornato", data).apply()
+    }
+
+    /** Senza costi: rete Wi-Fi o comunque non a consumo. */
+    private fun reteSenzaCosti(): Boolean = runCatching {
+        val gestore = app.getSystemService(ConnectivityManager::class.java)
+        val rete = gestore?.getNetworkCapabilities(gestore.activeNetwork)
+        rete != null && rete.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) && gestore?.isActiveNetworkMetered == false
+    }.getOrDefault(false)
+
+    /** Se l'orario ha piu' di una settimana lo aggiorna da solo, ma solo in Wi-Fi. */
+    private fun aggiornaInWiFi() {
+        if (_orario.value != null && daAggiornare() && reteSenzaCosti()) aggiorna()
+    }
 
     private fun apri() {
         val file = fileDb()

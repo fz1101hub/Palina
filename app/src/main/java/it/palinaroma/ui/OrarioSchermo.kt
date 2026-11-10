@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.ORIGINE_INCLUSA
 import it.palinaroma.dati.StatoAggiornamento
 
 @Composable
@@ -43,7 +44,7 @@ fun OrarioSchermo(indietro: () -> Unit) {
             )
             Scheda(
                 "Fonti",
-                "Orario e tempo reale: open data di Roma Servizi per la Mobilità. Mappe © OpenStreetMap contributors. " +
+                "Orario e tempo reale: open data di Roma Servizi per la Mobilità (licenza CC BY 3.0 IT). Mappe © OpenStreetMap contributors. " +
                     "App personale, non affiliata ad ATAC né a Roma Servizi per la Mobilità.",
             )
         }
@@ -79,9 +80,11 @@ fun PannelloOrario(modifier: Modifier = Modifier, primaVolta: Boolean) {
                         "le direzioni e i tracciati delle linee. Sono circa 50 MB, meglio in Wi-Fi; " +
                         "poi lo trasformo in un piccolo database, ci vuole qualche minuto."
                 } else {
-                    "Aggiornato il ${giorno(Archivio.ultimoAggiornamento())} · " +
+                    val incluso = o.info("origine") == ORIGINE_INCLUSA
+                    (if (incluso) "Orario del ${giorno(Archivio.ultimoAggiornamento())}, incluso nell'app · " else "Aggiornato il ${giorno(Archivio.ultimoAggiornamento())} · ") +
                         "${o.info("fermate") ?: "?"} fermate, ${o.info("linee") ?: "?"} linee. " +
-                        "Conviene aggiornarlo una volta a settimana."
+                        "Quando ha più di una settimana si aggiorna da solo in Wi-Fi; " +
+                        "con i dati mobili puoi aggiornarlo da qui (circa 50 MB)."
                 },
                 color = Secondario,
             )

@@ -12,8 +12,8 @@ android {
         applicationId = "it.palinaroma"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.11"
+        versionCode = 12
+        versionName = "0.12"
     }
 
     // La chiave di firma (firma.p12) e' nel repository ma cifrata: la password
@@ -55,6 +55,16 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+
+    // L'orario di Roma Mobilita' preparato dalla compilazione su GitHub
+    // (strumenti/crea_orario.py): se c'e', finisce dentro l'APK e l'app
+    // funziona dal primo avvio senza scaricare nulla.
+    sourceSets.getByName("main").assets.srcDir("build/orario-incluso")
+}
+
+// la generazione dell'orario incluso legge tutto l'orario di Roma
+tasks.withType<Test>().configureEach {
+    maxHeapSize = "2g"
 }
 
 dependencies {

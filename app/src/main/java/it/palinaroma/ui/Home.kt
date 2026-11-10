@@ -52,6 +52,7 @@ import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.Linea
 import it.palinaroma.dati.Orario
+import it.palinaroma.dati.StatoAggiornamento
 import it.palinaroma.dati.haPermessoPosizione
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.posizioni
@@ -73,6 +74,8 @@ fun HomeSchermo(
     apriTragitto: () -> Unit,
 ) {
     val orario by Archivio.orario.collectAsStateWithLifecycle()
+    val pronto by Archivio.pronto.collectAsStateWithLifecycle()
+    val aggiornamento by Archivio.aggiornamento.collectAsStateWithLifecycle()
     var scheda by rememberSaveable { mutableIntStateOf(0) }
 
     Scaffold(
@@ -100,10 +103,18 @@ fun HomeSchermo(
         ) {
             val o = orario
             if (o == null) {
-                PannelloOrario(Modifier.padding(16.dp), primaVolta = true)
+                if (pronto) {
+                    PannelloOrario(Modifier.padding(16.dp), primaVolta = true)
+                } else {
+                    // primo avvio: si sta copiando l'orario incluso nell'app (un paio di secondi)
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Preparo l'orario…", color = Secondario)
+                        LinearProgressIndicator(color = Porpora, trackColor = SuPorpora, modifier = Modifier.fillMaxWidth())
+                    }
+                }
                 return@Column
             }
-            if (Archivio.daAggiornare()) {
+            if (Archivio.daAggiornare() && aggiornamento !is StatoAggiornamento.InCorso) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SuPorpora),
                     modifier = Modifier

@@ -5,7 +5,6 @@ import android.database.DatabaseUtils
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteStatement
 import java.io.File
-import java.util.Locale
 import kotlin.math.cos
 
 data class Fermata(val id: String, val codice: String, val nome: String, val lat: Double, val lon: Double)
@@ -25,19 +24,6 @@ data class LineaFermata(val linea: Linea, val direzione: Int, val capolinea: Str
 
 data class InfoCorsa(val lineaId: String, val direzione: Int, val capolinea: String)
 
-private val SCHEMA = listOf(
-    "CREATE TABLE linee(id TEXT PRIMARY KEY, nome TEXT, descrizione TEXT, tipo INTEGER, colore TEXT, colore_testo TEXT)",
-    "CREATE TABLE fermate(id TEXT PRIMARY KEY, codice TEXT, nome TEXT, nome_norm TEXT, lat REAL, lon REAL)",
-    "CREATE TABLE corse(id TEXT PRIMARY KEY, linea TEXT, direzione INTEGER, capolinea TEXT) WITHOUT ROWID",
-    "CREATE TABLE percorsi(linea TEXT, direzione INTEGER, capolinea TEXT, forma TEXT, PRIMARY KEY(linea, direzione))",
-    "CREATE TABLE percorso_fermate(linea TEXT, direzione INTEGER, posizione INTEGER, fermata TEXT, " +
-        "PRIMARY KEY(linea, direzione, posizione))",
-    "CREATE TABLE fermata_linee(fermata TEXT, linea TEXT, direzione INTEGER, capolinea TEXT, " +
-        "PRIMARY KEY(fermata, linea, direzione))",
-    "CREATE TABLE forme(id TEXT PRIMARY KEY, punti TEXT)",
-    "CREATE TABLE info(chiave TEXT PRIMARY KEY, valore TEXT)",
-)
-
 /** Scrive l'orario in un nuovo file SQLite, tutto in una transazione. */
 class ScrittoreDb(file: File) : DestinazioneOrario {
     private val db: SQLiteDatabase = SQLiteDatabase.openOrCreateDatabase(file, null)
@@ -52,7 +38,7 @@ class ScrittoreDb(file: File) : DestinazioneOrario {
     private var linee = 0
 
     init {
-        SCHEMA.forEach { db.execSQL(it) }
+        SCHEMA_ORARIO.forEach { db.execSQL(it) }
         db.beginTransaction()
         insLinea = db.compileStatement("INSERT OR REPLACE INTO linee VALUES (?,?,?,?,?,?)")
         insFermata = db.compileStatement("INSERT OR REPLACE INTO fermate VALUES (?,?,?,?,?,?)")
@@ -126,7 +112,7 @@ class ScrittoreDb(file: File) : DestinazioneOrario {
     override fun forma(id: String, punti: List<Punto>) {
         insForma.clearBindings()
         insForma.bindString(1, id)
-        insForma.bindString(2, punti.joinToString(";") { String.format(Locale.US, "%.5f,%.5f", it.lat, it.lon) })
+        insForma.bindString(2, testoForma(punti))
         insForma.executeInsert()
     }
 
@@ -144,8 +130,7 @@ class ScrittoreDb(file: File) : DestinazioneOrario {
         }
         db.setTransactionSuccessful()
         db.endTransaction()
-        db.execSQL("CREATE INDEX fermate_lat ON fermate(lat)")
-        db.execSQL("CREATE INDEX fermate_codice ON fermate(codice)")
+        INDICI_ORARIO.forEach { db.execSQL(it) }
         db.close()
     }
 
