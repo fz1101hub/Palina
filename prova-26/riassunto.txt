@@ -1,0 +1,3 @@
+immagine: system-images;android-26;google_apis;x86_64
+esito: riuscita
+BUILD SUCCESSFUL in 2m 18s

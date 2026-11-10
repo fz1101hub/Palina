@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="6" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-11-10T05:34:18" hostname="localhost">
+  <testsuite name="it.palinaroma.ProvaSchermate" tests="6" failures="0" errors="0" skipped="0" time="61.596" timestamp="2026-11-10T05:34:18" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="a1_schermataPrincipaleConOrarioIncluso" classname="it.palinaroma.ProvaSchermate" time="4.296" />
+    <testcase name="a2_fermateVicine" classname="it.palinaroma.ProvaSchermate" time="3.797" />
+    <testcase name="a3_cercaUnaFermataEApriLaConITempi" classname="it.palinaroma.ProvaSchermate" time="13.087" />
+    <testcase name="a4_lineaSullaMappaConLeVetture" classname="it.palinaroma.ProvaSchermate" time="21.279" />
+    <testcase name="a5_tragittoFinoAlColosseo" classname="it.palinaroma.ProvaSchermate" time="16.351" />
+    <testcase name="a6_orarioEDati" classname="it.palinaroma.ProvaSchermate" time="2.786" />
+  </testsuite>
+</testsuites>

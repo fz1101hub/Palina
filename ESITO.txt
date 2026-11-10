@@ -1,0 +1,10 @@
+commit: 661f70f181f5948197f5582b684db24254958aff
+esito: success
+== prova-26
+immagine: system-images;android-26;google_apis;x86_64
+esito: riuscita
+BUILD SUCCESSFUL in 2m 18s
+== prova-37
+immagine: system-images;android-37.0;google_apis;x86_64
+esito: riuscita
+BUILD SUCCESSFUL in 3m 6s
