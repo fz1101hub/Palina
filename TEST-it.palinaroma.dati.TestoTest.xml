@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="it.palinaroma.dati.TestoTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-16T09:54:09.202Z" hostname="ip-10-0-136-89" time="0.005">
+  <properties/>
+  <testcase name="ordinaLeLinee" classname="it.palinaroma.dati.TestoTest" time="0.0"/>
+  <testcase name="scriveBeneICapolinea" classname="it.palinaroma.dati.TestoTest" time="0.004"/>
+  <testcase name="normalizzaPerLaRicerca" classname="it.palinaroma.dati.TestoTest" time="0.0"/>
+  <testcase name="misuraLeDistanze" classname="it.palinaroma.dati.TestoTest" time="0.0"/>
+  <testcase name="confrontaICodici" classname="it.palinaroma.dati.TestoTest" time="0.001"/>
+  <testcase name="divideLeRigheCsv" classname="it.palinaroma.dati.TestoTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
