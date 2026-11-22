@@ -328,7 +328,7 @@ fun Modifier.riquadroTabellone(fondo: Color, bordo: Color): Modifier =
 fun PillolaAttesa(arrivo: Arrivo, adesso: Long) {
     val primo = arrivo.passaggi.first()
     val minuti = minutiAttesa(primo.orario, adesso)
-    val tempo = if (minuti < 1) "ora" else "$minuti′"
+    val tempo = if (minuti < 1) "in arrivo" else "$minuti′"
     val fondo = if (primo.tracciato) AccentoFondo else MaterialTheme.colorScheme.surfaceVariant
     val colore = if (primo.tracciato) Accento else ColoreOrario
     Text(
@@ -388,7 +388,15 @@ fun RigaFermata(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (distanza != null) {
+            if (conTempi) {
+                // con i tempi la riga della palina non c'e': il numero va qui, per distinguere
+                // le fermate con lo stesso nome (le paline ai due lati della strada)
+                Text(
+                    "palina ${fermata.codice}" + (distanza?.let { " · ${it.roundToInt()} m" } ?: ""),
+                    color = Secondario,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            } else if (distanza != null) {
                 Text("${distanza.roundToInt()} m", color = Secondario, style = MaterialTheme.typography.bodySmall)
             }
         }

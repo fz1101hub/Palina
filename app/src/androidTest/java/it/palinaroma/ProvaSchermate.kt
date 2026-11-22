@@ -111,9 +111,10 @@ class ProvaSchermate {
         tocca(By.desc("Aggiungi ai preferiti"))
         aspetta(By.desc("Togli dai preferiti"), 5_000, "il cuore pieno")
         telefono.pressBack()
-        attendi(800)
-        // si torna alla ricerca: la si chiude
-        if (!telefono.hasObject(By.res("preferita"))) telefono.pressBack()
+        // si torna alla ricerca, rimasta aperta: la si chiude con la freccia
+        if (aspettaUnoDi(15_000, "la ricerca o la Home", By.desc("Chiudi la ricerca"), By.res("preferita")) == 0) {
+            tocca(By.desc("Chiudi la ricerca"))
+        }
         aspetta(By.res("preferita"), 15_000, "la fermata preferita in Home")
         attendi(6_000)
         schermata("04-home-con-preferita")
@@ -192,7 +193,7 @@ class ProvaSchermate {
         aspetta(By.res("cerca"), 10_000, "la Home")
         attendi(6_000)
         schermata("12-home-scura")
-        aspetta(By.res("riga-fermata"), 60_000, "le fermate vicine").click()
+        apriFermataConITempi()
         aspettaUnoDi(
             90_000,
             "i tempi d'attesa",
@@ -218,7 +219,7 @@ class ProvaSchermate {
             aspetta(By.res("cerca"), 20_000, "la Home con il testo grande")
             attendi(4_000)
             schermata("14-home-testo-grande")
-            aspetta(By.res("riga-fermata"), 60_000, "le fermate vicine").click()
+            apriFermataConITempi()
             aspettaUnoDi(
                 90_000,
                 "i tempi d'attesa",
@@ -233,6 +234,14 @@ class ProvaSchermate {
     }
 
     // ---------------------------------------------------------------------
+
+    /** Apre una fermata vicina: la seconda, perche' la prima in piazza Venezia ha solo una linea poco frequente. */
+    private fun apriFermataConITempi() {
+        aspetta(By.res("riga-fermata"), 60_000, "le fermate vicine")
+        attendi(3_000)
+        val righe = telefono.findObjects(By.res("riga-fermata"))
+        (righe.getOrNull(1) ?: righe.first()).click()
+    }
 
     private fun attendi(ms: Long) = Thread.sleep(ms)
 

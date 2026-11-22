@@ -90,13 +90,13 @@ import it.palinaroma.dati.posizioni
 import it.palinaroma.dati.precisione
 import it.palinaroma.dati.preferitaVicina
 import it.palinaroma.dati.testoAggiornato
+import it.palinaroma.dati.testoMetri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 
 data class FermataConLinee(val fermata: Fermata, val distanza: Double?, val linee: List<String>)
 
@@ -519,7 +519,7 @@ private fun SchedaPreferita(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "palina ${fermata.codice}" + (distanza?.let { " · ${it.roundToInt()} m" } ?: ""),
+                "palina ${fermata.codice}" + (distanza?.let { " · " + testoMetri(it) } ?: ""),
                 style = MaterialTheme.typography.bodySmall,
                 color = Secondario,
             )
@@ -609,7 +609,12 @@ private fun SchedaCerca(
     var linee by remember { mutableStateOf<List<Linea>>(emptyList()) }
     var fermate by remember { mutableStateOf<List<FermataConLinee>>(emptyList()) }
     val fuoco = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { fuoco.requestFocus() } }
+    // la tastiera si apre solo la prima volta: tornando da una fermata non ricompare
+    var giaAperta by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!giaAperta) runCatching { fuoco.requestFocus() }
+        giaAperta = true
+    }
 
     LaunchedEffect(testo, orario) {
         delay(250)
