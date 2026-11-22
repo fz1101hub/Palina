@@ -91,6 +91,7 @@ import it.palinaroma.dati.precisione
 import it.palinaroma.dati.preferitaVicina
 import it.palinaroma.dati.testoAggiornato
 import it.palinaroma.dati.testoMetri
+import it.palinaroma.dati.testoPoi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -585,9 +586,9 @@ private fun RigaCompatta(arrivo: Arrivo, adesso: Long) {
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val poi = arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) }
+                val poi = testoPoi(arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) })
                 if (poi.isNotEmpty()) {
-                    Text("poi " + poi.joinToString(" · ") + " min", style = MaterialTheme.typography.bodySmall, color = Secondario)
+                    Text(poi, style = MaterialTheme.typography.bodySmall, color = Secondario)
                 }
             }
             CifreAttesa(minutiAttesa(primo.orario, adesso), primo.tracciato, grandezza = 30)

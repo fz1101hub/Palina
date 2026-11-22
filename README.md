@@ -1,8 +1,10 @@
 # Palina Roma (Android)
 
-App personale per i mezzi pubblici di Roma, con la grafica porpora e oro della skill Alexa "Palina Roma":
+App personale per i mezzi pubblici di Roma, con l'aspetto di un tabellone delle paline elettroniche
+(tema scuro e chiaro, cifre a punti, porpora e oro di Roma):
 
-- **tempi d'attesa in tempo reale** alle fermate, con la direzione di ogni corsa;
+- **Home con i minuti**: in cima la fermata preferita a cui sei vicino, poi le altre preferite e le fermate vicine, già con i prossimi passaggi;
+- **tempi d'attesa in tempo reale** alle fermate, con la direzione di ogni corsa e le linee che usi fissate in cima;
 - **linee**: tracciato sulla mappa, fermate e mezzi in movimento;
 - **tragitti da A a B** con bus, tram, metro e treni: cambi, tratti a piedi con le indicazioni, ritardi in tempo reale e mappa del percorso.
 
@@ -16,7 +18,7 @@ altrimenti va prima disinstallata quella vecchia.
 
 L'APK contiene già l'orario di Roma Mobilità, preparato durante la compilazione: l'app funziona
 dal primo avvio. Quando l'orario ha più di una settimana l'app lo riscarica da sola in Wi-Fi
-(circa 50 MB); con i dati mobili si aggiorna a mano da *Orario e dati*. GitHub ricompila l'APK
+(circa 50 MB); con i dati mobili si aggiorna a mano da *Impostazioni*. GitHub ricompila l'APK
 ogni lunedì, così chi lo installa parte sempre da un orario recente. GitHub sospende le
 compilazioni programmate dei repository fermi da 60 giorni: l'ultimo passo del flusso di lavoro
 lo riattiva a ogni esecuzione; se si fermasse lo stesso, basta riabilitarlo dalla scheda *Actions*.

@@ -87,13 +87,19 @@ fun fraseArrivo(arrivo: Arrivo, adesso: Long): String {
     val quando = if (minuti < 1) "In arrivo" else "Tra " + minutiAParole(minuti)
     val fonte = if (primo.tracciato) "in tempo reale" else "secondo l'orario"
     val successivi = arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) }
-    val poi = when (successivi.size) {
-        0 -> ""
-        1 -> " Poi tra " + minutiAParole(successivi[0]) + "."
+    val poi = when {
+        successivi.isEmpty() -> ""
+        successivi.size == 1 && successivi[0] < 1 -> " Poi un altro in arrivo."
+        successivi.size == 1 -> " Poi tra " + minutiAParole(successivi[0]) + "."
+        successivi[0] < 1 -> " Poi un altro in arrivo e uno tra " + minutiAParole(successivi[1]) + "."
         else -> " Poi tra ${successivi[0]} e " + minutiAParole(successivi[1]) + "."
     }
     return "${arrivo.nomeLinea}$verso. $quando, $fonte.$poi"
 }
+
+/** I passaggi dopo il primo, in breve: "poi 9 · 17 min"; "<1" se arrivano quasi insieme. */
+fun testoPoi(minuti: List<Int>): String =
+    if (minuti.isEmpty()) "" else "poi " + minuti.joinToString(" · ") { if (it < 1) "<1" else it.toString() } + " min"
 
 /**
  * La fermata preferita a cui sei vicino: la piu' vicina entro [raggio] metri.

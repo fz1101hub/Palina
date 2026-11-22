@@ -75,6 +75,19 @@ class TabelloneTest {
             fraseArrivo(arrivo("H", "Capasso", 9, tracciato = false), adesso),
         )
         assertEquals("70. In arrivo, in tempo reale.", fraseArrivo(arrivo("70", "", 0), adesso))
+        // due vetture quasi insieme
+        assertEquals(
+            "40 per Termini. In arrivo, in tempo reale. Poi un altro in arrivo e uno tra 16 minuti.",
+            fraseArrivo(arrivo("40", "Termini", 0, 0, 16), adesso),
+        )
+    }
+
+    @Test
+    fun iPassaggiSuccessiviInBreve() {
+        assertEquals("poi 9 · 17 min", testoPoi(listOf(9, 17)))
+        assertEquals("poi <1 · 16 min", testoPoi(listOf(0, 16)))
+        assertEquals("poi 13 min", testoPoi(listOf(13)))
+        assertEquals("", testoPoi(emptyList()))
     }
 
     @Test

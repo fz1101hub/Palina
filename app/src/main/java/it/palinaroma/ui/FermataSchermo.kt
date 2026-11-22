@@ -73,6 +73,7 @@ import it.palinaroma.dati.fraseArrivo
 import it.palinaroma.dati.lineeFissate
 import it.palinaroma.dati.minutiAttesa
 import it.palinaroma.dati.testoAggiornato
+import it.palinaroma.dati.testoPoi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -421,9 +422,9 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: () 
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    val poi = arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) }
+                    val poi = testoPoi(arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) })
                     if (poi.isNotEmpty()) {
-                        Text("poi " + poi.joinToString(" · ") + " min", style = MaterialTheme.typography.bodySmall, color = Secondario)
+                        Text(poi, style = MaterialTheme.typography.bodySmall, color = Secondario)
                     }
                 }
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
