@@ -28,6 +28,9 @@ sealed interface StatoAggiornamento {
     data class Errore(val messaggio: String) : StatoAggiornamento
 }
 
+/** Chiaro o scuro: automatico segue il telefono. */
+enum class Aspetto { AUTOMATICO, CHIARO, SCURO }
+
 /** Tiene l'orario aperto, lo aggiorna e conserva i preferiti. */
 object Archivio {
     const val URL_ORARIO = "https://romamobilita.it/sites/default/files/rome_static_gtfs.zip"
@@ -64,11 +67,26 @@ object Archivio {
     private val _preferiti = MutableStateFlow<Set<String>>(emptySet())
     val preferiti: StateFlow<Set<String>> = _preferiti.asStateFlow()
 
+    /** Linee fissate in cima alle fermate: chiavi "fermata|linea" (vedi [chiaveFissata]). */
+    private val _fissate = MutableStateFlow<Set<String>>(emptySet())
+    val fissate: StateFlow<Set<String>> = _fissate.asStateFlow()
+
+    private val _aspetto = MutableStateFlow(Aspetto.AUTOMATICO)
+    val aspetto: StateFlow<Aspetto> = _aspetto.asStateFlow()
+
+    /** Cifre dei tempi con il carattere a punti delle paline elettroniche. */
+    private val _cifreLed = MutableStateFlow(true)
+    val cifreLed: StateFlow<Boolean> = _cifreLed.asStateFlow()
+
     private val impostazioni by lazy { app.getSharedPreferences("palina", Context.MODE_PRIVATE) }
 
     fun inizializza(context: Context) {
         app = context.applicationContext
         _preferiti.value = impostazioni.getStringSet("preferiti", emptySet())?.toSet() ?: emptySet()
+        _fissate.value = impostazioni.getStringSet("linee_fissate", emptySet())?.toSet() ?: emptySet()
+        _aspetto.value = impostazioni.getString("aspetto", null)
+            ?.let { nome -> Aspetto.entries.firstOrNull { it.name == nome } } ?: Aspetto.AUTOMATICO
+        _cifreLed.value = impostazioni.getBoolean("cifre_led", true)
         ambito.launch {
             pulisciAvanzi()
             try {
@@ -238,6 +256,24 @@ object Archivio {
         if (!nuovi.add(fermataId)) nuovi.remove(fermataId)
         _preferiti.value = nuovi
         impostazioni.edit().putStringSet("preferiti", nuovi).apply()
+    }
+
+    fun alternaLineaFissata(fermataId: String, lineaId: String) {
+        val chiave = chiaveFissata(fermataId, lineaId)
+        val nuove = _fissate.value.toMutableSet()
+        if (!nuove.add(chiave)) nuove.remove(chiave)
+        _fissate.value = nuove
+        impostazioni.edit().putStringSet("linee_fissate", nuove).apply()
+    }
+
+    fun scegliAspetto(aspetto: Aspetto) {
+        _aspetto.value = aspetto
+        impostazioni.edit().putString("aspetto", aspetto.name).apply()
+    }
+
+    fun scegliCifreLed(attive: Boolean) {
+        _cifreLed.value = attive
+        impostazioni.edit().putBoolean("cifre_led", attive).apply()
     }
 
     /** Ultimi luoghi scelti per i tragitti, dal piu' recente. */

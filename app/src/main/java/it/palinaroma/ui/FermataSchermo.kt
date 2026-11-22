@@ -2,32 +2,38 @@
 
 package it.palinaroma.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,8 +45,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Arrivo
+import it.palinaroma.dati.ArriviDivisi
 import it.palinaroma.dati.CorsaRT
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.MezzoRT
@@ -58,18 +67,30 @@ import it.palinaroma.dati.PartenzaTransitous
 import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.Transitous
 import it.palinaroma.dati.ancoraAttesi
-import it.palinaroma.dati.passaggiProgrammati
-import it.palinaroma.dati.passaggiTempoReale
-import it.palinaroma.dati.raggruppa
-import it.palinaroma.dati.uniscPassaggi
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import it.palinaroma.dati.arriviFermata
+import it.palinaroma.dati.dividiArrivi
+import it.palinaroma.dati.fraseArrivo
+import it.palinaroma.dati.lineeFissate
+import it.palinaroma.dati.minutiAttesa
+import it.palinaroma.dati.testoAggiornato
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
+
+/** Esegue [blocco]; se non riesce restituisce null (l'annullamento passa). */
+suspend fun <T> seRiesce(blocco: suspend () -> T): T? =
+    try {
+        blocco()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        null
+    }
 
 @Composable
 fun FermataSchermo(
@@ -81,38 +102,27 @@ fun FermataSchermo(
 ) {
     val orario by Archivio.orario.collectAsStateWithLifecycle()
     val preferiti by Archivio.preferiti.collectAsStateWithLifecycle()
+    val chiaviFissate by Archivio.fissate.collectAsStateWithLifecycle()
     val o = orario
     val fermata = remember(o, fermataId) { o?.fermata(fermataId) }
     val linee = remember(o, fermataId) { o?.lineeAllaFermata(fermataId).orEmpty() }
+    val nomiLinee = remember(linee) { linee.associate { it.linea.id to it.linea.nome } }
+    val fissate = remember(chiaviFissate, fermataId) { lineeFissate(fermataId, chiaviFissate) }
 
     var arrivi by remember { mutableStateOf<List<Arrivo>?>(null) }
     var errore by remember { mutableStateOf<String?>(null) }
     var aggiornando by remember { mutableStateOf(false) }
     var aggiornatoAlle by remember { mutableLongStateOf(0L) }
     var soloTempoReale by remember { mutableStateOf(false) }
-    var adesso by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
+    var adessoMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val adesso = adessoMs / 1000
     val ambito = rememberCoroutineScope()
     val ciclo = LocalLifecycleOwner.current
 
-    suspend fun <T> seRiesce(blocco: suspend () -> T): T? =
-        try {
-            blocco()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            null
+    suspend fun componi(corse: List<CorsaRT>?, mezzi: List<MezzoRT>, partenze: List<PartenzaTransitous>?): List<Arrivo> =
+        withContext(Dispatchers.IO) {
+            arriviFermata(fermataId, o, corse, mezzi, partenze, System.currentTimeMillis() / 1000)
         }
-
-    // Mette insieme le fonti arrivate finora: ognuna puo' mancare.
-    suspend fun componi(corse: List<CorsaRT>?, mezzi: List<MezzoRT>, partenze: List<PartenzaTransitous>?): List<Arrivo> {
-        val istante = System.currentTimeMillis() / 1000
-        val tracciate = mezzi.mapNotNull { it.corsaId.ifEmpty { null } }.toSet()
-        return withContext(Dispatchers.IO) {
-            val inTempoReale = corse?.let { passaggiTempoReale(it, fermataId, o, istante, tracciate = tracciate) }.orEmpty()
-            val programmati = partenze?.let { passaggiProgrammati(it, o, istante, mezzi = mezzi) }.orEmpty()
-            raggruppa(uniscPassaggi(inTempoReale, programmati), o)
-        }
-    }
 
     // Tre fonti in parallelo, ognuna puo' mancare:
     // - tempo reale di Roma Mobilita' (vetture seguite via GPS),
@@ -150,7 +160,11 @@ fun FermataSchermo(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            errore = "Non riesco a leggere i passaggi. Controlla la connessione e riprova."
+            errore = if (arrivi.isNullOrEmpty()) {
+                "Non riesco a leggere i passaggi. Controlla la connessione e riprova."
+            } else {
+                "Non riesco ad aggiornare: i tempi qui sotto sono quelli delle ${ora(aggiornatoAlle)}."
+            }
         } finally {
             aggiornando = false
         }
@@ -167,17 +181,19 @@ fun FermataSchermo(
     }
     LaunchedEffect(Unit) {
         while (true) {
-            adesso = System.currentTimeMillis() / 1000
+            adessoMs = System.currentTimeMillis()
             delay(5_000)
         }
     }
 
     // Se l'aggiornamento non riesce (per esempio senza rete) i mezzi gia' passati spariscono da soli.
     val visibili = remember(arrivi, adesso) { arrivi?.let { ancoraAttesi(it, adesso) } }
+    val diviso = remember(visibili, fissate) { visibili?.let { dividiArrivi(it, fissate) } }
 
     Scaffold(
+        containerColor = Sfondo,
         topBar = {
-            BarraPorpora(
+            BarraSuperiore(
                 titolo = fermata?.nome ?: "Fermata $fermataId",
                 sottotitolo = fermata?.let { "Palina ${it.codice}" },
                 indietro = indietro,
@@ -192,6 +208,7 @@ fun FermataSchermo(
                         Icon(
                             if (preferita) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                             contentDescription = if (preferita) "Togli dai preferiti" else "Aggiungi ai preferiti",
+                            tint = if (preferita) Accento else Testo,
                         )
                     }
                 },
@@ -206,62 +223,65 @@ fun FermataSchermo(
                 .fillMaxSize(),
         ) {
             LazyColumn(
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                item {
-                    Text(
-                        if (aggiornatoAlle > 0) "Aggiornato alle ${ora(aggiornatoAlle)} · trascina giù per aggiornare"
-                        else "Carico i tempi d'attesa…",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Secondario,
-                    )
+                item { RigaAggiornamento(aggiornatoAlle, adessoMs) }
+                errore?.let { testo ->
+                    item { AvvisoRete(testo, riprova = { ambito.launch { carica(forza = true) } }) }
                 }
-                item { LegendaFonti() }
                 if (soloTempoReale && aggiornatoAlle > 0) {
                     item {
                         Text(
                             "Gli orari programmati non sono disponibili in questo momento: vedi solo i mezzi seguiti in tempo reale.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Porpora,
+                            color = Secondario,
+                            modifier = Modifier.padding(horizontal = 8.dp),
                         )
                     }
                 }
-                errore?.let { testo ->
+                val d = diviso
+                if (d != null) {
                     item {
-                        Card(colors = CardDefaults.cardColors(containerColor = SuPorpora)) {
-                            Text(testo, color = Porpora, modifier = Modifier.padding(12.dp))
-                        }
+                        TabelloneFermata(
+                            diviso = d,
+                            nomiLinee = nomiLinee,
+                            conFissate = fissate.isNotEmpty(),
+                            adesso = adesso,
+                            testoVuoto = when {
+                                errore != null || aggiornatoAlle == 0L -> null
+                                soloTempoReale -> "Nessun mezzo seguito in tempo reale nei prossimi 90 minuti."
+                                else -> "Nessun passaggio nei prossimi 90 minuti, né in tempo reale né da orario."
+                            },
+                            apri = { a -> apriVettura(a.lineaId, a.direzione, a.passaggi.first().corsaId) },
+                            fissa = { lineaId -> Archivio.alternaLineaFissata(fermataId, lineaId) },
+                        )
                     }
-                }
-                val elenco = visibili
-                if (elenco != null && elenco.isEmpty() && errore == null && aggiornatoAlle > 0) {
                     item {
                         Text(
-                            if (soloTempoReale) "Nessun mezzo seguito in tempo reale nei prossimi 90 minuti."
-                            else "Nessun passaggio nei prossimi 90 minuti, né in tempo reale né da orario.",
+                            "Cifre oro con il pallino: vettura vista ora dal GPS. Grigie: tempo calcolato sull'orario. " +
+                                "Tocca una riga per vedere la vettura sulla mappa, trascina giù per aggiornare.",
+                            style = MaterialTheme.typography.bodySmall,
                             color = Secondario,
-                            modifier = Modifier.padding(vertical = 16.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp),
                         )
-                    }
-                }
-                items(elenco.orEmpty(), key = { "${it.lineaId}|${it.direzione}|${it.capolinea}" }) { arrivo ->
-                    RigaArrivo(arrivo, adesso) {
-                        apriVettura(arrivo.lineaId, arrivo.direzione, arrivo.passaggi.first().corsaId)
                     }
                 }
                 if (linee.isNotEmpty()) {
-                    item { Intestazione("Linee di questa fermata") }
+                    item { Intestazione("Linee di questa fermata", rientro = 8.dp) }
                     item {
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp),
                         ) {
                             linee.distinctBy { it.linea.id }.forEach { lf ->
                                 BadgeLinea(
                                     lf.linea.nome,
-                                    Modifier.clickable { apriLinea(lf.linea.id, lf.direzione) },
+                                    Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable(onClickLabel = "apri la linea") { apriLinea(lf.linea.id, lf.direzione) },
                                     grande = true,
                                 )
                             }
@@ -273,83 +293,184 @@ fun FermataSchermo(
     }
 }
 
+/** "● Aggiornato 20 s fa" a sinistra, l'ora a cifre a punti a destra. */
 @Composable
-private fun RigaArrivo(arrivo: Arrivo, adesso: Long, onClick: () -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier
+fun RigaAggiornamento(aggiornatoAlle: Long, adessoMs: Long, modifier: Modifier = Modifier) {
+    Row(
+        modifier
             .fillMaxWidth()
-            .testTag("arrivo")
-            .clickable(onClick = onClick),
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            Modifier
-                .padding(10.dp)
-                .heightIn(min = 56.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BadgeLinea(arrivo.nomeLinea, grande = true)
-            Column(
+        if (aggiornatoAlle > 0) {
+            Box(
                 Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
-            ) {
-                Text(
-                    arrivo.capolinea.ifEmpty { "Direzione non indicata" },
-                    fontWeight = FontWeight.Bold,
-                    color = if (arrivo.capolinea.isEmpty()) Secondario else Inchiostro,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (arrivo.passaggi.size > 1) {
-                    Text(
-                        "poi " + arrivo.passaggi.drop(1).take(2).joinToString(", ") {
-                            testoMinuti(it.orario, adesso) + if (it.tracciato) "" else " (da orario)"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Secondario,
-                    )
-                }
+                    .size(7.dp)
+                    .background(Accento, CircleShape),
+            )
+            Spacer(Modifier.width(6.dp))
+        }
+        Text(
+            if (aggiornatoAlle > 0) "Aggiornato " + testoAggiornato(aggiornatoAlle, adessoMs) else "Carico i tempi d'attesa…",
+            style = MaterialTheme.typography.bodySmall,
+            color = Secondario,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            ora(adessoMs),
+            fontFamily = CarattereCifre,
+            fontWeight = FontWeight.Black,
+            fontSize = 20.sp,
+            color = Accento,
+            modifier = Modifier.clearAndSetSemantics { },
+        )
+    }
+}
+
+/** Avviso quando la rete manca: dice di quando sono i tempi e offre di riprovare. */
+@Composable
+fun AvvisoRete(testo: String, riprova: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .background(AccentoFondo, RoundedCornerShape(16.dp))
+            .padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Icons.Filled.Warning, contentDescription = null, tint = Accento)
+        Text(testo, style = MaterialTheme.typography.bodyMedium, color = Testo, modifier = Modifier.weight(1f))
+        TextButton(onClick = riprova) { Text("Riprova", color = Accento, fontWeight = FontWeight.Bold) }
+    }
+}
+
+/** Il tabellone della fermata: in cima le linee fissate, sotto le altre. */
+@Composable
+private fun TabelloneFermata(
+    diviso: ArriviDivisi,
+    nomiLinee: Map<String, String>,
+    conFissate: Boolean,
+    adesso: Long,
+    testoVuoto: String?,
+    apri: (Arrivo) -> Unit,
+    fissa: (String) -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .riquadroTabellone(FondoTabellone, Bordo)
+            .padding(start = 12.dp, end = 2.dp, top = 4.dp, bottom = 4.dp),
+    ) {
+        if (conFissate) {
+            TitolettoTabellone("Le tue linee", Accento)
+            diviso.fissate.forEach { a ->
+                RigaArrivo(a, adesso, fissata = true, apri = { apri(a) }, fissa = { fissa(a.lineaId) })
             }
-            val primo = arrivo.passaggi.first()
-            val minuti = testoMinuti(primo.orario, adesso)
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    minuti,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = when {
-                        !primo.tracciato -> Secondario
-                        minuti == "in arrivo" -> Porpora
-                        else -> Inchiostro
-                    },
-                )
-                FonteTempo(primo.tracciato)
+            diviso.senzaPassaggi.forEach { id ->
+                RigaFissataVuota(nomiLinee[id] ?: id, togli = { fissa(id) })
             }
+            if (diviso.altre.isNotEmpty()) TitolettoTabellone("Altre linee", Secondario)
+        } else if (diviso.altre.isNotEmpty()) {
+            Text(
+                "Tocca la puntina accanto a una linea: resta in cima qui e in Home.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Secondario,
+                modifier = Modifier.padding(top = 8.dp, bottom = 2.dp, end = 10.dp),
+            )
+        }
+        diviso.altre.forEach { a ->
+            RigaArrivo(a, adesso, fissata = false, apri = { apri(a) }, fissa = { fissa(a.lineaId) })
+        }
+        if (diviso.fissate.isEmpty() && diviso.altre.isEmpty() && testoVuoto != null) {
+            Text(testoVuoto, color = Secondario, modifier = Modifier.padding(vertical = 16.dp))
         }
     }
 }
 
-/** Spiega le due etichette dei tempi d'attesa. */
 @Composable
-private fun LegendaFonti() {
+private fun TitolettoTabellone(testo: String, colore: androidx.compose.ui.graphics.Color) {
+    Intestazione(testo, colore = colore, rientro = 0.dp)
+}
+
+/** Una linea alla fermata: numero, direzione, prossimi passaggi, minuti grandi e puntina. */
+@Composable
+private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: () -> Unit, fissa: () -> Unit) {
+    val primo = arrivo.passaggi.first()
+    val frase = fraseArrivo(arrivo, adesso)
     Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            FonteTempo(true)
-            Text(
-                "  la vettura è seguita in tempo reale: tocca per vederla sulla mappa",
-                style = MaterialTheme.typography.bodySmall,
-                color = Secondario,
-            )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = 64.dp)
+                    .testTag("arrivo")
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(onClickLabel = "vedi la vettura sulla mappa", onClick = apri)
+                    .clearAndSetSemantics { contentDescription = frase }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                BadgeLinea(arrivo.nomeLinea, grande = true)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        arrivo.capolinea.ifEmpty { "Direzione non indicata" },
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 15.sp,
+                        color = if (arrivo.capolinea.isEmpty()) Secondario else Testo,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    val poi = arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) }
+                    if (poi.isNotEmpty()) {
+                        Text("poi " + poi.joinToString(" · ") + " min", style = MaterialTheme.typography.bodySmall, color = Secondario)
+                    }
+                }
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    CifreAttesa(minutiAttesa(primo.orario, adesso), primo.tracciato)
+                    FonteTempo(primo.tracciato)
+                }
+            }
+            IconButton(onClick = fissa) {
+                Icon(
+                    if (fissata) PuntinaPiena else PuntinaVuota,
+                    contentDescription = if (fissata) "Togli il ${arrivo.nomeLinea} dalle tue linee" else "Fissa il ${arrivo.nomeLinea} in cima",
+                    tint = if (fissata) Accento else Secondario,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            FonteTempo(false)
+        HorizontalDivider(color = Divisore)
+    }
+}
+
+/** Una linea fissata che nei prossimi 90 minuti non passa: resta in cima e lo dice. */
+@Composable
+private fun RigaFissataVuota(nome: String, togli: () -> Unit) {
+    Column {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            BadgeLinea(nome, grande = true)
             Text(
-                "  tempo calcolato sull'orario programmato, senza GPS",
-                style = MaterialTheme.typography.bodySmall,
+                "Nessun passaggio nei prossimi 90 minuti",
+                style = MaterialTheme.typography.bodyMedium,
                 color = Secondario,
+                modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = togli) {
+                Icon(
+                    PuntinaPiena,
+                    contentDescription = "Togli il $nome dalle tue linee",
+                    tint = Accento,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
+        HorizontalDivider(color = Divisore)
     }
 }

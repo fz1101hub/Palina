@@ -66,8 +66,8 @@ class ProvaSchermate {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         strumenti.targetContext.startActivity(intento)
         telefono.wait(Until.hasObject(By.pkg(pacchetto).depth(0)), 30_000)
-        // l'orario incluso nell'app si copia al primo avvio: poi compaiono le schede
-        aspetta(By.text("Vicino a me"), 60_000, "la schermata principale")
+        // l'orario incluso nell'app si copia al primo avvio: poi compare la Home con la ricerca
+        aspetta(By.res("cerca"), 60_000, "la schermata principale")
     }
 
     @Test
@@ -80,36 +80,48 @@ class ProvaSchermate {
     fun a2_fermateVicine() {
         // la posizione del telefono simulato e' in piazza Venezia
         aspetta(By.res("riga-fermata"), 90_000, "le fermate vicine")
-        attendi(1_500)
-        schermata("02-vicino-a-me")
+        attendi(6_000) // i minuti arrivano dal feed in tempo reale
+        schermata("02-home-vicino-a-te")
     }
 
     @Test
     fun a3_cercaUnaFermataEApriLaConITempi() {
-        tocca(By.text("Cerca"))
+        tocca(By.res("cerca"))
         scrivi("Termini")
         aspetta(By.res("riga-fermata"), 20_000, "i risultati della ricerca").click()
         val esito = aspettaUnoDi(
             90_000,
             "i tempi d'attesa",
-            By.textContains("Aggiornato alle"),
+            By.textContains("Aggiornato"),
             By.textContains("Non riesco a leggere i passaggi"),
         )
         attendi(2_000)
         schermata("03-fermata-" + if (esito == 0) "con-tempi" else "senza-rete")
 
-        // preferito: lo si aggiunge qui e lo si ritrova nella scheda Preferiti
+        // una linea fissata con la puntina va in cima, sotto "LE TUE LINEE"
+        telefono.findObject(By.descStartsWith("Fissa il"))?.let { puntina ->
+            puntina.click()
+            aspetta(By.descStartsWith("Togli il"), 5_000, "la puntina piena")
+            aspetta(By.text("LE TUE LINEE"), 5_000, "la sezione delle linee fissate")
+            attendi(1_000)
+            schermata("03b-fermata-linea-fissata")
+        }
+
+        // preferito: lo si aggiunge qui e lo si ritrova in cima alla Home, con i suoi tempi
         tocca(By.desc("Aggiungi ai preferiti"))
         aspetta(By.desc("Togli dai preferiti"), 5_000, "il cuore pieno")
         telefono.pressBack()
-        tocca(By.text("Preferiti"))
-        aspetta(By.res("riga-fermata"), 10_000, "la fermata tra i preferiti")
-        schermata("04-preferiti")
+        attendi(800)
+        // si torna alla ricerca: la si chiude
+        if (!telefono.hasObject(By.res("preferita"))) telefono.pressBack()
+        aspetta(By.res("preferita"), 15_000, "la fermata preferita in Home")
+        attendi(6_000)
+        schermata("04-home-con-preferita")
     }
 
     @Test
     fun a4_lineaSullaMappaConLeVetture() {
-        tocca(By.text("Cerca"))
+        tocca(By.res("cerca"))
         scrivi("64")
         aspetta(By.res("linea"), 20_000, "la linea tra i risultati").click()
         aspetta(By.text("DIREZIONE"), 20_000, "la schermata della linea")
@@ -167,10 +179,57 @@ class ProvaSchermate {
     }
 
     @Test
-    fun a6_orarioEDati() {
-        tocca(By.desc("Orario e dati"))
+    fun a6_impostazioniETemaScuro() {
+        tocca(By.desc("Impostazioni"))
+        aspetta(By.textStartsWith("Automatico"), 15_000, "la scelta dell'aspetto")
+        schermata("10-impostazioni")
+
+        // tema scuro: Home e fermata
+        tocca(By.textStartsWith("Scuro"))
+        attendi(1_000)
+        schermata("11-impostazioni-scure")
+        telefono.pressBack()
+        aspetta(By.res("cerca"), 10_000, "la Home")
+        attendi(6_000)
+        schermata("12-home-scura")
+        aspetta(By.res("riga-fermata"), 60_000, "le fermate vicine").click()
+        aspettaUnoDi(
+            90_000,
+            "i tempi d'attesa",
+            By.textContains("Aggiornato"),
+            By.textContains("Non riesco a leggere i passaggi"),
+        )
+        attendi(2_000)
+        schermata("13-fermata-scura")
+        telefono.pressBack()
+
+        // si torna a come segue il telefono
+        tocca(By.desc("Impostazioni"))
+        tocca(By.textStartsWith("Automatico"))
         aspetta(By.textContains("incluso nell'app"), 15_000, "l'orario incluso nell'app")
-        schermata("10-orario-e-dati")
+        telefono.pressBack()
+    }
+
+    @Test
+    fun a7_testoGrandeDiAndroid() {
+        telefono.executeShellCommand("settings put system font_scale 1.6")
+        try {
+            attendi(2_000)
+            aspetta(By.res("cerca"), 20_000, "la Home con il testo grande")
+            attendi(4_000)
+            schermata("14-home-testo-grande")
+            aspetta(By.res("riga-fermata"), 60_000, "le fermate vicine").click()
+            aspettaUnoDi(
+                90_000,
+                "i tempi d'attesa",
+                By.textContains("Aggiornato"),
+                By.textContains("Non riesco a leggere i passaggi"),
+            )
+            attendi(2_000)
+            schermata("15-fermata-testo-grande")
+        } finally {
+            telefono.executeShellCommand("settings put system font_scale 1.0")
+        }
     }
 
     // ---------------------------------------------------------------------

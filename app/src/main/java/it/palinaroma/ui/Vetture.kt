@@ -79,7 +79,7 @@ fun iconaVettura(
         }
         pennello.color = when {
             evidenziata -> Porpora.toArgb()
-            altraDirezione -> Secondario.toArgb()
+            altraDirezione -> GrigioMappa.toArgb()
             else -> Inchiostro.toArgb()
         }
         tela.drawPath(punta, pennello)
@@ -125,9 +125,9 @@ fun FonteTempo(tracciato: Boolean, modifier: Modifier = Modifier) {
             Box(
                 Modifier
                     .size(8.dp)
-                    .background(Porpora, CircleShape),
+                    .background(Accento, CircleShape),
             )
-            Text("GPS", style = MaterialTheme.typography.labelSmall, color = Porpora, fontWeight = FontWeight.Bold)
+            Text("GPS", style = MaterialTheme.typography.labelSmall, color = Accento, fontWeight = FontWeight.Bold)
         }
     } else {
         Text("da orario", style = MaterialTheme.typography.labelSmall, color = Secondario, modifier = modifier)

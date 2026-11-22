@@ -1,0 +1,113 @@
+package it.palinaroma.dati
+
+/**
+ * Le regole del "tabellone": come si mettono insieme i passaggi di una fermata,
+ * quali linee vanno in cima, come si dicono i tempi a parole. Niente Android qui
+ * dentro, cosi' si provano con i test di unita'.
+ */
+
+/** Mette insieme le fonti di una fermata; ognuna puo' mancare. [adesso] in secondi. */
+fun arriviFermata(
+    fermataId: String,
+    orario: Orario?,
+    corse: List<CorsaRT>?,
+    mezzi: List<MezzoRT>,
+    partenze: List<PartenzaTransitous>?,
+    adesso: Long,
+): List<Arrivo> {
+    val tracciate = mezzi.mapNotNull { it.corsaId.ifEmpty { null } }.toSet()
+    val inTempoReale = corse?.let { passaggiTempoReale(it, fermataId, orario, adesso, tracciate = tracciate) }.orEmpty()
+    val programmati = partenze?.let { passaggiProgrammati(it, orario, adesso, mezzi = mezzi) }.orEmpty()
+    return raggruppa(uniscPassaggi(inTempoReale, programmati), orario)
+}
+
+/** La chiave con cui si salva una linea fissata a una fermata. */
+fun chiaveFissata(fermataId: String, lineaId: String): String = "$fermataId|$lineaId"
+
+/** Le linee fissate a una fermata, tra tutte quelle salvate. */
+fun lineeFissate(fermataId: String, chiavi: Set<String>): Set<String> {
+    val prefisso = "$fermataId|"
+    return chiavi.filter { it.startsWith(prefisso) }.map { it.removePrefix(prefisso) }.toSet()
+}
+
+/**
+ * Gli arrivi divisi tra le linee fissate (in cima) e le altre. [senzaPassaggi]
+ * sono le linee fissate che nei prossimi 90 minuti non passano: restano in cima
+ * con una riga che lo dice, invece di sparire.
+ */
+data class ArriviDivisi(val fissate: List<Arrivo>, val altre: List<Arrivo>, val senzaPassaggi: List<String>)
+
+fun dividiArrivi(arrivi: List<Arrivo>, fissate: Set<String>): ArriviDivisi {
+    val (sopra, sotto) = arrivi.partition { it.lineaId in fissate }
+    val presenti = sopra.map { it.lineaId }.toSet()
+    return ArriviDivisi(sopra, sotto, fissate.filter { it !in presenti }.sorted())
+}
+
+/** Minuti interi che mancano; 0 se e' gia' in arrivo. Tempi in secondi. */
+fun minutiAttesa(orario: Long, adesso: Long): Int = ((orario - adesso) / 60).toInt().coerceAtLeast(0)
+
+/** "adesso", "20 s fa", "3 min fa": da quanto e' arrivato l'ultimo dato. Tempi in millisecondi. */
+fun testoAggiornato(aggiornatoMs: Long, adessoMs: Long): String {
+    val secondi = ((adessoMs - aggiornatoMs) / 1000).coerceAtLeast(0)
+    return when {
+        secondi < 10 -> "adesso"
+        secondi < 60 -> "${secondi / 10 * 10} s fa"
+        else -> "${secondi / 60} min fa"
+    }
+}
+
+/** Le abbreviazioni dei nomi delle fermate, sciolte per il lettore dello schermo. */
+private val ABBREVIAZIONI = listOf(
+    Regex("\\bP\\.za\\b\\s*", RegexOption.IGNORE_CASE) to "Piazza ",
+    Regex("\\bP\\.le\\b\\s*", RegexOption.IGNORE_CASE) to "Piazzale ",
+    Regex("\\bL\\.go\\b\\s*", RegexOption.IGNORE_CASE) to "Largo ",
+    Regex("\\bV\\.le\\b\\s*", RegexOption.IGNORE_CASE) to "Viale ",
+    Regex("\\bC\\.so\\b\\s*", RegexOption.IGNORE_CASE) to "Corso ",
+    Regex("\\bStaz\\.ne\\b\\s*", RegexOption.IGNORE_CASE) to "Stazione ",
+    Regex("\\bStaz\\.\\s*", RegexOption.IGNORE_CASE) to "Stazione ",
+)
+
+/** Un nome scritto come si legge: "P.za Venezia" -> "Piazza Venezia", "Nazionale/Torino" -> "Nazionale, Torino". */
+fun daLeggere(nome: String): String {
+    var t = nome
+    for ((regola, sostituto) in ABBREVIAZIONI) t = regola.replace(t, sostituto)
+    return t.replace(Regex("\\s*/\\s*"), ", ").replace(Regex("\\s+"), " ").trim()
+}
+
+private fun minutiAParole(minuti: Int): String = if (minuti == 1) "1 minuto" else "$minuti minuti"
+
+/**
+ * La riga di un arrivo come una frase sola, per il lettore dello schermo:
+ * "64 per Stazione San Pietro. Tra 1 minuto, in tempo reale. Poi tra 9 e 17 minuti."
+ */
+fun fraseArrivo(arrivo: Arrivo, adesso: Long): String {
+    val primo = arrivo.passaggi.first()
+    val minuti = minutiAttesa(primo.orario, adesso)
+    val verso = if (arrivo.capolinea.isEmpty()) "" else " per " + daLeggere(arrivo.capolinea)
+    val quando = if (minuti < 1) "In arrivo" else "Tra " + minutiAParole(minuti)
+    val fonte = if (primo.tracciato) "in tempo reale" else "secondo l'orario"
+    val successivi = arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) }
+    val poi = when (successivi.size) {
+        0 -> ""
+        1 -> " Poi tra " + minutiAParole(successivi[0]) + "."
+        else -> " Poi tra ${successivi[0]} e " + minutiAParole(successivi[1]) + "."
+    }
+    return "${arrivo.nomeLinea}$verso. $quando, $fonte.$poi"
+}
+
+/**
+ * La fermata preferita a cui sei vicino: la piu' vicina entro [raggio] metri.
+ * Null se non c'e' o se la posizione non e' nota.
+ */
+fun preferitaVicina(
+    preferite: List<Fermata>,
+    lat: Double?,
+    lon: Double?,
+    raggio: Double = 400.0,
+): Pair<Fermata, Double>? {
+    if (lat == null || lon == null) return null
+    return preferite
+        .map { it to distanzaMetri(lat, lon, it.lat, it.lon) }
+        .filter { it.second <= raggio }
+        .minByOrNull { it.second }
+}

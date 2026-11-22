@@ -220,7 +220,7 @@ fun LineaSchermo(
 
     Scaffold(
         topBar = {
-            BarraPorpora(
+            BarraSuperiore(
                 titolo = "Linea ${linea?.nome ?: lineaId}",
                 sottotitolo = percorso?.capolinea?.takeIf { it.isNotEmpty() }?.let { "verso $it" }
                     ?: linea?.descrizione,
@@ -233,7 +233,7 @@ fun LineaSchermo(
                         ) {
                             Text(
                                 "⇄",
-                                color = Color.White,
+                                color = Testo,
                                 style = MaterialTheme.typography.titleLarge,
                                 modifier = Modifier.clearAndSetSemantics { },
                             )
@@ -252,7 +252,7 @@ fun LineaSchermo(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(Superficie)
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -275,7 +275,7 @@ fun LineaSchermo(
                     if (percorsi.size > 1) {
                         Button(
                             onClick = cambiaDirezione,
-                            colors = ButtonDefaults.buttonColors(containerColor = Porpora),
+                            colors = ButtonDefaults.buttonColors(containerColor = Oro, contentColor = Inchiostro),
                             modifier = Modifier.padding(start = 12.dp),
                         ) {
                             Text("⇄ ", modifier = Modifier.clearAndSetSemantics { })
@@ -283,7 +283,7 @@ fun LineaSchermo(
                         }
                     }
                 }
-                HorizontalDivider(color = Color(0xFFE2DDD8))
+                HorizontalDivider(color = Divisore)
             }
             if (percorsi.size > 2) {
                 Row(
@@ -453,7 +453,7 @@ private fun SchedaVettura(
     val eta = etaRilevamento(mezzo.rilevato, adesso)
     val vecchia = mezzo.rilevato > 0 && adesso - mezzo.rilevato > SECONDI_POSIZIONE_VECCHIA
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = Superficie),
         shape = RoundedCornerShape(14.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         modifier = modifier.fillMaxWidth(),
@@ -484,14 +484,14 @@ private fun SchedaVettura(
                     Text(
                         if (eta != null) " posizione rilevata $eta" else " posizione in tempo reale",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (vecchia) Porpora else Secondario,
+                        color = if (vecchia) Accento else Secondario,
                     )
                 }
                 if (vecchia) {
                     Text(
                         "Il segnale è vecchio: la vettura potrebbe essere più avanti.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Porpora,
+                        color = Accento,
                     )
                 }
                 if (distanzaPercorso != null) {
@@ -499,14 +499,14 @@ private fun SchedaVettura(
                         "È a ${testoMetri(distanzaPercorso)} dal percorso della linea: forse è in deviazione, " +
                             "in rimessa o sta andando al capolinea.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Porpora,
+                        color = Accento,
                     )
                 }
                 if (altraDirezione) {
                     Text(
                         "Va nell'altra direzione · mostra quella direzione ›",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Porpora,
+                        color = Accento,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.clickable(onClick = mostraQuellaDirezione),
                     )
@@ -530,7 +530,7 @@ private fun SchedaVettura(
 @Composable
 private fun SchedaSenzaGps(fermata: Fermata?, arrivo: Long?, adesso: Long, modifier: Modifier) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = Superficie),
         shape = RoundedCornerShape(14.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         modifier = modifier.fillMaxWidth(),
@@ -561,7 +561,7 @@ private fun RigaPercorso(fermata: Fermata, prima: Boolean, ultima: Boolean, atte
         Modifier
             .fillMaxWidth()
             .height(52.dp)
-            .background(if (attesa) SuPorpora else Color.Transparent)
+            .background(if (attesa) AccentoFondo else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(start = 16.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -577,21 +577,21 @@ private fun RigaPercorso(fermata: Fermata, prima: Boolean, ultima: Boolean, atte
                     Modifier
                         .width(4.dp)
                         .weight(1f)
-                        .background(if (prima) Color.Transparent else Porpora),
+                        .background(if (prima) Color.Transparent else Accento),
                 )
                 Box(
                     Modifier
                         .weight(1f)
                         .width(4.dp)
-                        .background(if (ultima) Color.Transparent else Porpora),
+                        .background(if (ultima) Color.Transparent else Accento),
                 )
             }
             Box(
                 Modifier
                     .size(if (attesa) 18.dp else 14.dp)
-                    .background(Color.White, CircleShape)
+                    .background(Superficie, CircleShape)
                     .padding(3.dp)
-                    .background(if (attesa) Oro else Porpora, CircleShape),
+                    .background(if (attesa) Oro else Accento, CircleShape),
             )
         }
         Column(Modifier.padding(start = 12.dp)) {
@@ -675,7 +675,7 @@ private fun MappaLinea(
             if (formaAltra.size >= 2) {
                 add(Polyline(mappa).apply {
                     setPoints(formaAltra.map { GeoPoint(it.lat, it.lon) })
-                    outlinePaint.color = Secondario.copy(alpha = 0.55f).toArgb()
+                    outlinePaint.color = GrigioMappa.copy(alpha = 0.55f).toArgb()
                     outlinePaint.strokeWidth = 3 * densita
                     outlinePaint.strokeCap = Paint.Cap.ROUND
                     outlinePaint.pathEffect = DashPathEffect(floatArrayOf(6 * densita, 6 * densita), 0f)

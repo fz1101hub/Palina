@@ -1,5 +1,6 @@
 package it.palinaroma
 
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -9,14 +10,17 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -26,8 +30,9 @@ import it.palinaroma.ui.DettaglioTragittoSchermo
 import it.palinaroma.ui.FermataSchermo
 import it.palinaroma.ui.HomeSchermo
 import it.palinaroma.ui.LineaSchermo
+import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.Aspetto
 import it.palinaroma.ui.OrarioSchermo
-import it.palinaroma.ui.Porpora
 import it.palinaroma.ui.SceltaLuogoSchermo
 import it.palinaroma.ui.StatoTragitto
 import it.palinaroma.ui.TemaPalina
@@ -37,13 +42,30 @@ import it.palinaroma.ui.comeLuogo
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Porpora.toArgb()))
+        enableEdgeToEdge()
         setContent {
+            val aspetto by Archivio.aspetto.collectAsStateWithLifecycle()
+            val cifreLed by Archivio.cifreLed.collectAsStateWithLifecycle()
+            val scuro = when (aspetto) {
+                Aspetto.AUTOMATICO -> isSystemInDarkTheme()
+                Aspetto.CHIARO -> false
+                Aspetto.SCURO -> true
+            }
+            // icone della barra di stato chiare sul tema scuro, scure su quello chiaro
+            DisposableEffect(scuro) {
+                val stile = if (scuro) {
+                    SystemBarStyle.dark(Color.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                }
+                enableEdgeToEdge(statusBarStyle = stile, navigationBarStyle = stile)
+                onDispose { }
+            }
             // le etichette di prova (testTag) diventano identificativi visibili alla
             // prova automatica sull'emulatore; per chi usa l'app non cambia nulla
             @OptIn(ExperimentalComposeUiApi::class)
             Box(Modifier.semantics { testTagsAsResourceId = true }) {
-                TemaPalina { Navigazione() }
+                TemaPalina(scuro = scuro, cifreLed = cifreLed) { Navigazione() }
             }
         }
     }
@@ -71,6 +93,11 @@ private fun Navigazione() {
         vai("linea/" + Uri.encode(id) + "?dir=" + (direzione ?: -1))
     }
     val apriTragitto: () -> Unit = { vai("tragitto") }
+    // dalla ricerca della Home: "Come arrivo a ..." apre i tragitti e subito la scelta dell'arrivo
+    val apriTragittoVerso: (String) -> Unit = { testo ->
+        vai("tragitto")
+        vai("luogo/a?testo=" + Uri.encode(testo))
+    }
 
     NavHost(
         navController = nav,
@@ -87,6 +114,7 @@ private fun Navigazione() {
                 apriLinea = { apriLinea(it, null) },
                 apriOrario = { vai("orario") },
                 apriTragitto = apriTragitto,
+                apriTragittoVerso = apriTragittoVerso,
             )
         }
         composable(
@@ -150,12 +178,19 @@ private fun Navigazione() {
             )
         }
         composable(
-            "luogo/{campo}",
-            arguments = listOf(navArgument("campo") { type = NavType.StringType }),
+            "luogo/{campo}?testo={testo}",
+            arguments = listOf(
+                navArgument("campo") { type = NavType.StringType },
+                navArgument("testo") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
         ) { voce ->
             SceltaLuogoSchermo(
                 campo = voce.arguments?.getString("campo") ?: "a",
                 indietro = indietro,
+                testoIniziale = voce.arguments?.getString("testo").orEmpty(),
             )
         }
         composable(

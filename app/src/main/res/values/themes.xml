@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Lo sfondo mentre l'app si apre: lo stesso del tema chiaro -->
     <style name="Theme.PalinaRoma" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/travertino</item>
-        <item name="android:statusBarColor">@color/porpora</item>
+        <item name="android:windowBackground">@color/sfondo</item>
     </style>
 </resources>

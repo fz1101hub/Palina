@@ -93,7 +93,7 @@ passo "posizione: $("$ADB" shell dumpsys location 2>/dev/null | grep -m2 -iE "la
 
 passo "prova dell'app"
 # al massimo 25 minuti, cosi' resta il tempo per raccogliere i risultati
-timeout 1500 ./gradlew --no-daemon --console=plain connectedDebugAndroidTest 2>&1 | tee "$RISULTATI/prova.log" \
+timeout 1800 ./gradlew --no-daemon --console=plain connectedDebugAndroidTest 2>&1 | tee "$RISULTATI/prova.log" \
     | grep --line-buffered -E "Task :app:connected|Starting [0-9]+ tests|ProvaSchermate|FAILED|BUILD|tests completed|^e: "
 ESITO=${PIPESTATUS[0]}
 passo "fine della prova (codice $ESITO)"

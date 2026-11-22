@@ -136,7 +136,7 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
 
     Scaffold(
         topBar = {
-            BarraPorpora(
+            BarraSuperiore(
                 titolo = tragitto?.let { "${ora(it.partenza)} – ${ora(it.arrivo)}" } ?: "Tragitto",
                 sottotitolo = tragitto?.let {
                     testoDurata(it.durata) + when (it.cambi) {
@@ -237,13 +237,14 @@ private fun BloccoAPiedi(t: Tratto) {
                 .fillMaxHeight(),
             contentAlignment = Alignment.Center,
         ) {
+            val puntini = Secondario
             Canvas(
                 Modifier
                     .width(4.dp)
                     .fillMaxHeight(),
             ) {
                 drawLine(
-                    color = Secondario,
+                    color = puntini,
                     start = Offset(size.width / 2, 0f),
                     end = Offset(size.width / 2, size.height),
                     strokeWidth = size.width,
@@ -267,11 +268,11 @@ private fun BloccoAPiedi(t: Tratto) {
             }
             if (t.passi.size > 1) {
                 TextButton(onClick = { aperto = !aperto }, contentPadding = PaddingValues(0.dp)) {
-                    Text(if (aperto) "Nascondi le indicazioni" else "Indicazioni a piedi", color = Porpora)
+                    Text(if (aperto) "Nascondi le indicazioni" else "Indicazioni a piedi", color = Accento)
                     Icon(
                         if (aperto) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Porpora,
+                        tint = Accento,
                     )
                 }
                 if (aperto) {
@@ -279,7 +280,7 @@ private fun BloccoAPiedi(t: Tratto) {
                         Text(
                             p.testo + if (p.metri >= 10) " · " + testoMetri(p.metri) else "",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Inchiostro,
+                            color = Testo,
                             modifier = Modifier.padding(vertical = 2.dp),
                         )
                     }
@@ -355,7 +356,7 @@ private fun BloccoMezzo(t: Tratto, vettura: MezzoRT?, adesso: Long, apriFermata:
                 }
             }
             if (t.cancellato) {
-                Text("Corsa soppressa", color = Porpora, fontWeight = FontWeight.Bold)
+                Text("Corsa soppressa", color = Accento, fontWeight = FontWeight.Bold)
             }
             if (vettura != null) RigaVettura(t, vettura, adesso)
             RigaFermataTragitto("Sali a", t.da, t.partenza, t.partenzaPrevista, t.tempoReale)
@@ -367,13 +368,13 @@ private fun BloccoMezzo(t: Tratto, vettura: MezzoRT?, adesso: Long, apriFermata:
             ) {
                 Text(
                     (if (fermate == 1) "1 fermata" else "$fermate fermate") + " · " + testoDurata(t.durata),
-                    color = if (t.intermedie.isNotEmpty()) Porpora else Secondario,
+                    color = if (t.intermedie.isNotEmpty()) Accento else Secondario,
                 )
                 if (t.intermedie.isNotEmpty()) {
                     Icon(
                         if (aperto) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Porpora,
+                        tint = Accento,
                     )
                 }
             }
@@ -396,18 +397,18 @@ private fun BloccoMezzo(t: Tratto, vettura: MezzoRT?, adesso: Long, apriFermata:
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .background(SuPorpora, RoundedCornerShape(8.dp))
+                        .background(AccentoFondo, RoundedCornerShape(8.dp))
                         .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Filled.Warning, contentDescription = null, tint = Porpora, modifier = Modifier.size(18.dp))
-                    Text(avviso, color = Porpora, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 8.dp))
+                    Icon(Icons.Filled.Warning, contentDescription = null, tint = Accento, modifier = Modifier.size(18.dp))
+                    Text(avviso, color = Accento, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 8.dp))
                 }
             }
             salita?.let { f ->
                 Text(
                     "Tempi d'attesa a ${f.nome} ›",
-                    color = Porpora,
+                    color = Accento,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
                         .clickable { apriFermata(f.id) }
@@ -431,7 +432,7 @@ private fun RigaVettura(t: Tratto, vettura: MezzoRT, adesso: Long) {
     Row(
         Modifier
             .fillMaxWidth()
-            .background(SuPorpora, RoundedCornerShape(8.dp))
+            .background(AccentoFondo, RoundedCornerShape(8.dp))
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -440,7 +441,7 @@ private fun RigaVettura(t: Tratto, vettura: MezzoRT, adesso: Long) {
             "  La vettura" + (if (vettura.etichetta.isNotBlank()) " ${vettura.etichetta}" else "") + " $dove" +
                 (eta?.let { " · rilevata $it" } ?: ""),
             style = MaterialTheme.typography.bodySmall,
-            color = Porpora,
+            color = Accento,
         )
     }
 }
@@ -460,7 +461,7 @@ private fun RigaFermataTragitto(azione: String, tappa: Tappa, istante: Long, pre
         }
         Column(horizontalAlignment = Alignment.End) {
             val ritardo = ((istante - previsto) / 60_000).toInt()
-            Text(ora(istante), fontWeight = FontWeight.Bold, color = if (tempoReale && ritardo != 0) Porpora else Inchiostro)
+            Text(ora(istante), fontWeight = FontWeight.Bold, color = if (tempoReale && ritardo != 0) Accento else Testo)
             if (tempoReale) {
                 Text(
                     when {
@@ -469,7 +470,7 @@ private fun RigaFermataTragitto(azione: String, tappa: Tappa, istante: Long, pre
                         else -> "in orario"
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (ritardo != 0) Porpora else Secondario,
+                    color = if (ritardo != 0) Accento else Secondario,
                 )
             } else {
                 FonteTempo(false)
@@ -550,7 +551,7 @@ private fun MappaTragitto(
                     setPoints(punti)
                     outlinePaint.strokeCap = Paint.Cap.ROUND
                     if (t.aPiedi) {
-                        outlinePaint.color = Secondario.toArgb()
+                        outlinePaint.color = GrigioMappa.toArgb()
                         outlinePaint.strokeWidth = 4 * densita
                         outlinePaint.pathEffect = DashPathEffect(floatArrayOf(2 * densita, 8 * densita), 0f)
                     } else {

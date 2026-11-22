@@ -228,11 +228,11 @@ fun PulsanteMiaPosizione(attivo: Boolean, onClick: () -> Unit, modifier: Modifie
     SmallFloatingActionButton(
         onClick = onClick,
         containerColor = Color.White,
-        contentColor = if (attivo) BluPosizione else Secondario,
+        contentColor = if (attivo) BluPosizione else GrigioMappa,
         elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
         modifier = modifier.semantics { contentDescription = "Mostra dove sono" },
     ) {
-        val colore = if (attivo) BluPosizione else Secondario
+        val colore = if (attivo) BluPosizione else GrigioMappa
         Canvas(Modifier.size(22.dp)) {
             val r = size.minDimension / 2
             val c = Offset(size.width / 2, size.height / 2)

@@ -275,7 +275,7 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
 
     Scaffold(
         topBar = {
-            BarraPorpora(
+            BarraSuperiore(
                 titolo = "Tragitto",
                 sottotitolo = "Bus, tram, metro e treni",
                 indietro = indietro,
@@ -320,7 +320,7 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                             onClick = {
                                 if (negatoPerSempre) apriImpostazioniApp(context) else richiestaPermesso.launch(PERMESSI_POSIZIONE)
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Porpora),
+                            colors = ButtonDefaults.buttonColors(containerColor = Oro, contentColor = Inchiostro),
                         ) { Text(if (negatoPerSempre) "Apri le impostazioni" else "Usa la mia posizione") }
                     }
                 }
@@ -337,13 +337,13 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                 }
                 EsitoTragitti.InCorso -> item {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
-                        CircularProgressIndicator(color = Porpora, modifier = Modifier.size(22.dp), strokeWidth = 3.dp)
+                        CircularProgressIndicator(color = Accento, modifier = Modifier.size(22.dp), strokeWidth = 3.dp)
                         Text("Calcolo i tragitti…", color = Secondario, modifier = Modifier.padding(start = 12.dp))
                     }
                 }
                 is EsitoTragitti.Errore -> item {
                     Avviso(esito.messaggio) {
-                        TextButton(onClick = { ambito.launch { stato.cerca(context) } }) { Text("Riprova", color = Porpora) }
+                        TextButton(onClick = { ambito.launch { stato.cerca(context) } }) { Text("Riprova", color = Accento) }
                     }
                 }
                 is EsitoTragitti.Pronto -> {
@@ -352,7 +352,7 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                             TextButton(
                                 onClick = { ambito.launch { stato.altri(dopo = false) } },
                                 enabled = !stato.caricandoAltri,
-                            ) { Text("Partenze precedenti", color = Porpora) }
+                            ) { Text("Partenze precedenti", color = Accento) }
                         }
                     }
                     if (esito.tragitti.isEmpty()) {
@@ -372,7 +372,7 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                             TextButton(
                                 onClick = { ambito.launch { stato.altri(dopo = true) } },
                                 enabled = !stato.caricandoAltri,
-                            ) { Text(if (stato.caricandoAltri) "Cerco…" else "Partenze successive", color = Porpora) }
+                            ) { Text(if (stato.caricandoAltri) "Cerco…" else "Partenze successive", color = Accento) }
                         }
                     }
                     esito.soloAPiedi?.let { piedi ->
@@ -411,9 +411,9 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
 
 @Composable
 private fun Avviso(testo: String, azione: @Composable () -> Unit = {}) {
-    Card(colors = CardDefaults.cardColors(containerColor = SuPorpora), modifier = Modifier.fillMaxWidth()) {
+    Card(colors = CardDefaults.cardColors(containerColor = AccentoFondo), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(testo, color = Porpora)
+            Text(testo, color = Accento)
             azione()
         }
     }
@@ -422,14 +422,14 @@ private fun Avviso(testo: String, azione: @Composable () -> Unit = {}) {
 @Composable
 private fun ModuloLuoghi(da: Luogo?, a: Luogo?, scegli: (String) -> Unit, inverti: () -> Unit) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = Superficie),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 CampoLuogo("Da", da, "Scegli la partenza", partenza = true) { scegli("da") }
-                HorizontalDivider(color = Color(0xFFE2DDD8), modifier = Modifier.padding(start = 44.dp))
+                HorizontalDivider(color = Divisore, modifier = Modifier.padding(start = 44.dp))
                 CampoLuogo("A", a, "Dove vuoi andare?", partenza = false) { scegli("a") }
             }
             IconButton(
@@ -439,7 +439,7 @@ private fun ModuloLuoghi(da: Luogo?, a: Luogo?, scegli: (String) -> Unit, invert
                 Text(
                     "⇅",
                     fontSize = 24.sp,
-                    color = Porpora,
+                    color = Accento,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.clearAndSetSemantics { },
                 )
@@ -463,7 +463,7 @@ private fun CampoLuogo(etichetta: String, luogo: Luogo?, vuoto: String, partenza
             Text(etichetta, style = MaterialTheme.typography.labelSmall, color = Secondario)
             Text(
                 luogo?.nome ?: vuoto,
-                color = if (luogo == null) Secondario else Inchiostro,
+                color = if (luogo == null) Secondario else Testo,
                 fontWeight = if (luogo == null) FontWeight.Normal else FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -497,7 +497,7 @@ private fun SceltaQuando(quando: Quando, scegli: (Boolean?) -> Unit) {
     val colori = FilterChipDefaults.filterChipColors(
         selectedContainerColor = Oro,
         selectedLabelColor = Inchiostro,
-        containerColor = Color.White,
+        containerColor = Superficie,
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(
@@ -541,7 +541,7 @@ private fun DialogoOrario(arrivo: Boolean, iniziale: Long, chiudi: () -> Unit, c
     var domani by remember { mutableStateOf(inizio.toLocalDate() == LocalDate.now(zona).plusDays(1)) }
 
     Dialog(onDismissRequest = chiudi) {
-        Surface(shape = RoundedCornerShape(20.dp), color = Color.White) {
+        Surface(shape = RoundedCornerShape(20.dp), color = Superficie) {
             Column(
                 Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -563,7 +563,7 @@ private fun DialogoOrario(arrivo: Boolean, iniziale: Long, chiudi: () -> Unit, c
                     TextButton(onClick = {
                         val giorno = LocalDate.now(zona).plusDays(if (domani) 1 else 0)
                         conferma(giorno.atTime(statoOra.hour, statoOra.minute).atZone(zona).toInstant().toEpochMilli())
-                    }) { Text("Conferma", color = Porpora, fontWeight = FontWeight.Bold) }
+                    }) { Text("Conferma", color = Accento, fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -577,7 +577,7 @@ private fun DialogoOrario(arrivo: Boolean, iniziale: Long, chiudi: () -> Unit, c
 @Composable
 private fun CartaTragitto(t: Tragitto, adesso: Long, onClick: () -> Unit) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = Superficie),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -622,10 +622,10 @@ private fun CartaTragitto(t: Tragitto, adesso: Long, onClick: () -> Unit) {
                     modifier = Modifier.weight(1f),
                 )
                 when {
-                    t.mezzi.any { it.cancellato } -> Text("Corsa soppressa", style = MaterialTheme.typography.bodySmall, color = Porpora, fontWeight = FontWeight.Bold)
+                    t.mezzi.any { it.cancellato } -> Text("Corsa soppressa", style = MaterialTheme.typography.bodySmall, color = Accento, fontWeight = FontWeight.Bold)
                     t.mezzi.any { it.tempoReale } -> Row(verticalAlignment = Alignment.CenterVertically) {
                         FonteTempo(true)
-                        Text(" tempo reale", style = MaterialTheme.typography.labelSmall, color = Porpora)
+                        Text(" tempo reale", style = MaterialTheme.typography.labelSmall, color = Accento)
                     }
                     else -> FonteTempo(false)
                 }
@@ -637,7 +637,7 @@ private fun CartaTragitto(t: Tragitto, adesso: Long, onClick: () -> Unit) {
 @Composable
 private fun CartaAPiedi(t: Tragitto, onClick: () -> Unit) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = Superficie),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -724,10 +724,10 @@ fun Attribuzione() {
 // ---------------------------------------------------------------------------
 
 @Composable
-fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit) {
+fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit, testoIniziale: String = "") {
     val orario by Archivio.orario.collectAsStateWithLifecycle()
     val preferiti by Archivio.preferiti.collectAsStateWithLifecycle()
-    var testo by rememberSaveable { mutableStateOf("") }
+    var testo by rememberSaveable { mutableStateOf(testoIniziale) }
     var luoghi by remember { mutableStateOf<List<Luogo>>(emptyList()) }
     var fermate by remember { mutableStateOf<List<Fermata>>(emptyList()) }
     var cercando by remember { mutableStateOf(false) }
@@ -772,7 +772,7 @@ fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { BarraPorpora(if (campo == "da") "Da dove parti?" else "Dove vai?", indietro = indietro) },
+        topBar = { BarraSuperiore(if (campo == "da") "Da dove parti?" else "Dove vai?", indietro = indietro) },
     ) { margini ->
         Column(
             Modifier
@@ -798,7 +798,7 @@ fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit) {
                     .focusRequester(fuoco),
             )
             if (cercando) {
-                LinearProgressIndicator(color = Porpora, modifier = Modifier.fillMaxWidth())
+                LinearProgressIndicator(color = Accento, modifier = Modifier.fillMaxWidth())
             } else {
                 Spacer(Modifier.height(4.dp))
             }
@@ -806,7 +806,7 @@ fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit) {
                 if (testo.trim().length < 3) {
                     item {
                         RigaLuogo(
-                            icona = { Icon(Icons.Filled.LocationOn, contentDescription = null, tint = Porpora) },
+                            icona = { Icon(Icons.Filled.LocationOn, contentDescription = null, tint = Accento) },
                             nome = "La mia posizione",
                             dettaglio = "Dal telefono: va a Transitous solo per calcolare il tragitto",
                         ) { scegli(Luogo.posizione()) }
@@ -819,7 +819,7 @@ fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit) {
                         item { Intestazione("Fermate preferite") }
                         items(fermatePreferite) { f ->
                             RigaLuogo(
-                                icona = { Icon(Icons.Filled.Favorite, contentDescription = null, tint = Porpora) },
+                                icona = { Icon(Icons.Filled.Favorite, contentDescription = null, tint = Accento) },
                                 nome = f.nome,
                                 dettaglio = "Palina ${f.codice}",
                             ) { scegli(f.comeLuogo()) }
@@ -859,7 +859,7 @@ private fun IconaLuogo(tipo: TipoLuogo) {
                     .border(3.dp, Porpora, CircleShape),
             )
         }
-        TipoLuogo.POSIZIONE -> Icon(Icons.Filled.LocationOn, contentDescription = null, tint = Porpora)
+        TipoLuogo.POSIZIONE -> Icon(Icons.Filled.LocationOn, contentDescription = null, tint = Accento)
         else -> Icon(Icons.Filled.Place, contentDescription = null, tint = Secondario)
     }
 }
@@ -882,5 +882,5 @@ private fun RigaLuogo(icona: @Composable () -> Unit, nome: String, dettaglio: St
             }
         }
     }
-    HorizontalDivider(color = Color(0xFFE2DDD8))
+    HorizontalDivider(color = Divisore)
 }
