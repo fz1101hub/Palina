@@ -4,6 +4,8 @@
 #
 # Uso: strumenti/prova-emulatore.sh "<immagine di sistema>" <cartella dei risultati>
 #   es. strumenti/prova-emulatore.sh "system-images;android-37.0;google_apis;x86_64" risultati-37
+# Con MODULO=orologio e DISPOSITIVO=wearos_small_round prova l'app per l'orologio
+# (ProvaOrologio.kt) su un orologio Wear OS simulato.
 #
 # Nella cartella dei risultati: riassunto.txt, prova.log (Gradle), schermate/,
 # logcat-app.txt (righe dell'app e degli errori), crash.txt, risultati JUnit.
@@ -12,6 +14,8 @@ set -uo pipefail
 passo() { echo "[$(date +%H:%M:%S)] $*"; }
 
 IMMAGINE="$1"
+MODULO="${MODULO:-app}"
+DISPOSITIVO="${DISPOSITIVO:-pixel_7}"
 RISULTATI="$(mkdir -p "$2" && cd "$2" && pwd)"
 SDK="${ANDROID_HOME:?serve ANDROID_HOME}"
 STRUMENTI="$SDK/cmdline-tools/latest/bin"
@@ -30,7 +34,7 @@ yes | "$STRUMENTI/sdkmanager" --licenses > /dev/null 2>&1 || true
 }
 
 passo "creo il telefono simulato"
-echo no | "$STRUMENTI/avdmanager" create avd --force -n prova -k "$IMMAGINE" -d pixel_7 > "$RISULTATI/avdmanager.log" 2>&1
+echo no | "$STRUMENTI/avdmanager" create avd --force -n prova -k "$IMMAGINE" -d "$DISPOSITIVO" > "$RISULTATI/avdmanager.log" 2>&1
 CONFIG="$ANDROID_AVD_HOME/prova.avd/config.ini"
 if [ ! -f "$CONFIG" ]; then
     passo "telefono simulato non creato"
@@ -93,8 +97,8 @@ passo "posizione: $("$ADB" shell dumpsys location 2>/dev/null | grep -m2 -iE "la
 
 passo "prova dell'app"
 # al massimo 25 minuti, cosi' resta il tempo per raccogliere i risultati
-timeout 1800 ./gradlew --no-daemon --console=plain connectedDebugAndroidTest 2>&1 | tee "$RISULTATI/prova.log" \
-    | grep --line-buffered -E "Task :app:connected|Starting [0-9]+ tests|ProvaSchermate|FAILED|BUILD|tests completed|^e: "
+timeout 1800 ./gradlew --no-daemon --console=plain ":$MODULO:connectedDebugAndroidTest" 2>&1 | tee "$RISULTATI/prova.log" \
+    | grep --line-buffered -E "Task :$MODULO:connected|Starting [0-9]+ tests|ProvaSchermate|ProvaOrologio|FAILED|BUILD|tests completed|^e: "
 ESITO=${PIPESTATUS[0]}
 passo "fine della prova (codice $ESITO)"
 kill "$POSIZIONE" 2>/dev/null || true
@@ -103,12 +107,12 @@ passo "raccolgo i risultati"
 mkdir -p "$RISULTATI/schermate"
 "$ADB" pull /data/local/tmp/schermate/. "$RISULTATI/schermate/" > /dev/null 2>&1 || true
 "$ADB" logcat -d -v time > "$RISULTATI/logcat.txt" 2>&1 || true
-grep -E "palinaroma|AndroidRuntime|FATAL|ProvaSchermate|TestRunner|osmdroid|System.err" "$RISULTATI/logcat.txt" \
+grep -E "palinaroma|AndroidRuntime|FATAL|ProvaSchermate|ProvaOrologio|TestRunner|osmdroid|System.err|Tile|Complication" "$RISULTATI/logcat.txt" \
     > "$RISULTATI/logcat-app.txt" 2>/dev/null || true
 "$ADB" logcat -d -b crash > "$RISULTATI/crash.txt" 2>&1 || true
-cp -r app/build/outputs/androidTest-results "$RISULTATI/junit" 2>/dev/null || true
+cp -r "$MODULO/build/outputs/androidTest-results" "$RISULTATI/junit" 2>/dev/null || true
 {
-    echo "immagine: $IMMAGINE"
+    echo "immagine: $IMMAGINE ($MODULO su $DISPOSITIVO)"
     echo "esito: $([ $ESITO -eq 0 ] && echo riuscita || echo fallita)"
     grep -E "Starting [0-9]+ tests|Tests on .* failed|tests completed|FAILED|BUILD (SUCCESSFUL|FAILED)|^e: |error:" "$RISULTATI/prova.log" | head -60
     grep -A15 "What went wrong" "$RISULTATI/prova.log" | head -40

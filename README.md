@@ -50,6 +50,33 @@ registro dell'app e una schermata per ogni passaggio finiscono nel ramo `prova-e
 L'APK viene pubblicato nella release solo se la prova va bene (la compilazione settimanale del
 lunedì salta la prova e pubblica direttamente). Lo script è `strumenti/prova-emulatore.sh`.
 
+## Orologio Wear OS
+
+Per gli orologi con **Wear OS 5 o successivo** c'è `orologio-release.apk`, nella stessa release.
+Sull'orologio mostra le fermate preferite (dalla più vicina) e qualche fermata vicina con i
+prossimi passaggi, in oro quelli in tempo reale; c'è anche un **riquadro** (scorrendo dal
+quadrante) con la prima fermata e una **complicazione** per il quadrante con la linea e il conto
+alla rovescia del prossimo passaggio. Le notifiche *Avvisami* del telefono arrivano già
+sull'orologio da sole.
+
+L'orologio non scarica i dati: li calcola il telefono (`ServizioOrologio`, con le stesse fonti
+della Home) quando l'orologio li chiede, e glieli manda come dato condiviso di Wear OS. Per
+questo serve Palina anche sul telefono, e le due app devono avere la stessa firma: vanno
+installate insieme, dalla **stessa** compilazione.
+
+Per installarla sull'orologio (non è sul Play Store):
+
+1. sull'orologio: *Impostazioni → Sistema → Informazioni → Versioni*, tocca 7 volte *Numero
+   build*; poi in *Opzioni sviluppatore* attiva *Debug ADB* e *Debug wireless*;
+2. dal computer, nella stessa rete Wi-Fi: `adb pair IP:porta` con il codice mostrato
+   dall'orologio, poi `adb connect IP:porta` e `adb install orologio-release.apk`.
+   Senza computer si può fare con un'app per il telefono che installa APK sull'orologio
+   via debug wireless.
+
+Come per il telefono, nella versione di prova per aggiornare va prima disinstallata l'app vecchia.
+Dopo la compilazione GitHub prova l'app anche su due orologi simulati, Wear OS 5 e Wear OS 7
+(`ProvaOrologio`, in `orologio/src/androidTest`).
+
 ## Come funziona
 
 - **Orario statico** (`rome_static_gtfs.zip`): `CostruttoreOrario` legge linee, fermate, corse,
@@ -92,6 +119,10 @@ app/src/main/java/it/palinaroma/
 app/src/test/   test del decodificatore, dell'orario, dei testi e del client Transitous;
                 GeneraOrarioIncluso prepara l'orario da includere nell'APK
 app/src/androidTest/   ProvaSchermate: prova dell'app intera sull'emulatore
+app/src/main/java/it/palinaroma/PerOrologio.kt   i tabelloni per l'orologio (ServizioOrologio)
+ponte/          cosa si scambiano telefono e orologio (TabelloneOrologio, in JSON)
+orologio/       l'app Wear OS: Principale (schermata), Riquadro (tile e complicazione),
+                ArchivioOrologio (dati ricevuti e richieste al telefono)
 strumenti/      crea_orario.py: dalle istruzioni SQL al database incluso nell'APK;
                 prova-emulatore.sh: avvia l'emulatore e prova l'app
 ```

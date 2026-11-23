@@ -12,8 +12,8 @@ android {
         applicationId = "it.palinaroma"
         minSdk = 26
         targetSdk = 37
-        versionCode = 19
-        versionName = "0.18"
+        versionCode = 20
+        versionName = "0.19"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -83,8 +83,13 @@ dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.20")
     // posizione rapida (Wi-Fi e rete) dai servizi di localizzazione di Google
     implementation("com.google.android.gms:play-services-location:21.4.0")
+    // l'orologio Wear OS: il telefono gli calcola e gli manda i tabelloni
+    implementation(project(":ponte"))
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 
     // prova sul telefono simulato (emulatore) nella compilazione su GitHub
     androidTestImplementation("androidx.test:runner:1.7.0")

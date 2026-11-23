@@ -16,3 +16,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "PalinaRoma"
 include(":app")
+// il tabellone per l'orologio (formato comune) e l'app Wear OS
+include(":ponte")
+include(":orologio")

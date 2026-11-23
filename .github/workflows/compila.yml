@@ -55,7 +55,7 @@ jobs:
           test -n "$fonte"
           echo "orario incluso: fonte $fonte, $(du -h /tmp/orario/gtfs.zip | cut -f1)" | tee -a orario.log
           ORARIO_GTFS=/tmp/orario/gtfs.zip ORARIO_SQL=/tmp/orario/orario.sql \
-            ./gradlew --no-daemon --console=plain testDebugUnitTest --tests it.palinaroma.dati.GeneraOrarioIncluso --rerun \
+            ./gradlew --no-daemon --console=plain :app:testDebugUnitTest --tests it.palinaroma.dati.GeneraOrarioIncluso --rerun \
             2>&1 | tee -a orario.log
           python3 strumenti/crea_orario.py /tmp/orario/orario.sql app/src/main/assets | tee -a orario.log
           rm -f /tmp/orario/orario.sql
@@ -89,7 +89,7 @@ jobs:
           scarica /tmp/reti/trenitalia.zip \
             https://proxy.busone.app/trenitalia/gtfs.zip && export RETI_TRENITALIA=/tmp/reti/trenitalia.zip
           RETI_SQL=/tmp/reti/reti.sql \
-            ./gradlew --no-daemon --console=plain testDebugUnitTest --tests it.palinaroma.dati.GeneraRetiIncluse --rerun -i \
+            ./gradlew --no-daemon --console=plain :app:testDebugUnitTest --tests it.palinaroma.dati.GeneraRetiIncluse --rerun -i \
             2>&1 | grep -E "reti incluse|FAILED|Exception|BUILD" | tee -a orario.log
           python3 strumenti/crea_reti.py /tmp/reti/reti.sql app/src/main/assets | tee -a orario.log
           rm -rf /tmp/reti
@@ -119,7 +119,7 @@ jobs:
           grep -E -A3 "^w: |warning:|Problem found" compilazione.log | grep -E "^w: |warning:|Problem found|^ +Location:|^ {4}[^ ]" | head -300 > /tmp/esito/avvisi.txt || true
           tail -400 compilazione.log > /tmp/esito/coda.log || true
           tail -200 orario.log > /tmp/esito/orario.log 2>/dev/null || true
-          find app/build/test-results -name "*.xml" -exec cp {} /tmp/esito/ \; 2>/dev/null || true
+          find app/build/test-results ponte/build/test-results orologio/build/test-results -name "*.xml" -exec cp {} /tmp/esito/ \; 2>/dev/null || true
           cd /tmp/esito
           git init -q -b esito
           git config user.name "github-actions"
@@ -132,7 +132,7 @@ jobs:
         env:
           FIRMA: ${{ steps.compila.outputs.firma }}
         run: |
-          note="Compilata dal commit $GITHUB_SHA. Dal telefono scarica app-release.apk e installala."
+          note="Compilata dal commit $GITHUB_SHA. Dal telefono scarica app-release.apk e installala. Per l'orologio Wear OS (dalla versione 5) c'e' orologio-release.apk: va installato sull'orologio insieme all'APK del telefono della stessa compilazione."
           orario=$(grep -m1 "^orario incluso: si" orario.log 2>/dev/null | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}" | head -1 || true)
           if [ -n "$orario" ]; then
             note="$note Contiene l'orario di Roma Mobilità del $orario."
@@ -149,6 +149,7 @@ jobs:
           name: palina-roma-apk
           path: |
             app/build/outputs/apk/release/app-release.apk
+            orologio/build/outputs/apk/release/orologio-release.apk
             note.txt
 
       # lo stesso orario per la prova sull'emulatore
@@ -169,7 +170,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/compila.yml/enable"
 
-  # 2. L'app provata su due telefoni simulati: Android 8 (il minimo) e Android 17
+  # 2. L'app provata su due telefoni simulati, Android 8 (il minimo) e Android 17,
+  #    e quella per l'orologio su Wear OS 5 (il minimo) e Wear OS 7
   emulatore:
     needs: compila
     if: github.event_name != 'schedule'
@@ -183,6 +185,14 @@ jobs:
             immagine: "system-images;android-26;google_apis;x86_64"
           - api: 37
             immagine: "system-images;android-37.0;google_apis;x86_64"
+          - api: wear34
+            immagine: "system-images;android-34;android-wear;x86_64"
+            modulo: orologio
+            dispositivo: wearos_small_round
+          - api: wear37
+            immagine: "system-images;android-37.0;android-wear-signed;x86_64"
+            modulo: orologio
+            dispositivo: wearos_large_round
     steps:
       - uses: actions/checkout@v7
 
@@ -205,7 +215,10 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Prova sull'emulatore (Android API ${{ matrix.api }})
+      - name: Prova sull'emulatore (${{ matrix.api }})
+        env:
+          MODULO: ${{ matrix.modulo || 'app' }}
+          DISPOSITIVO: ${{ matrix.dispositivo || 'pixel_7' }}
         run: bash strumenti/prova-emulatore.sh "${{ matrix.immagine }}" risultati
 
       - uses: actions/upload-artifact@v7
@@ -291,6 +304,8 @@ jobs:
         run: |
           note="$(cat /tmp/apk/note.txt)"
           apk=$(find /tmp/apk -name app-release.apk | head -1)
+          orologio=$(find /tmp/apk -name orologio-release.apk | head -1)
           gh release view ultima > /dev/null 2>&1 || gh release create ultima --title "Ultima versione" --notes "$note"
           gh release edit ultima --title "Ultima versione" --notes "$note" --latest
           gh release upload ultima "$apk" --clobber
+          if [ -n "$orologio" ]; then gh release upload ultima "$orologio" --clobber; fi

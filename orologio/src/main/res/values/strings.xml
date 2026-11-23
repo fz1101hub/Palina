@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Palina</string>
+    <string name="riquadro">Palina: prossimi passaggi</string>
+    <string name="riquadro_descrizione">I prossimi bus e treni della fermata preferita più vicina</string>
+    <string name="complicazione">Palina: prossimo passaggio</string>
+</resources>
