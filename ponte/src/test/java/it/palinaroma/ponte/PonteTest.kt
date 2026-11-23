@@ -47,8 +47,9 @@ class PonteTest {
         assertEquals("1 h 05'", testoMinuti(adesso + 3900, adesso))
         val riga = tabellone.fermate[0].righe[0]
         assertEquals("5' · 20'", testoPassaggi(riga, adesso))
-        // passato da piu' di mezzo minuto: non si mostra
-        assertEquals("15'", testoPassaggi(riga, adesso + 301))
+        // passato da meno di mezzo minuto: ancora "ora"; da di piu': non si mostra
+        assertEquals("ora · 14'", testoPassaggi(riga, adesso + 310))
+        assertEquals("13'", testoPassaggi(riga, adesso + 400))
     }
 
     @Test
