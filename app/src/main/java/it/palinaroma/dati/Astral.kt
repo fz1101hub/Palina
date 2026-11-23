@@ -81,10 +81,12 @@ object Astral {
         val risultati = coroutineScope {
             percorsi.map { p ->
                 async {
-                    // null: la stazione non e' di questo percorso (o il nome non si trova)
+                    // null: la stazione non e' di questo percorso (o il nome non si trova), oppure
+                    // ASTRAL non ha nessun treno per tutto il giorno (di notte, o se qualcosa non va)
                     runCatching {
                         val codice = codiceStazione(stazioniDi(p.codice), nome) ?: return@runCatching null
                         val voci = leggiTransiti(chiedi("transit", "{\"percorso\":\"${p.codice}\",\"fermata\":\"$codice\"}"))
+                        if (voci.isEmpty()) return@runCatching null
                         passaggiDaTransiti(voci, p, lineeGtfs.getValue(p.linea), adessoMs, orizzonteMinuti)
                     }
                 }
@@ -157,10 +159,35 @@ fun codiceStazione(stazioni: List<StazioneAstral>, nome: String): String? {
     val cercato = normalizza(nome)
     if (cercato.isEmpty()) return null
     stazioni.firstOrNull { normalizza(it.nome) == cercato }?.let { return it.codice }
-    return stazioni.firstOrNull { s ->
+    stazioni.firstOrNull { s ->
         val n = normalizza(s.nome)
         n.isNotEmpty() && (n.contains(cercato) || cercato.contains(n))
-    }?.codice
+    }?.let { return it.codice }
+    // le abbreviazioni: "Basilica S. Paolo" e "Basilica San Paolo", "P.le Flaminio" e "Piazzale Flaminio"
+    val parole = senzaPunti(nome)
+    return stazioni.firstOrNull { s -> abbreviatoUguale(senzaPunti(s.nome), parole) }?.codice
+}
+
+/** "P.le Flaminio" -> ["ple", "flaminio"]: i punti delle abbreviazioni non spezzano le parole. */
+private fun senzaPunti(nome: String): List<String> =
+    normalizza(nome.replace(".", "")).split(' ').filter { it.isNotEmpty() }
+
+/**
+ * Stesse parole, ammesse le abbreviazioni: a coppie, stessa iniziale e le lettere
+ * della piu' corta, in ordine, dentro la piu' lunga ("s" e "san", "ple" e "piazzale").
+ */
+private fun abbreviatoUguale(a: List<String>, b: List<String>): Boolean {
+    if (a.isEmpty() || a.size != b.size) return false
+    return a.zip(b).all { (x, y) ->
+        val (corta, lunga) = if (x.length <= y.length) x to y else y to x
+        corta[0] == lunga[0] && sottosequenza(corta, lunga)
+    }
+}
+
+private fun sottosequenza(corta: String, lunga: String): Boolean {
+    var i = 0
+    for (c in lunga) if (i < corta.length && corta[i] == c) i++
+    return i == corta.length
 }
 
 private val ROMA = ZoneId.of("Europe/Rome")

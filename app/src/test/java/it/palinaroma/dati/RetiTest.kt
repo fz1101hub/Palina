@@ -90,6 +90,10 @@ class RetiTest {
         assertEquals("ACS", codiceStazione(stazioni, "Acilia Sud"))
         assertEquals("LDC", codiceStazione(stazioni, "Lido Centro (Ostia)"))
         assertNull(codiceStazione(stazioni, "Flaminio"))
+        val abbreviate = listOf(StazioneAstral("Basilica San Paolo", "BSP", 2), StazioneAstral("Piazzale Flaminio", "PF", 1))
+        assertEquals("BSP", codiceStazione(abbreviate, "Basilica S. Paolo"))
+        assertEquals("PF", codiceStazione(abbreviate, "P.le Flaminio"))
+        assertNull(codiceStazione(abbreviate, "Basilica S. Pietro"))
         assertNull(codiceStazione(stazioni, ""))
     }
 

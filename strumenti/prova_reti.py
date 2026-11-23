@@ -80,6 +80,23 @@ def astral(nome, certificato):
         scrivi(f"ASTRAL non risponde ({e})")
 
 
+def nomi_astral(con, certificato):
+    """I nomi delle stazioni secondo ASTRAL e secondo il GTFS di Cotral, per controllare che si trovino."""
+    contesto = ssl.create_default_context()
+    contesto.load_verify_locations(cafile=certificato)
+    nomi = set()
+    for percorso in ("RL_PSP-CC", "RN_RMMON", "RV_CATVIT", "RV_MORCAT"):
+        try:
+            dati = leggi("https://gestionecorse.astralspa.it/api/fermate/" + percorso, b"{}", contesto)
+            righe = list(dati.values()) if isinstance(dati, dict) else dati
+            nomi.update(str(r.get("nomeFermata", "")).strip() for r in righe)
+        except Exception as e:
+            scrivi(f"ASTRAL {percorso} non risponde ({e})")
+    gtfs = [r[0] for r in con.execute("SELECT nome FROM fermate WHERE id LIKE 'F:%' ORDER BY nome")]
+    scrivi("stazioni ASTRAL: " + ", ".join(sorted(nomi)))
+    scrivi("stazioni GTFS Cotral: " + ", ".join(gtfs))
+
+
 def main():
     cartella, certificato = sys.argv[1], sys.argv[2]
     db = os.path.join(cartella, "reti.db")
@@ -95,6 +112,7 @@ def main():
         if f:
             transitous(f)
     astral("Lido Centro", certificato)
+    nomi_astral(con, certificato)
     return 0
 
 

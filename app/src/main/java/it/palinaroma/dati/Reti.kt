@@ -40,6 +40,19 @@ fun fermataTransitous(fermataId: String): String {
     return rete.datiTransitous + "_" + idOriginale(fermataId)
 }
 
+private val CODICE_IN_CODA = Regex("\\s*#\\s*\\S+\\s*$")
+
+/**
+ * I nomi di fermate e capolinea Cotral come si leggono: "FRASCATI | Piazza
+ * Marconi # f12858" -> "Frascati · Piazza Marconi" (senza il codice in coda, il
+ * paese in minuscolo). Gli altri nomi solo con [bellaScrittura].
+ */
+fun pulisciNome(nome: String): String {
+    val senzaCodice = nome.replace(CODICE_IN_CODA, "").trim()
+    if ('|' !in senzaCodice) return bellaScrittura(senzaCodice)
+    return senzaCodice.split('|', limit = 2).map { bellaScrittura(it.trim()) }.filter { it.isNotEmpty() }.joinToString(" · ")
+}
+
 /**
  * I nomi delle linee ferroviarie Cotral nel GTFS ("ROMALIDO", "RVURB", "RVEXT")
  * diventano quelli che si leggono alle stazioni.

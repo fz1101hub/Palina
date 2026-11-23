@@ -268,7 +268,7 @@ fun leggiPartenze(json: String, fermataId: String, lat: Double, lon: Double): Li
             lineaId = m.testo("routeId").orEmpty(),
             linea = nomeLinea(m.testo("routeShortName") ?: m.testo("displayName"), m.testo("routeLongName"), modo),
             direzione = m.testo("directionId")?.toIntOrNull(),
-            capolinea = m.testo("headsign")?.let { bellaScrittura(it) }.orEmpty(),
+            capolinea = m.testo("headsign")?.let { pulisciNome(it) }.orEmpty(),
             orario = orario,
             previsto = previsto,
             tempoReale = m.vero("realTime"),
