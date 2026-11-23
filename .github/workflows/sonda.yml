@@ -14,6 +14,15 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Versioni delle librerie Wear OS su Google Maven
+        run: |
+          mkdir -p /tmp/sonda
+          for g in androidx/wear/tiles androidx/wear/protolayout androidx/wear/compose androidx/wear/watchface androidx/wear com/google/android/gms androidx/concurrent; do
+            echo "== $g"
+            curl -s "https://dl.google.com/android/maven2/$g/group-index.xml" \
+              | grep -E "<(tiles|tiles-tooling-preview|tiles-renderer|protolayout|protolayout-material3|protolayout-expression|compose-foundation|compose-material3|compose-navigation|compose-navigation3|compose-ui-tooling|watchface-complications-data-source-ktx|watchface-complications-data-source|wear|wear-tooling-preview|wear-ongoing|wear-phone-interactions|wear-remote-interactions|play-services-wearable|concurrent-futures|concurrent-futures-ktx) " \
+              | sed -E 's/versions="([^"]*)"/\n   \1/' | awk 'NR%2==1{n=$0} NR%2==0{c=split($0,v,","); printf "%s ... %s\n", n, (c>6? v[c-5]","v[c-4]","v[c-3]","v[c-2]","v[c-1]","v[c] : $0)}'
+          done | tee /tmp/sonda/versioni.txt
       - name: Immagini e profili Wear OS nell'SDK
         run: |
           mkdir -p /tmp/sonda
