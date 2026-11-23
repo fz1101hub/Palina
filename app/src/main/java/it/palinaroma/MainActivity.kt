@@ -128,10 +128,10 @@ private fun Navigazione() {
                 indietro = indietro,
                 apriLinea = apriLinea,
                 apriCorsa = { richiesta -> vai(richiesta.rotta()) },
-                apriVettura = { linea, direzione, corsa ->
+                apriVettura = { linea, direzione, corsa, fermata ->
                     vai(
                         "linea/" + Uri.encode(linea) + "?dir=" + (direzione ?: -1) +
-                            "&corsa=" + Uri.encode(corsa) + "&fermata=" + Uri.encode(fermataId),
+                            "&corsa=" + Uri.encode(corsa) + "&fermata=" + Uri.encode(fermata),
                     )
                 },
                 comeArrivare = { fermata ->

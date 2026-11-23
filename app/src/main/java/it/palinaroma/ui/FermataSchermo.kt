@@ -103,7 +103,7 @@ fun FermataSchermo(
     fermataId: String,
     indietro: () -> Unit,
     apriLinea: (String, Int?) -> Unit,
-    apriVettura: (lineaId: String, direzione: Int?, corsaId: String) -> Unit,
+    apriVettura: (lineaId: String, direzione: Int?, corsaId: String, fermataId: String) -> Unit,
     apriCorsa: (RichiestaCorsa) -> Unit,
     comeArrivare: (Fermata) -> Unit,
 ) {
@@ -118,9 +118,17 @@ fun FermataSchermo(
     val fermateMembri = remember(o, membri) {
         o?.fermate(membri)?.let { trovate -> membri.mapNotNull { trovate[it] } }.orEmpty()
     }
-    val linee = remember(o, membri) {
-        membri.flatMap { o?.lineeAllaFermata(it).orEmpty() }.distinctBy { it.linea.id to it.direzione }
+    val lineePerMembro = remember(o, membri) { membri.associateWith { o?.lineeAllaFermata(it).orEmpty() } }
+    val linee = remember(lineePerMembro) {
+        lineePerMembro.values.flatten().distinctBy { it.linea.id to it.direzione }
     }
+
+    // la fermata della stazione da cui passa una riga del tabellone: negli scambi la
+    // banchina della metro di quella direzione, o la stazione Cotral per i treni
+    fun membroDi(a: Arrivo): String =
+        membri.firstOrNull { id -> lineePerMembro[id].orEmpty().any { it.linea.id == a.lineaId && it.direzione == a.direzione } }
+            ?: membri.firstOrNull { Rete.di(it) == Rete.di(a.lineaId) }
+            ?: fermataId
     val nomiLinee = remember(linee) { linee.associate { it.linea.id to it.linea.nome } }
     val fissate = remember(chiaviFissate, fermataId) { lineeFissate(fermataId, chiaviFissate) }
 
@@ -310,7 +318,7 @@ fun FermataSchermo(
                                         apriCorsa(
                                             RichiestaCorsa(
                                                 corsaId = p.idTransitous,
-                                                fermataId = membri.firstOrNull { Rete.di(it) == Rete.di(a.lineaId) } ?: fermataId,
+                                                fermataId = membroDi(a),
                                                 lineaId = a.lineaId,
                                                 direzione = a.direzione,
                                                 previsto = p.orario - (p.ritardo ?: 0),
@@ -320,9 +328,9 @@ fun FermataSchermo(
                                         )
                                     })
                                     Rete.di(a.lineaId) == Rete.ROMA && Rete.ROMA in retiMembri ->
-                                        ({ apriVettura(a.lineaId, a.direzione, p.corsaId) })
+                                        ({ apriVettura(a.lineaId, a.direzione, p.corsaId, membroDi(a)) })
                                     Rete.di(a.lineaId) == Rete.COTRAL && p.gps && o?.linea(a.lineaId) != null ->
-                                        ({ apriVettura(a.lineaId, a.direzione, p.corsaId) })
+                                        ({ apriVettura(a.lineaId, a.direzione, p.corsaId, membroDi(a)) })
                                     o?.linea(a.lineaId) != null ->
                                         ({ apriLinea(a.lineaId, a.direzione) })
                                     else -> null

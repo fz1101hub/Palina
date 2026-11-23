@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -48,6 +49,7 @@ import it.palinaroma.dati.FermataCorsa
 import it.palinaroma.dati.FonteCorsa
 import it.palinaroma.dati.Rete
 import it.palinaroma.dati.Tragitto
+import it.palinaroma.dati.bellaScrittura
 import it.palinaroma.dati.Transitous
 import it.palinaroma.dati.dettaglioCorsa
 import it.palinaroma.dati.fermataDaTransitous
@@ -156,7 +158,9 @@ fun CorsaSchermo(
         topBar = {
             BarraSuperiore(
                 titolo = titolo,
-                sottotitolo = d?.tratto?.direzione?.takeIf { it.isNotBlank() }?.let { "verso $it" + (d.tratto.gestore.takeIf { g -> g.isNotBlank() }?.let { g -> " · $g" } ?: "") },
+                sottotitolo = d?.tratto?.direzione?.takeIf { it.isNotBlank() }?.let {
+                    "verso $it" + (d.tratto.gestore.takeIf { g -> g.isNotBlank() }?.let { g -> " · " + bellaScrittura(g) } ?: "")
+                },
                 indietro = indietro,
             )
         },
@@ -179,7 +183,9 @@ fun CorsaSchermo(
                     .fillMaxWidth()
                     .weight(0.75f),
             ) {
-                val t = d.tratto
+                // sulla mappa la corsa ha il colore della rete, come nell'elenco delle fermate
+                val coloreLinea = coloreRete(lineaId).toArgb()
+                val t = remember(d.tratto, coloreLinea) { d.tratto.copy(colore = coloreLinea) }
                 val tappe = remember(t) { listOf(t.da) + t.intermedie + listOf(t.a) }
                 MappaTragitto(
                     Tragitto(t.partenza, t.arrivo, t.durata, 0, listOf(t)),
