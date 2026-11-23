@@ -54,6 +54,12 @@ def main():
             if esempi:
                 righe.append(f"{nome}, linee per esempio: " + ", ".join(esempi))
         con.execute("VACUUM")
+        # quanto pesa ogni tabella (se questo sqlite ha dbstat)
+        try:
+            pesi = con.execute("SELECT name, sum(pgsize) FROM dbstat GROUP BY name ORDER BY 2 DESC LIMIT 8").fetchall()
+            righe.append("peso: " + ", ".join(f"{n} {b / 1e6:.1f} MB" for n, b in pesi))
+        except sqlite3.Error:
+            pass
         con.close()
     except Exception as e:
         for f in (db, info):

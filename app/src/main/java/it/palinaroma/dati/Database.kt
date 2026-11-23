@@ -180,7 +180,9 @@ class Orario(private val db: SQLiteDatabase, private val reti: SQLiteDatabase? =
     fun cercaLinee(testo: String): List<Linea> {
         val t = testo.trim().uppercase()
         if (t.isEmpty()) return emptyList()
+        // le "linee" Trenitalia sono categorie di treni (REG, RV): non si cercano
         return linee.values
+            .filter { Rete.di(it.id) != Rete.TRENITALIA }
             .filter { it.nome.uppercase().startsWith(t) || it.id.uppercase() == t }
             .sortedWith(compareBy(ordineLinee) { it.nome })
             .take(20)

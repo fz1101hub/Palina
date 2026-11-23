@@ -268,7 +268,9 @@ fun FermataSchermo(
                                 when {
                                     Rete.di(a.lineaId) == Rete.ROMA && rete == Rete.ROMA ->
                                         ({ apriVettura(a.lineaId, a.direzione, a.passaggi.first().corsaId) })
-                                    o?.linea(a.lineaId) != null -> ({ apriLinea(a.lineaId, a.direzione) })
+                                    // i treni Trenitalia non hanno il percorso nell'app: solo le partenze
+                                    Rete.di(a.lineaId) != Rete.TRENITALIA && o?.linea(a.lineaId) != null ->
+                                        ({ apriLinea(a.lineaId, a.direzione) })
                                     else -> null
                                 }
                             },
@@ -306,11 +308,18 @@ fun FermataSchermo(
                         ) {
                             // per le stazioni (centinaia di treni con nomi uguali) una volta per nome
                             linee.distinctBy { if (rete.treni) it.linea.nome else it.linea.id }.forEach { lf ->
+                                val apribile = Rete.di(lf.linea.id) != Rete.TRENITALIA
                                 BadgeLinea(
                                     lf.linea.nome,
                                     Modifier
                                         .clip(RoundedCornerShape(8.dp))
-                                        .clickable(onClickLabel = "apri la linea") { apriLinea(lf.linea.id, lf.direzione) },
+                                        .then(
+                                            if (apribile) {
+                                                Modifier.clickable(onClickLabel = "apri la linea") { apriLinea(lf.linea.id, lf.direzione) }
+                                            } else {
+                                                Modifier
+                                            },
+                                        ),
                                     grande = true,
                                     colore = coloreRete(lf.linea.id),
                                 )

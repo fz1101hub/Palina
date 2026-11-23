@@ -24,6 +24,10 @@ class FiltroRete(
     private val rete: Rete,
     private val dentro: DestinazioneOrario,
     private val area: ((Double, Double) -> Boolean)? = null,
+    /** I percorsi delle linee (le fermate in fila), per la mappa della linea. */
+    private val conPercorsi: Boolean = true,
+    /** I tracciati: senza, la mappa della linea unisce le fermate. Sono la parte piu' pesante. */
+    private val conForme: Boolean = true,
 ) : DestinazioneOrario {
     private data class DatiLinea(val nome: String, val descrizione: String, val tipo: Int, val colore: String, val coloreTesto: String)
     private data class DatiPercorso(val linea: String, val direzione: Int, val capolinea: String, val forma: String, val fermate: List<String>)
@@ -79,13 +83,15 @@ class FiltroRete(
             val l = linee.getValue(id)
             dentro.linea(p(id), l.nome, l.descrizione, l.tipo, l.colore, l.coloreTesto)
         }
+        if (!conPercorsi) return
         val formeUsate = HashSet<String>()
         for (pc in percorsi) {
             if (pc.linea !in usate) continue
             val tenute = pc.fermate.filter { it in fermateTenute }
             if (tenute.isEmpty()) continue
-            dentro.percorso(p(pc.linea), pc.direzione, pc.capolinea, p(pc.forma), tenute.map { p(it) })
-            if (pc.forma.isNotEmpty()) formeUsate.add(pc.forma)
+            val forma = if (conForme) p(pc.forma) else ""
+            dentro.percorso(p(pc.linea), pc.direzione, pc.capolinea, forma, tenute.map { p(it) })
+            if (conForme && pc.forma.isNotEmpty()) formeUsate.add(pc.forma)
         }
         for (id in formeUsate) forme[id]?.let { dentro.forma(p(id), it) }
     }
@@ -104,10 +110,18 @@ class GeneraRetiIncluse {
     @Test
     fun generaDaGtfs() {
         val sql = System.getenv("RETI_SQL").orEmpty()
+        // per stare in pochi MB: i bus Cotral senza tracciati (la mappa unisce le fermate),
+        // i treni Trenitalia senza percorsi (centinaia di relazioni: alle stazioni bastano le partenze)
         val fonti = listOf(
-            Triple(Rete.COTRAL, System.getenv("RETI_COTRAL").orEmpty(), null),
-            Triple(Rete.COTRAL_TRENI, System.getenv("RETI_FERRO").orEmpty(), null),
-            Triple(Rete.TRENITALIA, System.getenv("RETI_TRENITALIA").orEmpty(), ::nelLazio),
+            Triple(Rete.COTRAL, System.getenv("RETI_COTRAL").orEmpty()) { d: DestinazioneOrario ->
+                FiltroRete(Rete.COTRAL, d, conForme = false)
+            },
+            Triple(Rete.COTRAL_TRENI, System.getenv("RETI_FERRO").orEmpty()) { d: DestinazioneOrario ->
+                FiltroRete(Rete.COTRAL_TRENI, d)
+            },
+            Triple(Rete.TRENITALIA, System.getenv("RETI_TRENITALIA").orEmpty()) { d: DestinazioneOrario ->
+                FiltroRete(Rete.TRENITALIA, d, ::nelLazio, conPercorsi = false)
+            },
         ).filter { it.second.isNotEmpty() && File(it.second).exists() }
         assumeTrue(sql.isNotEmpty() && fonti.isNotEmpty())
         val uscita = File(sql)
@@ -115,10 +129,10 @@ class GeneraRetiIncluse {
         var totale = 0
         uscita.bufferedWriter(Charsets.UTF_8).use { w ->
             val scrittore = ScrittoreSql(w)
-            for ((rete, zip, area) in fonti) {
+            for ((rete, zip, crea) in fonti) {
                 // una rete che non si legge non ferma le altre
                 try {
-                    val filtro = FiltroRete(rete, scrittore, area)
+                    val filtro = crea(scrittore)
                     ZipFile(zip).use { z -> CostruttoreOrario(z, filtro).costruisci() }
                     filtro.completa()
                     totale += filtro.fermate
