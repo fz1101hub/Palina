@@ -60,7 +60,9 @@ fun OrarioSchermo(indietro: () -> Unit) {
                 "Fermate e linee dei bus e dei treni Cotral e le stazioni Trenitalia del Lazio sono incluse nell'app " +
                     "e si aggiornano con l'app. Le partenze arrivano da Transitous, con il tempo reale quando c'è " +
                     "(bus Cotral e treni Trenitalia); per Metromare e Roma–Viterbo orari, ritardi e soppressioni " +
-                    "vengono dal servizio orari di ASTRAL. Le posizioni dei mezzi sulla mappa ci sono solo per ATAC e Roma TPL.",
+                    "vengono dal servizio orari di ASTRAL. I bus Cotral visti dal GPS, sulla mappa della linea e con la " +
+                    "scritta «GPS» alla fermata, arrivano da BusOne, che li riceve da Cotral: solo mentre guardi una " +
+                    "fermata, una linea o un tragitto con bus Cotral. Per i treni non ci sono posizioni, solo orari e ritardi.",
             )
             Scheda(
                 "La tua posizione",
@@ -74,6 +76,7 @@ fun OrarioSchermo(indietro: () -> Unit) {
                 "Orario e tempo reale: open data di Roma Servizi per la Mobilità (licenza CC BY 3.0 IT). " +
                     "Tragitti e orari programmati alle fermate: Transitous. Mappe © OpenStreetMap contributors. " +
                     "Bus e treni Cotral: open data di Cotral. Ritardi dei treni Cotral: ASTRAL. " +
+                    "GPS dei bus Cotral: BusOne (https://busone.app) e Cotral, uso personale non commerciale. " +
                     "Stazioni e treni Trenitalia: BusOne (https://busone.app) e Trenitalia, uso personale non commerciale. " +
                     "Cifre a punti: carattere Doto, © The Doto Project Authors (SIL Open Font License 1.1). " +
                     "App personale, non affiliata ad ATAC, Roma Servizi per la Mobilità, Cotral, ASTRAL, Trenitalia, " +

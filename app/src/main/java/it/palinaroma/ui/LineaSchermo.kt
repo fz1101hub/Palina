@@ -69,6 +69,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.BusOne
+import it.palinaroma.dati.conDirezione
 import it.palinaroma.dati.Rete
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.MezzoRT
@@ -151,10 +153,21 @@ fun LineaSchermo(
     var aggiornatoAlle by remember { mutableLongStateOf(0L) }
     var adesso by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
     var selezionato by remember { mutableStateOf<String?>(null) }
+    // Roma: il feed di Roma Mobilita' si legge ma non ha nessuna corsa (o e' fermo)
+    var romaFerma by remember { mutableStateOf(false) }
 
     val ciclo = LocalLifecycleOwner.current
-    // le vetture con il GPS ci sono solo per le linee di Roma: per Cotral e Trenitalia solo il percorso
-    val conVetture = Rete.di(lineaId) == Rete.ROMA
+    // le vetture con il GPS: Roma da Roma Mobilita', i bus Cotral da BusOne; per i treni solo il percorso
+    val rete = Rete.di(lineaId)
+    val conVetture = rete == Rete.ROMA || rete == Rete.COTRAL
+    // Cotral non ha le corse nell'orario dell'app: la direzione dei bus si ricava dalle fermate
+    val fermatePerDirezione = remember(o, lineaId, percorsi) {
+        if (o == null || rete != Rete.COTRAL) {
+            emptyMap()
+        } else {
+            percorsi.associate { p -> p.direzione to o.fermateDelPercorso(lineaId, p.direzione).map { it.id }.toSet() }
+        }
+    }
     LaunchedEffect(lineaId, percorso?.direzione, o) {
         if (!conVetture) {
             caricato = true
@@ -163,17 +176,21 @@ fun LineaSchermo(
         ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 try {
-                    val corse = try {
-                        TempoReale.corse()
+                    val corseLette = try {
+                        if (rete == Rete.COTRAL) BusOne.corse() else TempoReale.corse()
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
-                        emptyList()
+                        null
                     }
+                    val corse = corseLette.orEmpty()
+                    if (rete == Rete.ROMA) romaFerma = TempoReale.fermo(corseLette)
                     // le vetture senza corsa o linea si completano con le corse in tempo reale
-                    val grezzi = TempoReale.mezzi()
+                    val grezzi = if (rete == Rete.COTRAL) BusOne.mezzi() else TempoReale.mezzi()
                     val (tutti, vetture) = withContext(Dispatchers.IO) {
-                        val completi = completaMezzi(grezzi, corse)
+                        val completi = completaMezzi(grezzi, corse).let {
+                            if (rete == Rete.COTRAL) conDirezione(it, corse, fermatePerDirezione) else it
+                        }
                         completi to vettureDellaLinea(completi, lineaId, linea?.nome, percorso?.direzione, o)
                     }
                     mezzi = vetture.inDirezione
@@ -387,15 +404,22 @@ fun LineaSchermo(
                         .background(Oro, CircleShape),
                 )
                 Text(
-                    if (!conVetture) {
-                        "${Rete.di(lineaId).etichetta}: la posizione dei mezzi non è disponibile, solo il percorso"
+                    (if (!conVetture) {
+                        "${rete.etichetta}: la posizione dei mezzi non è disponibile, solo il percorso"
+                    } else if (romaFerma && mezzi.isEmpty() && altre.isEmpty()) {
+                        "Roma Mobilità ora non pubblica le posizioni delle vetture"
+                    } else if (rete == Rete.COTRAL) {
+                        when (mezzi.size) {
+                            0 -> if (caricato) "Nessun bus GPS in questa direzione" else "Cerco i bus…"
+                            else -> "${mezzi.size} bus GPS in questa direzione"
+                        } + if (caricato) " (BusOne)" else ""
                     } else {
                         when (mezzi.size) {
                             0 -> if (caricato) "Nessuna vettura GPS in questa direzione" else "Cerco le vetture…"
                             1 -> "1 vettura GPS in questa direzione"
                             else -> "${mezzi.size} vetture GPS in questa direzione"
                         }
-                    } + when (altre.size) {
+                    }) + when (altre.size) {
                         0 -> ""
                         1 -> " · 1 nell'altra (in grigio)"
                         else -> " · ${altre.size} nell'altra (in grigio)"

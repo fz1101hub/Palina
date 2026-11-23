@@ -9,14 +9,19 @@ import okhttp3.Request
 import java.io.IOException
 
 /**
- * Un passaggio previsto. [tracciato] vale true se la corsa ha una vettura seguita
- * via GPS; altrimenti il tempo e' calcolato sull'orario programmato.
+ * Un passaggio a una fermata. [tracciato]: il tempo viene dal tempo reale (per
+ * Roma una vettura seguita via GPS); altrimenti e' calcolato sull'orario
+ * programmato. [gps]: la vettura della corsa e' vista ora dal GPS, e si puo'
+ * mostrare sulla mappa. [avviso] per quello che il solo orario non dice (per ora
+ * dai treni Cotral: "soppresso", "bus sostitutivo").
  */
-/**
- * Un passaggio a una fermata. [avviso] per quello che il solo orario non dice
- * (per ora dai treni Cotral: "soppresso", "bus sostitutivo").
- */
-data class Passaggio(val orario: Long, val corsaId: String, val tracciato: Boolean, val avviso: String? = null)
+data class Passaggio(
+    val orario: Long,
+    val corsaId: String,
+    val tracciato: Boolean,
+    val avviso: String? = null,
+    val gps: Boolean = false,
+)
 
 /** Un gruppo di passaggi della stessa linea e direzione a una fermata. */
 data class Arrivo(
@@ -81,14 +86,22 @@ object TempoReale {
     const val URL_CORSE = "https://romamobilita.it/sites/default/files/rome_rtgtfs_trip_updates_feed.pb"
     const val URL_MEZZI = "https://romamobilita.it/sites/default/files/rome_rtgtfs_vehicle_positions_feed.pb"
 
+    /** Quando Roma Mobilita' ha prodotto l'ultimo feed delle corse letto (secondi epoch, 0 se non si sa). */
+    @Volatile
+    var istanteCorse = 0L
+        private set
+
     private val feedCorse = FeedInMemoria(
         validitaMs = 20_000,
-        scarica = { etag, modificato -> scarica(URL_CORSE, etag, modificato) },
-        decodifica = { FeedTempoReale.corse(it) },
+        scarica = { etag, modificato -> scaricaFeed(URL_CORSE, etag, modificato) },
+        decodifica = {
+            istanteCorse = FeedTempoReale.istante(it)
+            FeedTempoReale.corse(it)
+        },
     )
     private val feedMezzi = FeedInMemoria(
         validitaMs = 15_000,
-        scarica = { etag, modificato -> scarica(URL_MEZZI, etag, modificato) },
+        scarica = { etag, modificato -> scaricaFeed(URL_MEZZI, etag, modificato) },
         decodifica = { FeedTempoReale.mezzi(it) },
     )
 
@@ -96,24 +109,47 @@ object TempoReale {
 
     suspend fun mezzi(forza: Boolean = false): List<MezzoRT> = feedMezzi.ottieni(forza)
 
-    private suspend fun scarica(url: String, etag: String?, modificato: String?): RispostaFeed? =
-        withContext(Dispatchers.IO) {
-            val richiesta = Request.Builder().url(url).header("User-Agent", Archivio.agenteUtente)
-            if (etag != null) richiesta.header("If-None-Match", etag)
-            if (modificato != null) richiesta.header("If-Modified-Since", modificato)
-            Archivio.httpMedio.newCall(richiesta.build()).execute().use { risposta ->
-                when {
-                    risposta.code == 304 -> null
-                    !risposta.isSuccessful -> throw IOException("Il server ha risposto ${risposta.code}")
-                    else -> RispostaFeed(
-                        risposta.body.bytes(),
-                        risposta.header("ETag"),
-                        risposta.header("Last-Modified"),
-                    )
-                }
+    /** Vero se il feed delle corse appena letto non dice niente: vedi [senzaTempoReale]. */
+    fun fermo(corse: List<CorsaRT>?): Boolean = senzaTempoReale(corse, istanteCorse, System.currentTimeMillis() / 1000)
+}
+
+/**
+ * Vero se un feed in tempo reale e' stato letto ma non serve: nessuna corsa in
+ * tutta la rete (succede quando chi lo pubblica smette di esportare i dati, anche
+ * se il file continua ad aggiornarsi) oppure prodotto piu' di [vecchioDopo]
+ * secondi fa. Falso se il feed non si e' potuto leggere ([corse] null): li' e'
+ * un problema di rete, che l'app dice a parte.
+ */
+fun senzaTempoReale(corse: List<CorsaRT>?, istante: Long, adesso: Long, vecchioDopo: Long = 600): Boolean =
+    corse != null && (corse.isEmpty() || (istante > 0 && adesso - istante > vecchioDopo))
+
+/**
+ * Scarica un feed GTFS-Realtime, chiedendo se e' cambiato dall'ultima volta;
+ * null se non e' cambiato (304). [intestazioni] in piu' per chi le chiede (BusOne).
+ */
+internal suspend fun scaricaFeed(
+    url: String,
+    etag: String?,
+    modificato: String?,
+    intestazioni: Map<String, String> = emptyMap(),
+): RispostaFeed? =
+    withContext(Dispatchers.IO) {
+        val richiesta = Request.Builder().url(url).header("User-Agent", Archivio.agenteUtente)
+        intestazioni.forEach { (nome, valore) -> richiesta.header(nome, valore) }
+        if (etag != null) richiesta.header("If-None-Match", etag)
+        if (modificato != null) richiesta.header("If-Modified-Since", modificato)
+        Archivio.httpMedio.newCall(richiesta.build()).execute().use { risposta ->
+            when {
+                risposta.code == 304 -> null
+                !risposta.isSuccessful -> throw IOException("Il server ha risposto ${risposta.code}")
+                else -> RispostaFeed(
+                    risposta.body.bytes(),
+                    risposta.header("ETag"),
+                    risposta.header("Last-Modified"),
+                )
             }
         }
-}
+    }
 
 /** Un passaggio con la sua linea, prima di raggruppare per linea e direzione. */
 data class PassaggioLinea(
@@ -168,7 +204,7 @@ fun passaggiTempoReale(
             }?.capolinea ?: ""
         }
         val tracciato = corsa.veicolo.isNotEmpty() || (corsa.corsaId.isNotEmpty() && corsa.corsaId in tracciate)
-        PassaggioLinea(corsa.lineaId, null, direzione, capolinea, Passaggio(quando, corsa.corsaId, tracciato))
+        PassaggioLinea(corsa.lineaId, null, direzione, capolinea, Passaggio(quando, corsa.corsaId, tracciato, gps = tracciato))
     }
 }
 
@@ -182,6 +218,17 @@ private val FORMATO_CORSA = Regex("^\\d{8}_\\d{2}:\\d{2}_([^_]+)_(.+)$")
  */
 fun corsaDaTransitous(id: String): String? =
     FORMATO_CORSA.find(id)?.takeIf { it.groupValues[1] == Rete.ROMA.datiTransitous }?.groupValues?.get(2)
+
+/**
+ * La corsa come la chiama l'app, da quella di Transitous, per tutte le reti
+ * dell'app: "20261123_03:45_it-Lazio-Cotral_158556819" -> "C:158556819", per Roma
+ * il codice senza prefisso. Null se il formato non e' quello o la rete non e' nota.
+ */
+fun corsaApp(id: String): String? {
+    val m = FORMATO_CORSA.find(id) ?: return null
+    val rete = Rete.entries.firstOrNull { it.datiTransitous == m.groupValues[1] } ?: return null
+    return rete.prefisso + m.groupValues[2]
+}
 
 /**
  * Il codice dell'orario dentro un codice di Transitous: per le corse quello dopo
@@ -243,14 +290,16 @@ fun passaggiProgrammati(
         val lineaId = dati?.lineaId
             ?: candidatiLinea(p.lineaId).firstOrNull { orario?.linea(it) != null }
             ?: p.linea
-        val corsa = locale ?: p.corsaId
-        val tracciato = p.tempoReale || mezzoDellaCorsa(mezzi, corsa) != null
+        // per le altre reti la corsa col prefisso dell'app ("C:..."), come nei loro feed GPS
+        val corsa = locale ?: corsaApp(p.corsaId)?.takeIf { Rete.di(it) != Rete.ROMA } ?: p.corsaId
+        val gps = mezzoDellaCorsa(mezzi, corsa) != null
+        val tracciato = p.tempoReale || gps
         PassaggioLinea(
             lineaId = lineaId,
             nomeLinea = p.linea.takeIf { orario?.linea(lineaId) == null },
             direzione = dati?.direzione ?: p.direzione,
             capolinea = dati?.capolinea?.takeIf { it.isNotEmpty() } ?: p.capolinea,
-            passaggio = Passaggio(p.orario / 1000, corsa, tracciato),
+            passaggio = Passaggio(p.orario / 1000, corsa, tracciato, gps = gps),
         )
     }
 }
@@ -308,8 +357,35 @@ fun ancoraAttesi(arrivi: List<Arrivo>, adesso: Long, tolleranza: Long = 60): Lis
  */
 fun mezzoDellaCorsa(mezzi: List<MezzoRT>, corsaId: String): MezzoRT? {
     if (corsaId.isEmpty()) return null
-    val locale = corsaDaTransitous(corsaId)
+    val locale = corsaApp(corsaId)
     return mezzi.firstOrNull { it.corsaId == corsaId } ?: locale?.let { l -> mezzi.firstOrNull { it.corsaId == l } }
+}
+
+/**
+ * La direzione di una corsa dalle sue fermate: quella del percorso che ne
+ * contiene di piu' ([perDirezione]: le fermate di ogni direzione della linea).
+ * Null se nessuna fermata e' nota o se due direzioni pareggiano.
+ */
+fun direzioneDalleFermate(fermate: Collection<String>, perDirezione: Map<Int, Set<String>>): Int? {
+    if (fermate.isEmpty()) return null
+    val conteggi = perDirezione.mapValues { (_, insieme) -> fermate.count { it in insieme } }.filterValues { it > 0 }
+    val massimo = conteggi.values.maxOrNull() ?: return null
+    return conteggi.filterValues { it == massimo }.keys.singleOrNull()
+}
+
+/**
+ * Per le reti senza corse nell'orario dell'app (Cotral): la direzione delle
+ * vetture che il feed non dice, dalle fermate della loro corsa nel feed dei tempi
+ * e da quella a cui stanno arrivando.
+ */
+fun conDirezione(mezzi: List<MezzoRT>, corse: List<CorsaRT>, perDirezione: Map<Int, Set<String>>): List<MezzoRT> {
+    if (perDirezione.size < 2) return mezzi
+    val perCorsa = corse.associateBy { it.corsaId }
+    return mezzi.map { m ->
+        if (m.direzione != null) return@map m
+        val fermate = perCorsa[m.corsaId]?.fermate?.map { it.fermataId }.orEmpty() + listOf(m.fermataId).filter { it.isNotEmpty() }
+        direzioneDalleFermate(fermate, perDirezione)?.let { m.copy(direzione = it) } ?: m
+    }
 }
 
 /** "adesso", "40 s fa", "3 min fa"; null se l'ora del rilevamento non e' nota. */

@@ -5,7 +5,8 @@ App personale per i mezzi pubblici di Roma, con l'aspetto di un tabellone delle 
 
 - **Home con i minuti**: in cima la fermata preferita a cui sei vicino, poi le altre preferite e le fermate vicine, già con i prossimi passaggi;
 - **tempi d'attesa in tempo reale** alle fermate, con la direzione di ogni corsa e le linee che usi fissate in cima;
-- **anche Cotral e Trenitalia**: fermate dei bus e stazioni dei treni Cotral e le stazioni Trenitalia del Lazio, con le partenze di Transitous (in tempo reale per bus Cotral e treni Trenitalia) e, per Metromare e Roma–Viterbo, ritardi e soppressioni dal servizio orari di ASTRAL;
+- **anche Cotral e Trenitalia**: fermate dei bus e stazioni dei treni Cotral e le stazioni Trenitalia del Lazio, con le partenze di Transitous (in tempo reale per bus Cotral e treni Trenitalia), i bus Cotral visti dal GPS (BusOne) alla fermata e sulla mappa della linea e, per Metromare e Roma–Viterbo, ritardi e soppressioni dal servizio orari di ASTRAL;
+- **se Roma Mobilità non pubblica il tempo reale** (il suo flusso a volte resta vuoto anche se le paline mostrano i bus) l'app lo dice, invece di mostrare l'orario senza spiegazioni;
 - **linee**: tracciato sulla mappa, fermate e mezzi in movimento;
 - **tragitti da A a B** con bus, tram, metro e treni: cambi, tratti a piedi con le indicazioni, ritardi in tempo reale e mappa del percorso.
 
@@ -59,6 +60,12 @@ lunedì salta la prova e pubblica direttamente). Lo script è `strumenti/prova-e
   una fermata o una linea è aperta. `FeedInMemoria` li tiene per pochi secondi, chiede al
   server se sono cambiati prima di riscaricarli (ETag / Last-Modified) e li decodifica fuori
   dal thread dell'interfaccia. Alle fermate si aggiungono le partenze programmate di Transitous.
+  Un flusso letto ma senza nessuna corsa, o prodotto più di 10 minuti prima, vale come
+  «Roma Mobilità non pubblica» (`senzaTempoReale`).
+- **Bus Cotral col GPS**: `BusOne` legge posizioni e tempi da
+  [BusOne](https://proxy.busone.app/cotral/readme), con gli stessi codici dell'orario ufficiale
+  Cotral (nell'app con il prefisso `C:`), dichiarando app e uso personale come chiedono le sue
+  condizioni. La direzione dei bus si ricava dalle fermate della loro corsa (`conDirezione`).
 - **Tragitti**: `Transitous` interroga [Transitous](https://transitous.org) (motore MOTIS),
   che include ATAC, Roma TPL, Cotral e Trenitalia con il tempo reale e calcola i tratti a piedi
   su OpenStreetMap. Le risposte JSON sono lette da `Json`, senza librerie esterne.

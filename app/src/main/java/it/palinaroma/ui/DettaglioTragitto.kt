@@ -64,6 +64,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.BusOne
+import it.palinaroma.dati.Rete
+import it.palinaroma.dati.corsaApp
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.MezzoRT
 import it.palinaroma.dati.Orario
@@ -96,8 +99,11 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
     val esito = StatoTragitto.esito as? EsitoTragitti.Pronto
     val tragitto = esito?.let { if (indice < 0) it.soloAPiedi else it.tragitti.getOrNull(indice) }
 
-    // le vetture dei bus e tram del tragitto, se Roma Mobilita' le segue via GPS
+    // le vetture dei bus e tram del tragitto, se Roma Mobilita' (o BusOne per Cotral) le segue via GPS
     var mezzi by remember { mutableStateOf<List<MezzoRT>>(emptyList()) }
+    val conCotral = remember(tragitto) {
+        tragitto?.tratti.orEmpty().any { t -> !t.aPiedi && corsaApp(t.corsaId)?.let { Rete.di(it) == Rete.COTRAL } == true }
+    }
     var adesso by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
     val ciclo = LocalLifecycleOwner.current
     LaunchedEffect(tragitto) {
@@ -112,8 +118,9 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
                     } catch (_: Exception) {
                         emptyList()
                     }
+                    val cotral = if (conCotral) seRiesce { BusOne.mezzi() }.orEmpty() else emptyList()
                     val grezzi = TempoReale.mezzi()
-                    mezzi = withContext(Dispatchers.Default) { completaMezzi(grezzi, corse) }
+                    mezzi = withContext(Dispatchers.Default) { completaMezzi(grezzi, corse) + cotral }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {

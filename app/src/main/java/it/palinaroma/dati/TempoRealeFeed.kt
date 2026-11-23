@@ -1,7 +1,7 @@
 package it.palinaroma.dati
 
 /**
- * Lettura dei feed GTFS-Realtime di Roma Mobilita' senza librerie esterne:
+ * Lettura dei feed GTFS-Realtime (Roma Mobilita', BusOne) senza librerie esterne:
  * un piccolo decodificatore protobuf che legge solo i campi che servono.
  * Numeri dei campi da gtfs-realtime.proto.
  */
@@ -104,6 +104,7 @@ data class CorsaRT(
 /**
  * Un mezzo del feed "vehicle positions": posizione GPS, rotta in gradi
  * (0 = nord, in senso orario) e ora del rilevamento in secondi epoch (0 se manca).
+ * [fermataId] e' la fermata a cui sta arrivando o a cui e' fermo, se il feed la dice.
  */
 data class MezzoRT(
     val corsaId: String,
@@ -114,6 +115,7 @@ data class MezzoRT(
     val etichetta: String,
     val rotta: Float? = null,
     val rilevato: Long = 0L,
+    val fermataId: String = "",
 )
 
 private class Descrittore(
@@ -125,17 +127,51 @@ private class Descrittore(
 
 object FeedTempoReale {
 
-    fun corse(dati: ByteArray): List<CorsaRT> {
+    /**
+     * Le corse del feed. [prefisso] va davanti ai codici di corse, linee e
+     * fermate, per i feed di reti che nell'app hanno un prefisso ("C:" per Cotral).
+     */
+    fun corse(dati: ByteArray, prefisso: String = ""): List<CorsaRT> {
         val corse = ArrayList<CorsaRT>()
         perOgniEntita(dati, campo = 3) { corse.add(leggiCorsa(it)) }
-        return corse
+        if (prefisso.isEmpty()) return corse
+        return corse.map { c ->
+            c.copy(
+                corsaId = c.corsaId.con(prefisso),
+                lineaId = c.lineaId.con(prefisso),
+                fermate = c.fermate.map { it.copy(fermataId = it.fermataId.con(prefisso)) },
+            )
+        }
     }
 
-    fun mezzi(dati: ByteArray): List<MezzoRT> {
+    fun mezzi(dati: ByteArray, prefisso: String = ""): List<MezzoRT> {
         val mezzi = ArrayList<MezzoRT>()
         perOgniEntita(dati, campo = 4) { m -> leggiMezzo(m)?.let { mezzi.add(it) } }
-        return mezzi
+        if (prefisso.isEmpty()) return mezzi
+        return mezzi.map {
+            it.copy(corsaId = it.corsaId.con(prefisso), lineaId = it.lineaId.con(prefisso), fermataId = it.fermataId.con(prefisso))
+        }
     }
+
+    /** L'ora in cui il feed e' stato prodotto (FeedHeader.timestamp), in secondi epoch; 0 se manca. */
+    fun istante(dati: ByteArray): Long {
+        val feed = LettoreProto(dati)
+        while (!feed.finito()) {
+            val t = feed.leggiTag()
+            if (t == tag(1, LUNGHEZZA)) {
+                val intestazione = feed.leggiMessaggio()
+                while (!intestazione.finito()) {
+                    val ti = intestazione.leggiTag()
+                    if (ti == tag(3, VARINT)) return intestazione.leggiVarint() else intestazione.salta(ti and 7)
+                }
+                return 0L
+            }
+            feed.salta(t and 7)
+        }
+        return 0L
+    }
+
+    private fun String.con(prefisso: String) = if (isEmpty()) this else prefisso + this
 
     /** FeedMessage.entity (2) -> FeedEntity.<campo> */
     private inline fun perOgniEntita(dati: ByteArray, campo: Int, azione: (LettoreProto) -> Unit) {
@@ -252,6 +288,7 @@ object FeedTempoReale {
         var etichetta = ""
         var rotta: Float? = null
         var rilevato = 0L
+        var fermata = ""
         while (!m.finito()) {
             val t = m.leggiTag()
             when (t) {
@@ -269,11 +306,12 @@ object FeedTempoReale {
                     }
                 }
                 tag(5, VARINT) -> rilevato = m.leggiVarint()
+                tag(7, LUNGHEZZA) -> fermata = m.leggiStringa().trim()
                 tag(8, LUNGHEZZA) -> etichetta = leggiVeicolo(m.leggiMessaggio())
                 else -> m.salta(t and 7)
             }
         }
         if (lat.isNaN() || lon.isNaN()) return null
-        return MezzoRT(d.corsaId, d.lineaId, d.direzione, lat, lon, etichetta, rotta, rilevato)
+        return MezzoRT(d.corsaId, d.lineaId, d.direzione, lat, lon, etichetta, rotta, rilevato, fermata)
     }
 }

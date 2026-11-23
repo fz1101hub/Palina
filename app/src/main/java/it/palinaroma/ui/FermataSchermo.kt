@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -49,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -63,6 +65,7 @@ import it.palinaroma.dati.ArriviDivisi
 import it.palinaroma.dati.CorsaRT
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.FontiFermata
+import it.palinaroma.dati.BusOne
 import it.palinaroma.dati.Rete
 import it.palinaroma.dati.caricaFonti
 import it.palinaroma.dati.MezzoRT
@@ -116,6 +119,8 @@ fun FermataSchermo(
     var aggiornando by remember { mutableStateOf(false) }
     var aggiornatoAlle by remember { mutableLongStateOf(0L) }
     var soloTempoReale by remember { mutableStateOf(false) }
+    // Roma: il feed di Roma Mobilita' si legge ma non ha nessuna corsa (o e' fermo)
+    var romaFerma by remember { mutableStateOf(false) }
     var adessoMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     // per le stazioni dei treni Cotral: true se ASTRAL ha risposto, false se si vede l'orario
     var conAstral by remember { mutableStateOf<Boolean?>(null) }
@@ -131,7 +136,7 @@ fun FermataSchermo(
 
     // Tre fonti in parallelo, ognuna puo' mancare:
     // - tempo reale di Roma Mobilita' (vetture seguite via GPS), solo per le fermate di Roma,
-    // - posizioni delle vetture,
+    // - posizioni delle vetture: Roma Mobilita' per Roma, BusOne per i bus Cotral,
     // - Transitous: tutte le partenze da orario, aggiornate col tempo reale quando c'e'
     //   (per i treni Cotral prima ASTRAL, con i ritardi).
     suspend fun carica(forza: Boolean) {
@@ -141,7 +146,13 @@ fun FermataSchermo(
             val roma = rete == Rete.ROMA
             val (corse, mezzi, fonti) = coroutineScope {
                 val c = async { if (roma) seRiesce { TempoReale.corse(forza) } else null }
-                val m = async { if (roma) seRiesce { TempoReale.mezzi(forza) } else null }
+                val m = async {
+                    when (rete) {
+                        Rete.ROMA -> seRiesce { TempoReale.mezzi(forza) }
+                        Rete.COTRAL -> seRiesce { BusOne.mezzi(forza) }
+                        else -> null
+                    }
+                }
                 val p = async { if (f == null) null else caricaFonti(f, o) }
                 if (arrivi == null && roma) {
                     // Alla prima apertura si mostra subito la fonte che risponde per prima (di solito
@@ -162,6 +173,7 @@ fun FermataSchermo(
             if (corse == null && (fonti == null || fonti.vuote)) throw IllegalStateException("nessuna fonte disponibile")
             arrivi = componi(corse, mezzi, fonti)
             soloTempoReale = roma && (fonti == null || fonti.vuote)
+            romaFerma = roma && TempoReale.fermo(corse)
             if (rete == Rete.COTRAL_TRENI) conAstral = fonti?.treni != null
             errore = null
             aggiornatoAlle = System.currentTimeMillis()
@@ -239,6 +251,14 @@ fun FermataSchermo(
                 errore?.let { testo ->
                     item { AvvisoRete(testo, riprova = { ambito.launch { carica(forza = true) } }) }
                 }
+                if (romaFerma && aggiornatoAlle > 0) {
+                    item {
+                        AvvisoFonte(
+                            "Roma Mobilità in questo momento non pubblica il tempo reale: nessuna vettura nel suo flusso. " +
+                                "I tempi qui sotto sono calcolati sull'orario.",
+                        )
+                    }
+                }
                 if (soloTempoReale && aggiornatoAlle > 0) {
                     item {
                         Text(
@@ -263,10 +283,13 @@ fun FermataSchermo(
                                 rete.treni -> "Nessun treno nei prossimi 90 minuti."
                                 else -> "Nessun passaggio nei prossimi 90 minuti, né in tempo reale né da orario."
                             },
-                            // Roma: la vettura sulla mappa; le altre reti: il percorso della linea, se c'e' nell'orario
+                            // Roma, e i bus Cotral visti dal GPS: la vettura sulla mappa;
+                            // le altre reti: il percorso della linea, se c'e' nell'orario
                             apri = { a ->
                                 when {
                                     Rete.di(a.lineaId) == Rete.ROMA && rete == Rete.ROMA ->
+                                        ({ apriVettura(a.lineaId, a.direzione, a.passaggi.first().corsaId) })
+                                    Rete.di(a.lineaId) == Rete.COTRAL && a.passaggi.first().gps && o?.linea(a.lineaId) != null ->
                                         ({ apriVettura(a.lineaId, a.direzione, a.passaggi.first().corsaId) })
                                     // i treni Trenitalia non hanno il percorso nell'app: solo le partenze
                                     Rete.di(a.lineaId) != Rete.TRENITALIA && o?.linea(a.lineaId) != null ->
@@ -283,6 +306,9 @@ fun FermataSchermo(
                                 Rete.ROMA ->
                                     "Cifre oro con il pallino: vettura vista ora dal GPS. Grigie: tempo calcolato sull'orario. " +
                                         "Tocca una riga per vedere la vettura sulla mappa, trascina giù per aggiornare."
+                                Rete.COTRAL ->
+                                    "Cifre oro con il pallino: in tempo reale (Cotral, tramite Transitous); «GPS»: il bus è visto " +
+                                        "ora dal GPS (BusOne). Grigie: orario programmato. Tocca una riga per vedere il bus o il percorso."
                                 Rete.COTRAL_TRENI -> when (conAstral) {
                                     true -> "Orari, ritardi e soppressioni dei treni: ASTRAL. Cifre oro: ritardo già comunicato; " +
                                         "grigie: orario programmato. Tocca una riga per vedere la linea."
@@ -370,6 +396,23 @@ fun RigaAggiornamento(aggiornatoAlle: Long, adessoMs: Long, modifier: Modifier =
     }
 }
 
+/** Avviso su una fonte dei dati (per esempio il tempo reale che manca): solo testo, senza azioni. */
+@Composable
+fun AvvisoFonte(testo: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .background(AccentoFondo, RoundedCornerShape(16.dp))
+            .semantics(mergeDescendants = true) {}
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Icons.Filled.Info, contentDescription = null, tint = Accento)
+        Text(testo, style = MaterialTheme.typography.bodyMedium, color = Testo, modifier = Modifier.weight(1f))
+    }
+}
+
 /** Avviso quando la rete manca: dice di quando sono i tempi e offre di riprovare. */
 @Composable
 fun AvvisoRete(testo: String, riprova: () -> Unit, modifier: Modifier = Modifier) {
@@ -452,7 +495,7 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (()
                     .then(
                         if (apri != null) {
                             Modifier.clickable(
-                                onClickLabel = if (reteLinea == Rete.ROMA) "vedi la vettura sulla mappa" else "vedi la linea",
+                                onClickLabel = if (reteLinea == Rete.ROMA || primo.gps) "vedi la vettura sulla mappa" else "vedi la linea",
                                 onClick = apri,
                             )
                         } else {
@@ -488,7 +531,7 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (()
                         if (primo.avviso != null) {
                             Text(primo.avviso, style = MaterialTheme.typography.labelSmall, color = Accento, fontWeight = FontWeight.Bold)
                         } else {
-                            FonteTempo(primo.tracciato, etichetta = if (reteLinea == Rete.ROMA) "GPS" else "tempo reale")
+                            FonteTempo(primo.tracciato, etichetta = if (reteLinea == Rete.ROMA || primo.gps) "GPS" else "tempo reale")
                         }
                     }
                 }

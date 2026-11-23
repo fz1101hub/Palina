@@ -72,6 +72,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Arrivo
+import it.palinaroma.dati.BusOne
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.Linea
 import it.palinaroma.dati.Orario
@@ -186,6 +187,8 @@ private data class ArriviHome(
     val perFermata: Map<String, List<Arrivo>> = emptyMap(),
     val aggiornatoAlle: Long = 0L,
     val errore: Boolean = false,
+    /** Il feed di Roma Mobilita' si legge ma non ha nessuna corsa (o e' fermo). */
+    val romaFerma: Boolean = false,
 )
 
 /**
@@ -204,9 +207,12 @@ private fun rememberArriviHome(orario: Orario, complete: List<Fermata>, soloTemp
         ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 val adessoMs = System.currentTimeMillis()
+                // i bus Cotral col GPS servono solo se in Home c'e' una fermata Cotral
+                val conCotral = (idComplete + soloTempoReale).any { Rete.di(it) == Rete.COTRAL }
                 val (corse, mezzi) = coroutineScope {
                     val c = async { seRiesce { TempoReale.corse() } }
                     val m = async { seRiesce { TempoReale.mezzi() } }
+                    val mc = async { if (conCotral) seRiesce { BusOne.mezzi() } else null }
                     complete.map { f ->
                         async {
                             val gia = fonti[f.id]
@@ -215,7 +221,8 @@ private fun rememberArriviHome(orario: Orario, complete: List<Fermata>, soloTemp
                             }
                         }
                     }.awaitAll()
-                    c.await() to m.await().orEmpty()
+                    // i codici Cotral hanno il prefisso "C:": non si confondono con quelli di Roma
+                    c.await() to (m.await().orEmpty() + mc.await().orEmpty())
                 }
                 val fresche = complete.any { fonti[it.id]?.first == adessoMs }
                 if (corse != null || fresche) {
@@ -229,7 +236,7 @@ private fun rememberArriviHome(orario: Orario, complete: List<Fermata>, soloTemp
                             arriviFermata(id, orario, rt, mezzi, f?.partenze, adesso, f?.treni)
                         }
                     }
-                    stato = ArriviHome(calcolati, System.currentTimeMillis(), errore = false)
+                    stato = ArriviHome(calcolati, System.currentTimeMillis(), errore = false, romaFerma = TempoReale.fermo(corse))
                 } else {
                     // senza rete restano i tempi gia' letti, che si consumano da soli
                     stato = stato.copy(errore = true)
@@ -364,6 +371,15 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
                     if (arrivi.aggiornatoAlle > 0) "Non riesco ad aggiornare: i tempi sono quelli delle ${ora(arrivi.aggiornatoAlle)}."
                     else "Non riesco a leggere i tempi d'attesa. Controlla la connessione.",
                     riprova = { riprova++ },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+        }
+
+        if (arrivi.romaFerma && !arrivi.errore && preferiteOrdinate.any { Rete.di(it.first.id) == Rete.ROMA }) {
+            item {
+                AvvisoFonte(
+                    "Roma Mobilità ora non pubblica il tempo reale: i tempi di Roma sono calcolati sull'orario.",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
