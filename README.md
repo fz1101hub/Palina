@@ -6,6 +6,8 @@ App personale per i mezzi pubblici di Roma, con l'aspetto di un tabellone delle 
 - **Home con i minuti**: in cima la fermata preferita a cui sei vicino, poi le altre preferite e le fermate vicine, già con i prossimi passaggi;
 - **tempi d'attesa in tempo reale** alle fermate, con la direzione di ogni corsa e le linee che usi fissate in cima;
 - **anche Cotral e Trenitalia**: fermate dei bus e stazioni dei treni Cotral e le stazioni Trenitalia del Lazio, con le partenze di Transitous (in tempo reale per bus Cotral e treni Trenitalia), i bus Cotral visti dal GPS (BusOne) alla fermata e sulla mappa della linea e, per Metromare e Roma–Viterbo, ritardi e soppressioni dal servizio orari di ASTRAL;
+- **dettaglio dei treni**: toccando un treno (Trenitalia, Metromare, Roma Nord, Roma–Viterbo) si vedono tutte le sue fermate, solo quelle dove ferma davvero (un Regionale Veloce non mostra le stazioni che salta), con orari, ritardo e binario; per i treni Cotral il ritardo di ASTRAL portato alle stazioni successive;
+- **stazioni di scambio unite**: Piramide/Porta San Paolo, Basilica San Paolo ed EUR Magliana (Metro B e Metromare) e Flaminio (Metro A e Roma Nord) sono un solo risultato, con gli orari della metro e dei treni insieme;
 - **se Roma Mobilità non pubblica il tempo reale** (il suo flusso a volte resta vuoto anche se le paline mostrano i bus) l'app lo dice, invece di mostrare l'orario senza spiegazioni;
 - **linee**: tracciato sulla mappa, fermate e mezzi in movimento;
 - **tragitti da A a B** con bus, tram, metro e treni: cambi, tratti a piedi con le indicazioni, ritardi in tempo reale e mappa del percorso.

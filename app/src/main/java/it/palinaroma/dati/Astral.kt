@@ -225,7 +225,10 @@ fun passaggiDaTransiti(
             nomeLinea = nomeLineaTreniCotral(percorso.linea),
             direzione = percorso.direzione,
             capolinea = percorso.capolinea,
-            passaggio = Passaggio(atteso, "astral:" + percorso.codice + ":" + v.corsa, v.ritardo != null, avviso),
+            passaggio = Passaggio(
+                atteso, "astral:" + percorso.codice + ":" + v.corsa, v.ritardo != null, avviso,
+                ritardo = v.ritardo?.let { it * 60 },
+            ),
         )
     }
 }

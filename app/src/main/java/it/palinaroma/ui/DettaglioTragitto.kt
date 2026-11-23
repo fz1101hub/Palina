@@ -496,13 +496,17 @@ private fun cerchio(riempimento: Int, bordo: Int, lato: Int): Drawable =
 
 /** Il tragitto sulla mappa: mezzi a tinta piena, tratti a piedi tratteggiati. */
 @Composable
-private fun MappaTragitto(
+internal fun MappaTragitto(
     tragitto: Tragitto,
     vetture: List<Pair<Tratto, MezzoRT>>,
     adesso: Long,
     miaPosizione: Location?,
     richiestaCentra: Int,
     modifier: Modifier,
+    /** Altre fermate da segnare (per il dettaglio di una corsa: tutte le sue fermate). */
+    fermate: List<Tappa> = emptyList(),
+    /** La fermata da cui si guarda, in evidenza. */
+    qui: Tappa? = null,
 ) {
     val context = LocalContext.current
     val densita = LocalDensity.current.density
@@ -518,6 +522,7 @@ private fun MappaTragitto(
     val iconaPartenza = remember { cerchio(android.graphics.Color.WHITE, Porpora.toArgb(), (18 * densita).toInt()) }
     val iconaArrivo = remember { cerchio(Oro.toArgb(), Inchiostro.toArgb(), (20 * densita).toInt()) }
     val iconaFermata = remember { cerchio(android.graphics.Color.WHITE, Inchiostro.toArgb(), (11 * densita).toInt()) }
+    val iconaQui = remember { cerchio(Oro.toArgb(), Porpora.toArgb(), (22 * densita).toInt()) }
 
     val ciclo = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(ciclo) {
@@ -550,7 +555,7 @@ private fun MappaTragitto(
 
     // Il percorso e le fermate non cambiano: si preparano una volta, non a ogni
     // aggiornamento delle vetture o della posizione (ogni pochi secondi).
-    val fissi: List<Overlay> = remember(mappa, tragitto, tracciati) {
+    val fissi: List<Overlay> = remember(mappa, tragitto, tracciati, fermate, qui) {
         buildList<Overlay> {
             tracciati.forEach { (t, punti) ->
                 if (punti.size < 2) return@forEach
@@ -577,9 +582,17 @@ private fun MappaTragitto(
                     })
                 }
             }
+            fermate.filter { !it.lat.isNaN() && !it.lon.isNaN() }.forEach { tappa ->
+                add(Marker(mappa).apply {
+                    position = GeoPoint(tappa.lat, tappa.lon)
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    icon = iconaFermata
+                    title = tappa.nome
+                })
+            }
             val inizio = tragitto.tratti.first().da
             val fine = tragitto.tratti.last().a
-            listOf(inizio to iconaPartenza, fine to iconaArrivo).forEach { (tappa, icona) ->
+            (listOf(inizio to iconaPartenza, fine to iconaArrivo) + listOfNotNull(qui?.let { it to iconaQui })).forEach { (tappa, icona) ->
                 if (tappa.lat.isNaN() || tappa.lon.isNaN()) return@forEach
                 add(Marker(mappa).apply {
                     position = GeoPoint(tappa.lat, tappa.lon)

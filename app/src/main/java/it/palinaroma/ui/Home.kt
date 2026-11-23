@@ -82,7 +82,7 @@ import it.palinaroma.dati.caricaFonti
 import it.palinaroma.dati.StatoAggiornamento
 import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.ancoraAttesi
-import it.palinaroma.dati.arriviFermata
+import it.palinaroma.dati.arriviStazione
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.dividiArrivi
 import it.palinaroma.dati.fraseArrivo
@@ -104,7 +104,7 @@ import kotlinx.coroutines.withContext
 data class FermataConLinee(val fermata: Fermata, val distanza: Double?, val linee: List<String>)
 
 private fun Orario.conLinee(fermata: Fermata, distanza: Double?) =
-    FermataConLinee(fermata, distanza, lineeAllaFermata(fermata.id).map { it.linea.nome }.distinct())
+    FermataConLinee(fermata, distanza, stazioneUnita(fermata.id).flatMap { lineeAllaFermata(it) }.map { it.linea.nome }.distinct())
 
 /** Spazio in fondo agli elenchi, perche' il pulsante "Come arrivo…" non copra le ultime righe. */
 private val SOTTO_IL_PULSANTE = PaddingValues(bottom = 96.dp)
@@ -213,7 +213,14 @@ private fun rememberArriviHome(orario: Orario, complete: List<Fermata>, soloTemp
                     val c = async { seRiesce { TempoReale.corse() } }
                     val m = async { seRiesce { TempoReale.mezzi() } }
                     val mc = async { if (conCotral) seRiesce { BusOne.mezzi() } else null }
-                    complete.map { f ->
+                    // per le stazioni di scambio (Metromare e Metro B...) le fonti di ogni loro fermata
+                    val daCaricare = withContext(Dispatchers.IO) {
+                        complete.flatMap { f ->
+                            val membri = orario.stazioneUnita(f.id)
+                            if (membri.size == 1) listOf(f) else orario.fermate(membri).values.toList()
+                        }.distinctBy { it.id }
+                    }
+                    daCaricare.map { f ->
                         async {
                             val gia = fonti[f.id]
                             if (gia == null || adessoMs - gia.first > 60_000) {
@@ -224,16 +231,15 @@ private fun rememberArriviHome(orario: Orario, complete: List<Fermata>, soloTemp
                     // i codici Cotral hanno il prefisso "C:": non si confondono con quelli di Roma
                     c.await() to (m.await().orEmpty() + mc.await().orEmpty())
                 }
-                val fresche = complete.any { fonti[it.id]?.first == adessoMs }
+                val fresche = fonti.values.any { it.first == adessoMs }
                 if (corse != null || fresche) {
                     val ids = (idComplete + soloTempoReale).distinct()
                     val adesso = System.currentTimeMillis() / 1000
                     val calcolati = withContext(Dispatchers.IO) {
                         ids.associateWith { id ->
-                            val f = fonti[id]?.second
-                            // il tempo reale di Roma Mobilita' vale solo per le sue fermate
-                            val rt = if (Rete.di(id) == Rete.ROMA) corse else null
-                            arriviFermata(id, orario, rt, mezzi, f?.partenze, adesso, f?.treni)
+                            // il tempo reale di Roma Mobilita' vale solo per le sue fermate (lo filtra arriviStazione)
+                            val membri = orario.stazioneUnita(id)
+                            arriviStazione(membri, orario, corse, mezzi, membri.associateWith { fonti[it]?.second }, adesso)
                         }
                     }
                     stato = ArriviHome(calcolati, System.currentTimeMillis(), errore = false, romaFerma = TempoReale.fermo(corse))
@@ -289,7 +295,7 @@ private fun rememberVicine(orario: Orario): Triple<StatoVicino, Boolean, () -> U
                     usataLon = p.longitude
                     usataPrecisione = p.precisione()
                     val trovate = withContext(Dispatchers.IO) {
-                        orario.fermateVicine(p.latitude, p.longitude)
+                        orario.fermateVicineUnite(p.latitude, p.longitude)
                             .map { (fermata, distanza) -> orario.conLinee(fermata, distanza) }
                     }
                     stato.lat = p.latitude
@@ -328,7 +334,8 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
     val fermatePreferite by produceState(initialValue = emptyList<Fermata>(), preferiti, orario) {
         value = withContext(Dispatchers.IO) {
             val trovate = orario.fermate(preferiti)
-            preferiti.mapNotNull { trovate[it] }.sortedBy { it.nome }
+            // una stazione di scambio salvata da una sua banchina ha il nome della stazione unita
+            preferiti.mapNotNull { id -> trovate[id]?.let { f -> orario.fermataUnita(id)?.copy(id = id) ?: f } }.sortedBy { it.nome }
         }
     }
     val lat = vicino.lat
@@ -546,7 +553,7 @@ private fun SchedaPreferita(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                (if (Rete.di(fermata.id) == Rete.ROMA) "palina ${fermata.codice}" else descrizioneFermata(fermata)) +
+                (if (Rete.di(fermata.id) == Rete.ROMA && Archivio.orario.value?.lineeStazioneUnita(fermata.id) == null) "palina ${fermata.codice}" else descrizioneFermata(fermata)) +
                     (distanza?.let { " · " + testoMetri(it) } ?: ""),
                 style = MaterialTheme.typography.bodySmall,
                 color = Secondario,

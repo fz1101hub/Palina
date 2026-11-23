@@ -205,7 +205,8 @@ object Archivio {
                     .getOrNull()
             }
             val vecchio = _orario.value
-            _orario.value = Orario(db, reti)
+            // le stazioni di scambio si calcolano qui, fuori dal thread dell'interfaccia
+            _orario.value = Orario(db, reti).also { it.preparaScambi() }
             // chiude il vecchio quando le schermate hanno finito di usarlo
             if (vecchio != null) ambito.launch { delay(10_000); vecchio.chiudi() }
         } catch (e: Exception) {

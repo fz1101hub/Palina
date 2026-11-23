@@ -21,6 +21,10 @@ data class Passaggio(
     val tracciato: Boolean,
     val avviso: String? = null,
     val gps: Boolean = false,
+    /** La corsa per Transitous, per chiederne tutte le fermate (dettaglio della corsa). */
+    val idTransitous: String? = null,
+    /** Ritardo in secondi rispetto all'orario, quando la fonte lo dice a parte (ASTRAL). */
+    val ritardo: Int? = null,
 )
 
 /** Un gruppo di passaggi della stessa linea e direzione a una fermata. */
@@ -299,7 +303,7 @@ fun passaggiProgrammati(
             nomeLinea = p.linea.takeIf { orario?.linea(lineaId) == null },
             direzione = dati?.direzione ?: p.direzione,
             capolinea = dati?.capolinea?.takeIf { it.isNotEmpty() } ?: p.capolinea,
-            passaggio = Passaggio(p.orario / 1000, corsa, tracciato, gps = gps),
+            passaggio = Passaggio(p.orario / 1000, corsa, tracciato, gps = gps, idTransitous = p.corsaId.ifEmpty { null }),
         )
     }
 }

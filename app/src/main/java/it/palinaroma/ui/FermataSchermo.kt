@@ -71,7 +71,7 @@ import it.palinaroma.dati.caricaFonti
 import it.palinaroma.dati.MezzoRT
 import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.ancoraAttesi
-import it.palinaroma.dati.arriviFermata
+import it.palinaroma.dati.arriviStazione
 import it.palinaroma.dati.dividiArrivi
 import it.palinaroma.dati.fraseArrivo
 import it.palinaroma.dati.lineeFissate
@@ -81,6 +81,7 @@ import it.palinaroma.dati.testoPoi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -103,14 +104,23 @@ fun FermataSchermo(
     indietro: () -> Unit,
     apriLinea: (String, Int?) -> Unit,
     apriVettura: (lineaId: String, direzione: Int?, corsaId: String) -> Unit,
+    apriCorsa: (RichiestaCorsa) -> Unit,
     comeArrivare: (Fermata) -> Unit,
 ) {
     val orario by Archivio.orario.collectAsStateWithLifecycle()
     val preferiti by Archivio.preferiti.collectAsStateWithLifecycle()
     val chiaviFissate by Archivio.fissate.collectAsStateWithLifecycle()
     val o = orario
-    val fermata = remember(o, fermataId) { o?.fermata(fermataId) }
-    val linee = remember(o, fermataId) { o?.lineeAllaFermata(fermataId).orEmpty() }
+    // le stazioni di scambio (Metromare e Metro B, Roma Nord e Metro A) sono una
+    // stazione sola: la stazione Cotral e le banchine della metro, con gli orari di tutte
+    val membri = remember(o, fermataId) { o?.stazioneUnita(fermataId) ?: listOf(fermataId) }
+    val fermata = remember(o, fermataId) { o?.fermataUnita(fermataId) ?: o?.fermata(fermataId) }
+    val fermateMembri = remember(o, membri) {
+        o?.fermate(membri)?.let { trovate -> membri.mapNotNull { trovate[it] } }.orEmpty()
+    }
+    val linee = remember(o, membri) {
+        membri.flatMap { o?.lineeAllaFermata(it).orEmpty() }.distinctBy { it.linea.id to it.direzione }
+    }
     val nomiLinee = remember(linee) { linee.associate { it.linea.id to it.linea.nome } }
     val fissate = remember(chiaviFissate, fermataId) { lineeFissate(fermataId, chiaviFissate) }
 
@@ -127,11 +137,13 @@ fun FermataSchermo(
     val adesso = adessoMs / 1000
     val ambito = rememberCoroutineScope()
     val ciclo = LocalLifecycleOwner.current
-    val rete = Rete.di(fermataId)
+    // la rete della stazione: per quelle di scambio, quella della stazione Cotral
+    val rete = Rete.di(membri.first())
+    val retiMembri = remember(membri) { membri.map { Rete.di(it) }.toSet() }
 
-    suspend fun componi(corse: List<CorsaRT>?, mezzi: List<MezzoRT>, fonti: FontiFermata?): List<Arrivo> =
+    suspend fun componi(corse: List<CorsaRT>?, mezzi: List<MezzoRT>, fonti: Map<String, FontiFermata>?): List<Arrivo> =
         withContext(Dispatchers.IO) {
-            arriviFermata(fermataId, o, corse, mezzi, fonti?.partenze, System.currentTimeMillis() / 1000, fonti?.treni)
+            arriviStazione(membri, o, corse, mezzi, fonti.orEmpty(), System.currentTimeMillis() / 1000)
         }
 
     // Tre fonti in parallelo, ognuna puo' mancare:
@@ -142,18 +154,22 @@ fun FermataSchermo(
     suspend fun carica(forza: Boolean) {
         aggiornando = true
         try {
-            val f = fermata
-            val roma = rete == Rete.ROMA
+            val roma = Rete.ROMA in retiMembri
             val (corse, mezzi, fonti) = coroutineScope {
                 val c = async { if (roma) seRiesce { TempoReale.corse(forza) } else null }
                 val m = async {
-                    when (rete) {
-                        Rete.ROMA -> seRiesce { TempoReale.mezzi(forza) }
-                        Rete.COTRAL -> seRiesce { BusOne.mezzi(forza) }
-                        else -> null
+                    val r = if (roma) seRiesce { TempoReale.mezzi(forza) } else null
+                    val b = if (Rete.COTRAL in retiMembri) seRiesce { BusOne.mezzi(forza) } else null
+                    if (r == null && b == null) null else r.orEmpty() + b.orEmpty()
+                }
+                // le fonti di ogni fermata della stazione (una sola, tranne che negli scambi)
+                val p = async {
+                    if (fermateMembri.isEmpty()) {
+                        null
+                    } else {
+                        fermateMembri.map { f -> async { f.id to caricaFonti(f, o) } }.awaitAll().toMap()
                     }
                 }
-                val p = async { if (f == null) null else caricaFonti(f, o) }
                 if (arrivi == null && roma) {
                     // Alla prima apertura si mostra subito la fonte che risponde per prima (di solito
                     // Transitous: poche righe contro i MB del feed); il resto si aggiunge appena arriva.
@@ -170,11 +186,12 @@ fun FermataSchermo(
                 }
                 Triple(c.await(), m.await().orEmpty(), p.await())
             }
-            if (corse == null && (fonti == null || fonti.vuote)) throw IllegalStateException("nessuna fonte disponibile")
+            val fontiVuote = fonti == null || fonti.values.all { it.vuote }
+            if (corse == null && fontiVuote) throw IllegalStateException("nessuna fonte disponibile")
             arrivi = componi(corse, mezzi, fonti)
-            soloTempoReale = roma && (fonti == null || fonti.vuote)
+            soloTempoReale = roma && fontiVuote
             romaFerma = roma && TempoReale.fermo(corse)
-            if (rete == Rete.COTRAL_TRENI) conAstral = fonti?.treni != null
+            if (rete == Rete.COTRAL_TRENI) conAstral = fonti?.get(membri.first())?.treni != null
             errore = null
             aggiornatoAlle = System.currentTimeMillis()
         } catch (e: CancellationException) {
@@ -283,16 +300,30 @@ fun FermataSchermo(
                                 rete.treni -> "Nessun treno nei prossimi 90 minuti."
                                 else -> "Nessun passaggio nei prossimi 90 minuti, né in tempo reale né da orario."
                             },
+                            // i treni: il dettaglio della corsa, con le sole fermate dove fermano;
                             // Roma, e i bus Cotral visti dal GPS: la vettura sulla mappa;
                             // le altre reti: il percorso della linea, se c'e' nell'orario
                             apri = { a ->
+                                val p = a.passaggi.first()
                                 when {
-                                    Rete.di(a.lineaId) == Rete.ROMA && rete == Rete.ROMA ->
-                                        ({ apriVettura(a.lineaId, a.direzione, a.passaggi.first().corsaId) })
-                                    Rete.di(a.lineaId) == Rete.COTRAL && a.passaggi.first().gps && o?.linea(a.lineaId) != null ->
-                                        ({ apriVettura(a.lineaId, a.direzione, a.passaggi.first().corsaId) })
-                                    // i treni Trenitalia non hanno il percorso nell'app: solo le partenze
-                                    Rete.di(a.lineaId) != Rete.TRENITALIA && o?.linea(a.lineaId) != null ->
+                                    Rete.di(a.lineaId).treni -> ({
+                                        apriCorsa(
+                                            RichiestaCorsa(
+                                                corsaId = p.idTransitous,
+                                                fermataId = membri.firstOrNull { Rete.di(it) == Rete.di(a.lineaId) } ?: fermataId,
+                                                lineaId = a.lineaId,
+                                                direzione = a.direzione,
+                                                previsto = p.orario - (p.ritardo ?: 0),
+                                                corsaAstral = p.corsaId.takeIf { it.startsWith("astral:") },
+                                                ritardo = p.ritardo,
+                                            ),
+                                        )
+                                    })
+                                    Rete.di(a.lineaId) == Rete.ROMA && Rete.ROMA in retiMembri ->
+                                        ({ apriVettura(a.lineaId, a.direzione, p.corsaId) })
+                                    Rete.di(a.lineaId) == Rete.COTRAL && p.gps && o?.linea(a.lineaId) != null ->
+                                        ({ apriVettura(a.lineaId, a.direzione, p.corsaId) })
+                                    o?.linea(a.lineaId) != null ->
                                         ({ apriLinea(a.lineaId, a.direzione) })
                                     else -> null
                                 }
@@ -311,13 +342,18 @@ fun FermataSchermo(
                                         "ora dal GPS (BusOne). Grigie: orario programmato. Tocca una riga per vedere il bus o il percorso."
                                 Rete.COTRAL_TRENI -> when (conAstral) {
                                     true -> "Orari, ritardi e soppressioni dei treni: ASTRAL. Cifre oro: ritardo già comunicato; " +
-                                        "grigie: orario programmato. Tocca una riga per vedere la linea."
+                                        "grigie: orario programmato. Tocca un treno per vedere tutte le sue fermate."
                                     else -> "Ritardi dei treni non disponibili ora (ASTRAL non risponde, o di notte " +
-                                        "non ha ancora l'orario del giorno): vedi l'orario programmato."
+                                        "non ha ancora l'orario del giorno): vedi l'orario programmato. " +
+                                        "Tocca un treno per vedere tutte le sue fermate."
+                                } + if (Rete.ROMA in retiMembri) {
+                                    " Qui ci sono anche le banchine della metro: i loro tempi sono da orario."
+                                } else {
+                                    ""
                                 }
                                 Rete.TRENITALIA ->
                                     "Cifre oro con il pallino: in tempo reale (Trenitalia, tramite Transitous). " +
-                                        "Grigie: orario programmato."
+                                        "Grigie: orario programmato. Tocca un treno per vedere tutte le sue fermate."
                                 else ->
                                     "Cifre oro con il pallino: in tempo reale (${rete.etichetta}, tramite Transitous). " +
                                         "Grigie: orario programmato. Tocca una riga per vedere il percorso della linea."

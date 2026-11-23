@@ -118,3 +118,24 @@ fun preferitaVicina(
         .filter { it.second <= raggio }
         .minByOrNull { it.second }
 }
+
+/**
+ * Il tabellone di una stazione fatta di piu' fermate (le stazioni di scambio,
+ * vedi [StazioneUnita]): quelli di ognuna, insieme, in ordine di passaggio. Con
+ * una fermata sola e' [arriviFermata]. [fonti] per fermata; il tempo reale di
+ * Roma Mobilita' vale solo per le sue fermate.
+ */
+fun arriviStazione(
+    membri: List<String>,
+    orario: Orario?,
+    corse: List<CorsaRT>?,
+    mezzi: List<MezzoRT>,
+    fonti: Map<String, FontiFermata?>,
+    adesso: Long,
+): List<Arrivo> {
+    val perFermata = membri.distinct().map { id ->
+        val f = fonti[id]
+        arriviFermata(id, orario, corse.takeIf { Rete.di(id) == Rete.ROMA }, mezzi, f?.partenze, adesso, f?.treni)
+    }
+    return if (perFermata.size == 1) perFermata[0] else perFermata.flatten().sortedBy { it.orari.first() }
+}

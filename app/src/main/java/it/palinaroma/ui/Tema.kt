@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import it.palinaroma.R
+import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Arrivo
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.Rete
@@ -83,6 +84,8 @@ fun coloreRete(id: String): Color = when (Rete.di(id)) {
 
 /** Sotto il nome di una fermata: "Palina 70078", "Cotral · palina 12345", "Stazione · Trenitalia". */
 fun descrizioneFermata(fermata: Fermata): String {
+    // le stazioni di scambio: "Stazione · Metro B/B1 · Metromare"
+    Archivio.orario.value?.lineeStazioneUnita(fermata.id)?.let { return "Stazione · $it" }
     val rete = Rete.di(fermata.id)
     return when {
         rete == Rete.ROMA -> "Palina ${fermata.codice}"
@@ -387,7 +390,9 @@ fun RigaFermata(
     val sotto = descrizioneFermata(fermata)
     val descrizione = buildString {
         append(daLeggere(fermata.nome))
-        if (rete != Rete.ROMA) append(", ${rete.etichetta}")
+        // le stazioni di scambio dicono tutte le loro linee: "Metro B/B1, Metromare"
+        val unita = Archivio.orario.value?.lineeStazioneUnita(fermata.id)
+        if (unita != null) append(", " + unita.replace(" · ", ", ")) else if (rete != Rete.ROMA) append(", ${rete.etichetta}")
         if (distanza != null) append(", a ${distanza.roundToInt()} metri")
         append(if (rete.treni) ". Stazione." else ". Palina ${fermata.codice}.")
         if (conTempi) {

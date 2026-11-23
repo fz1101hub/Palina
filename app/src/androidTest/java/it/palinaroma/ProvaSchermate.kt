@@ -238,8 +238,10 @@ class ProvaSchermate {
         // una fermata dei bus Cotral, una stazione dei treni Cotral (tempo reale da ASTRAL),
         // una stazione Trenitalia: se una rete manca nell'APK la prova lo dice con una schermata
         apriFermataDellaRete("Frascati", "Cotral", "16-fermata-cotral", poiRiga = "16b-bus-cotral")
-        apriFermataDellaRete("Lido Centro", "Treni Cotral", "17-stazione-treni-cotral")
-        apriFermataDellaRete("Roma Ostiense", "Trenitalia", "18-stazione-trenitalia")
+        apriFermataDellaRete("Lido Centro", "Treni Cotral", "17-stazione-treni-cotral", poiRiga = "17b-corsa-treni-cotral")
+        apriFermataDellaRete("Roma Ostiense", "Trenitalia", "18-stazione-trenitalia", poiRiga = "18b-corsa-trenitalia")
+        // Metromare e Metro B nella stessa stazione: un solo risultato, con gli orari di entrambe
+        apriFermataDellaRete("Basilica San Paolo", "Metromare", "19-stazione-scambio", poiRiga = "19b-dalla-stazione-scambio")
     }
 
     // ---------------------------------------------------------------------

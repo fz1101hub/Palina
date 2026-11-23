@@ -168,6 +168,57 @@ class Orario(private val db: SQLiteDatabase, private val reti: SQLiteDatabase? =
     /** Ci sono le fermate di Cotral e Trenitalia (l'APK le include). */
     val conAltreReti: Boolean get() = reti != null
 
+    /**
+     * Le stazioni di scambio (vedi [StazioneUnita]), per ognuna delle fermate che
+     * le compongono: le stazioni dei treni Cotral con le banchine della metro di
+     * Roma entro [METRI_SCAMBIO] metri.
+     */
+    private val scambi: Map<String, StazioneUnita> by lazy {
+        val altre = reti ?: return@lazy emptyMap()
+        val mappa = HashMap<String, StazioneUnita>()
+        val stazioni = fermateDa("SELECT id, codice, nome, lat, lon FROM fermate WHERE id LIKE 'F:%'", emptyArray(), altre)
+        for (s in stazioni) {
+            val metro = vicineIn(db, s.lat, s.lon, METRI_SCAMBIO)
+                .filter { (f, _) -> lineeAllaFermata(f.id).any { it.linea.tipo == 1 } }
+            if (metro.isEmpty()) continue
+            val fermate = listOf(s) + metro.map { it.first }
+            val unita = StazioneUnita(
+                membri = fermate.map { it.id },
+                nome = nomeStazioneUnita(fermate.map { it.nome }),
+                linee = lineeStazioneUnita(fermate.flatMap { f -> lineeAllaFermata(f.id).map { it.linea.nome } }),
+            )
+            fermate.forEach { mappa.putIfAbsent(it.id, unita) }
+        }
+        mappa
+    }
+
+    /** Prepara le stazioni di scambio (da chiamare fuori dal thread dell'interfaccia). */
+    fun preparaScambi() {
+        scambi.size
+    }
+
+    /** Le fermate della stazione di cui [id] fa parte (la stazione Cotral per prima), o solo [id]. */
+    fun stazioneUnita(id: String): List<String> = scambi[id]?.membri ?: listOf(id)
+
+    /** La stazione unita di cui fa parte [id], con il suo nome; null se [id] non e' uno scambio. */
+    fun fermataUnita(id: String): Fermata? {
+        val unita = scambi[id] ?: return null
+        return fermata(unita.membri.first())?.copy(nome = unita.nome)
+    }
+
+    /** "Metro B/B1 · Metromare" se [id] fa parte di una stazione di scambio. */
+    fun lineeStazioneUnita(id: String): String? = scambi[id]?.linee
+
+    /** Le fermate di una stazione di scambio diventano una sola, al posto della prima che compare. */
+    private fun unisciScambi(fermate: Collection<Fermata>): List<Fermata> {
+        if (scambi.isEmpty()) return fermate.toList()
+        val viste = HashSet<String>()
+        return fermate.mapNotNull { f ->
+            val unita = scambi[f.id] ?: return@mapNotNull f.takeIf { viste.add(it.id) }
+            if (viste.add(unita.membri.first())) fermataUnita(f.id) else null
+        }
+    }
+
     fun info(chiave: String): String? =
         db.rawQuery("SELECT valore FROM info WHERE chiave = ?", arrayOf(chiave)).use { c ->
             if (c.moveToFirst()) c.getString(0) else null
@@ -237,20 +288,30 @@ class Orario(private val db: SQLiteDatabase, private val reti: SQLiteDatabase? =
                 ).forEach { risultati.putIfAbsent(it.id, it) }
             }
         }
-        return risultati.values.toList()
+        return unisciScambi(risultati.values)
     }
 
     /** Fermate entro [raggio] metri, dalla piu' vicina. */
-    fun fermateVicine(lat: Double, lon: Double, raggio: Double = 700.0): List<Pair<Fermata, Double>> {
+    fun fermateVicine(lat: Double, lon: Double, raggio: Double = 700.0): List<Pair<Fermata, Double>> =
+        basi.flatMap { vicineIn(it, lat, lon, raggio) }.sortedBy { it.second }.take(40)
+
+    /** Come [fermateVicine], ma le fermate di una stazione di scambio diventano una sola. */
+    fun fermateVicineUnite(lat: Double, lon: Double, raggio: Double = 700.0): List<Pair<Fermata, Double>> {
+        val vicine = fermateVicine(lat, lon, raggio)
+        val distanze = vicine.associate { it.first.id to it.second }
+        return unisciScambi(vicine.map { it.first }).map { f ->
+            f to (scambi[f.id]?.membri?.mapNotNull { distanze[it] }?.minOrNull() ?: distanze[f.id] ?: 0.0)
+        }
+    }
+
+    private fun vicineIn(base: SQLiteDatabase, lat: Double, lon: Double, raggio: Double): List<Pair<Fermata, Double>> {
         val dLat = raggio / 111_320.0
         val dLon = raggio / (111_320.0 * cos(Math.toRadians(lat)))
         val limiti = arrayOf((lat - dLat).toString(), (lat + dLat).toString(), (lon - dLon).toString(), (lon + dLon).toString())
-        return basi.flatMap { base ->
-            fermateDa("SELECT id, codice, nome, lat, lon FROM fermate WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?", limiti, base)
-        }.map { it to distanzaMetri(lat, lon, it.lat, it.lon) }
+        return fermateDa("SELECT id, codice, nome, lat, lon FROM fermate WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?", limiti, base)
+            .map { it to distanzaMetri(lat, lon, it.lat, it.lon) }
             .filter { it.second <= raggio }
             .sortedBy { it.second }
-            .take(40)
     }
 
     fun lineeAllaFermata(fermataId: String): List<LineaFermata> =

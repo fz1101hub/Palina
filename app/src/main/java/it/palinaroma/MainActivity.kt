@@ -26,6 +26,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import it.palinaroma.ui.CorsaSchermo
 import it.palinaroma.ui.DettaglioTragittoSchermo
 import it.palinaroma.ui.FermataSchermo
 import it.palinaroma.ui.HomeSchermo
@@ -126,6 +127,7 @@ private fun Navigazione() {
                 fermataId = fermataId,
                 indietro = indietro,
                 apriLinea = apriLinea,
+                apriCorsa = { richiesta -> vai(richiesta.rotta()) },
                 apriVettura = { linea, direzione, corsa ->
                     vai(
                         "linea/" + Uri.encode(linea) + "?dir=" + (direzione ?: -1) +
@@ -163,6 +165,31 @@ private fun Navigazione() {
                 direzioneIniziale = voce.arguments?.getInt("dir")?.takeIf { it >= 0 },
                 corsaEvidenziata = voce.arguments?.getString("corsa")?.takeIf { it.isNotEmpty() },
                 fermataEvidenziata = voce.arguments?.getString("fermata")?.takeIf { it.isNotEmpty() },
+                indietro = indietro,
+                apriFermata = apriFermata,
+            )
+        }
+        composable(
+            "corsa?fermata={fermata}&linea={linea}&dir={dir}&previsto={previsto}&trip={trip}&astral={astral}&ritardo={ritardo}",
+            arguments = listOf(
+                navArgument("fermata") { type = NavType.StringType; defaultValue = "" },
+                navArgument("linea") { type = NavType.StringType; defaultValue = "" },
+                navArgument("dir") { type = NavType.IntType; defaultValue = -1 },
+                navArgument("previsto") { type = NavType.LongType; defaultValue = 0L },
+                navArgument("trip") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("astral") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("ritardo") { type = NavType.StringType; nullable = true; defaultValue = null },
+            ),
+        ) { voce ->
+            val a = voce.arguments
+            CorsaSchermo(
+                corsaId = a?.getString("trip")?.takeIf { it.isNotEmpty() },
+                fermataId = a?.getString("fermata").orEmpty(),
+                lineaId = a?.getString("linea").orEmpty(),
+                direzione = a?.getInt("dir")?.takeIf { it >= 0 },
+                previsto = a?.getLong("previsto") ?: 0L,
+                corsaAstral = a?.getString("astral")?.takeIf { it.isNotEmpty() },
+                ritardo = a?.getString("ritardo")?.toIntOrNull(),
                 indietro = indietro,
                 apriFermata = apriFermata,
             )

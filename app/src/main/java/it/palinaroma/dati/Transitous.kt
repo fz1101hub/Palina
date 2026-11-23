@@ -45,6 +45,10 @@ data class Tappa(
     val binario: String?,
     val orario: Long?,
     val orarioPrevisto: Long?,
+    /** La fermata e' saltata per il tempo reale (treno che non ferma piu', corsa limitata). */
+    val cancellata: Boolean = false,
+    /** Il binario dell'orario, se il tempo reale lo ha cambiato in [binario]. */
+    val binarioPrevisto: String? = null,
 )
 
 data class Passo(val svolta: String, val strada: String, val metri: Double) {
@@ -91,6 +95,8 @@ data class Tratto(
     val avvisi: List<String>,
     /** Identificativo della corsa per Transitous (finisce con quello di Roma Mobilita'). */
     val corsaId: String = "",
+    /** Il numero del treno o della corsa (trip_short_name), se c'e'. */
+    val numero: String = "",
 ) {
     val aPiedi: Boolean get() = modo in MODI_STRADALI
 
@@ -180,11 +186,16 @@ object Transitous {
         leggiTragitti(scarica(urlTragitti(da, a, istante, arrivaEntro, cursore), Archivio.httpMedio), da.nome, a.nome)
     }
 
-    /** Le prossime partenze (90 minuti) dalla fermata dell'app [fermataId]. */
-    suspend fun partenze(fermataId: String, lat: Double, lon: Double): List<PartenzaTransitous> =
+    /** Le prossime partenze (90 minuti) dalla fermata dell'app [fermataId], da adesso o da [da] (ms). */
+    suspend fun partenze(fermataId: String, lat: Double, lon: Double, da: Long? = null): List<PartenzaTransitous> =
         withContext(Dispatchers.IO) {
-            leggiPartenze(scarica(urlPartenze(fermataId, lat, lon), Archivio.httpBreve), fermataId, lat, lon)
+            leggiPartenze(scarica(urlPartenze(fermataId, lat, lon, da), Archivio.httpBreve), fermataId, lat, lon)
         }
+
+    /** Una corsa con tutte le sue fermate (solo quelle dove si sale o si scende), o null se non c'e'. */
+    suspend fun corsa(corsaId: String): Tratto? = withContext(Dispatchers.IO) {
+        leggiCorsa(scarica(urlCorsa(corsaId), Archivio.httpBreve))
+    }
 
     private fun scarica(url: String, http: OkHttpClient): String {
         val richiesta = Request.Builder()
@@ -228,10 +239,19 @@ fun urlTragitti(da: Luogo, a: Luogo, istante: Long?, arrivaEntro: Boolean, curso
  * Partenze da una fermata. Se Transitous non riconosce il codice della fermata
  * usa le coordinate: solo le fermate entro 30 metri.
  */
-fun urlPartenze(fermataId: String, lat: Double, lon: Double): String =
+fun urlPartenze(fermataId: String, lat: Double, lon: Double, da: Long? = null): String =
     Transitous.API + "/v5/stoptimes?stopId=" + codifica(fermataTransitous(fermataId)) +
         "&center=" + codifica(String.format(Locale.ROOT, "%.6f,%.6f", lat, lon)) +
-        "&radius=30&exactRadius=true&n=40&window=5400&language=it"
+        "&radius=30&exactRadius=true&n=40&window=5400&language=it" +
+        (da?.let { "&time=" + codifica(java.time.Instant.ofEpochMilli(it).toString()) } ?: "")
+
+/** Una corsa intera, senza le fermate dove il treno passa senza fermarsi. */
+fun urlCorsa(corsaId: String): String =
+    Transitous.API + "/v5/trip?tripId=" + codifica(corsaId) + "&language=it"
+
+/** Risposta di /trip: un itinerario con un solo tratto, la corsa da capolinea a capolinea. */
+fun leggiCorsa(json: String): Tratto? =
+    leggiTragitto(Json.leggi(json).comeOggetto(), null, null)?.tratti?.firstOrNull { !it.aPiedi }
 
 /** Le partenze con lo stesso codice di fermata valgono entro questa distanza (altri dati, stesso numero). */
 private const val METRI_STESSO_CODICE = 150.0
@@ -377,6 +397,8 @@ private fun leggiTappa(m: Map<String, Any?>?, nomeAlternativo: String?, arrivo: 
         binario = mappa.testo("track"),
         orario = orario,
         orarioPrevisto = previsto ?: orario,
+        cancellata = mappa.vero("cancelled"),
+        binarioPrevisto = mappa.testo("scheduledTrack"),
     )
 }
 
@@ -424,6 +446,7 @@ private fun leggiTratto(m: Map<String, Any?>, primo: Boolean, ultimo: Boolean, n
         cancellato = m.vero("cancelled"),
         avvisi = m.oggetti("alerts").mapNotNull { it.testo("headerText") ?: it.testo("descriptionText") }.distinct(),
         corsaId = m.testo("tripId").orEmpty(),
+        numero = m.testo("tripShortName").orEmpty(),
     )
 }
 
