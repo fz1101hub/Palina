@@ -286,8 +286,12 @@ fun FermataSchermo(
                                 Rete.COTRAL_TRENI -> when (conAstral) {
                                     true -> "Orari, ritardi e soppressioni dei treni: ASTRAL. Cifre oro: ritardo già comunicato; " +
                                         "grigie: orario programmato. Tocca una riga per vedere la linea."
-                                    else -> "ASTRAL non risponde: vedi l'orario programmato dei treni, senza ritardi."
+                                    else -> "Ritardi dei treni non disponibili ora (ASTRAL non risponde, o di notte " +
+                                        "non ha ancora l'orario del giorno): vedi l'orario programmato."
                                 }
+                                Rete.TRENITALIA ->
+                                    "Cifre oro con il pallino: in tempo reale (Trenitalia, tramite Transitous). " +
+                                        "Grigie: orario programmato."
                                 else ->
                                     "Cifre oro con il pallino: in tempo reale (${rete.etichetta}, tramite Transitous). " +
                                         "Grigie: orario programmato. Tocca una riga per vedere il percorso della linea."
