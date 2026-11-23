@@ -1,6 +1,6 @@
 name: Sonda BusOne Cotral
 
-# Solo sul ramo "sonda": verifica una tantum dei flussi BusOne per Cotral.
+# Solo sul ramo "sonda": verifiche una tantum.
 on:
   push:
     branches: [sonda]
@@ -14,12 +14,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Sonda
+      - name: Immagini e profili Wear OS nell'SDK
         run: |
-          pip install --quiet gtfs-realtime-bindings
-          python3 strumenti/sonda_scambi.py /tmp/sonda || true
-          python3 strumenti/sonda_roma.py /tmp/sonda || true
-          python3 strumenti/sonda_busone.py /tmp/sonda
+          mkdir -p /tmp/sonda
+          S="$ANDROID_HOME/cmdline-tools/latest/bin"
+          [ -x "$S/sdkmanager" ] || S="$(dirname "$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)")"
+          yes | "$S/sdkmanager" --licenses > /dev/null 2>&1 || true
+          "$S/sdkmanager" --list 2>/dev/null | grep -iE "wear|android-3[4-7];google_apis;x86_64" | sort -u > /tmp/sonda/immagini.txt || true
+          "$S/avdmanager" list device -c > /tmp/sonda/dispositivi.txt 2>&1 || true
+          ls "$ANDROID_HOME/platforms" > /tmp/sonda/piattaforme.txt 2>&1 || true
+          cat /tmp/sonda/immagini.txt; grep -i wear /tmp/sonda/dispositivi.txt
       - name: Pubblica l'esito sul ramo sonda-esito
         if: always()
         run: |
@@ -28,5 +32,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -q -m "Esito della sonda BusOne $(date -u +%FT%TZ)"
+          git commit -q -m "Esito della sonda $(date -u +%FT%TZ)"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" sonda-esito
