@@ -78,7 +78,7 @@ class FiltroRete(
             }
             // il capolinea lo dice Transitous a ogni partenza: qui pesa e basta (13 mila fermate Cotral)
             Rete.COTRAL -> dentro.fermataLinea(p(fermata), p(linea), direzione, "")
-            else -> dentro.fermataLinea(p(fermata), p(linea), direzione, capolinea)
+            else -> dentro.fermataLinea(p(fermata), p(linea), direzione, pulisciNome(capolinea))
         }
     }
 
@@ -100,7 +100,7 @@ class FiltroRete(
             val tenute = pc.fermate.filter { it in fermateTenute }
             if (tenute.isEmpty()) continue
             val forma = if (conForme) p(pc.forma) else ""
-            dentro.percorso(p(pc.linea), pc.direzione, pc.capolinea, forma, tenute.map { p(it) })
+            dentro.percorso(p(pc.linea), pc.direzione, pulisciNome(pc.capolinea), forma, tenute.map { p(it) })
             if (conForme && pc.forma.isNotEmpty()) formeUsate.add(pc.forma)
         }
         for (id in formeUsate) forme[id]?.let { dentro.forma(p(id), it) }
@@ -165,7 +165,7 @@ class GeneraRetiIncluse {
                 "stops.txt" to "stop_id,stop_code,stop_name,stop_lat,stop_lon\n" +
                     "S1,,PORTA SAN PAOLO,41.875,12.481\nS2,,OSTIA,41.73,12.28\nS3,,MILANO,45.48,9.20\n",
                 "trips.txt" to "route_id,service_id,trip_id,trip_headsign,direction_id,shape_id\n" +
-                    "L1,X,T1,,0,F1\nL2,X,T2,,0,F2\n",
+                    "L1,X,T1,OSTIA | Lido Centro # f1,0,F1\nL2,X,T2,,0,F2\n",
                 "stop_times.txt" to "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n" +
                     "T1,08:00:00,08:00:00,S1,1\nT1,08:30:00,08:30:00,S2,2\nT2,09:00:00,09:00:00,S3,1\n",
                 "shapes.txt" to "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
@@ -193,6 +193,9 @@ class GeneraRetiIncluse {
         assertFalse("la linea di Milano non serve", testo.contains("'F:L2'"))
         assertTrue(testo.contains("INSERT OR REPLACE INTO fermata_linee VALUES('F:S1','F:L1',0,"))
         assertTrue(testo.contains("INSERT OR REPLACE INTO percorso_fermate VALUES('F:L1',0,1,'F:S2');"))
+        // il capolinea ripulito come i nomi delle fermate, senza "|" e "# codice"
+        assertTrue(testo.contains("'Ostia · Lido Centro'"))
+        assertFalse(testo.contains("# f1"))
         assertTrue(testo.contains("INSERT OR REPLACE INTO forme VALUES('F:F1',"))
         assertFalse(testo.contains("INTO forme VALUES('F:F2'"))
         assertFalse("niente corse", testo.contains("INTO corse"))
