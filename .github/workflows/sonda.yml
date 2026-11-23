@@ -17,7 +17,7 @@ jobs:
       - name: Sonda
         run: |
           pip install --quiet gtfs-realtime-bindings
-          python3 strumenti/sonda_fermate.py /tmp/sonda || true
+          python3 strumenti/sonda_scambi.py /tmp/sonda || true
           python3 strumenti/sonda_roma.py /tmp/sonda || true
           python3 strumenti/sonda_busone.py /tmp/sonda
       - name: Pubblica l'esito sul ramo sonda-esito
