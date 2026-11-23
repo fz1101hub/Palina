@@ -147,3 +147,32 @@ for flusso in ["vehicle-positions", "trip-updates", "alerts", "service-alerts"]:
                    f"linee: {len(linee_rt & linee)}/{len(linee_rt)}; esempi assenti {sorted(corse_rt - corse)[:3]}")
 
 (uscita / "esito.txt").write_text("\n".join(righe) + "\n")
+
+# 4. Roma Mobilita': i flussi che usa l'app per Roma
+for nome, url in [("corse", "https://romamobilita.it/sites/default/files/rome_rtgtfs_trip_updates_feed.pb"),
+                  ("mezzi", "https://romamobilita.it/sites/default/files/rome_rtgtfs_vehicle_positions_feed.pb")]:
+    richiesta = urllib.request.Request(url, headers={"User-Agent": AGENTE})
+    try:
+        with urllib.request.urlopen(richiesta, timeout=120) as risposta:
+            stato, finale, tipo, dati = risposta.status, risposta.url, risposta.headers.get("Content-Type", ""), risposta.read()
+            validatori = (risposta.headers.get("ETag"), risposta.headers.get("Last-Modified"))
+    except urllib.error.HTTPError as errore:
+        righe.append(f"roma {nome}: HTTP {errore.code} {errore.headers.get('Location')}"); print(righe[-1]); continue
+    except Exception as errore:
+        righe.append(f"roma {nome}: errore {type(errore).__name__} {errore}"); print(righe[-1]); continue
+    messaggio = gtfs_realtime_pb2.FeedMessage()
+    try:
+        messaggio.ParseFromString(dati)
+        eta = time.time() - messaggio.header.timestamp
+        scrivi(f"roma {nome}: HTTP {stato}, finale {finale}, {tipo}, {len(dati)} byte, età {eta:.0f} s, "
+               f"{len(messaggio.entity)} entità, validatori {validatori}")
+        if nome == "corse":
+            esempi = [e.trip_update for e in messaggio.entity if e.HasField("trip_update")][:2]
+            for t in esempi:
+                s = t.stop_time_update[0] if t.stop_time_update else None
+                scrivi(f"  esempio: corsa {t.trip.trip_id!r} linea {t.trip.route_id!r} veicolo {t.vehicle.id!r} "
+                       f"fermata {s.stop_id if s else None!r} arrivo {s.arrival.time if s else None} partenza {s.departure.time if s else None}")
+    except Exception as errore:
+        scrivi(f"roma {nome}: HTTP {stato}, finale {finale}, {tipo}, {len(dati)} byte, non GTFS-RT ({errore}); inizio {dati[:120]!r}")
+
+(uscita / "esito.txt").write_text("\n".join(righe) + "\n")
