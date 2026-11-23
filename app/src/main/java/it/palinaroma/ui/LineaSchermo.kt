@@ -228,13 +228,19 @@ fun LineaSchermo(
         }
     }
 
-    // quanto dista ogni vettura dal tracciato piu' vicino tra le due direzioni
+    // quanto dista ogni vettura dal tracciato piu' vicino tra le due direzioni.
+    // Non per Cotral: i bus non hanno il tracciato stradale e la linea unisce le
+    // fermate in linea retta, da cui un bus extraurbano si allontana di continuo
     val lontananze: Map<String, Double> = remember(mezzi, altre, evidenziato, forma, formaAltra) {
-        (mezzi + altre + listOfNotNull(evidenziato)).associate { v ->
-            val qui = if (forma.size >= 2) distanzaDalTracciato(v.lat, v.lon, forma) else Double.POSITIVE_INFINITY
-            val la = if (formaAltra.size >= 2) distanzaDalTracciato(v.lat, v.lon, formaAltra) else Double.POSITIVE_INFINITY
-            v.chiave() to minOf(qui, la)
-        }.filterValues { it.isFinite() }
+        if (rete == Rete.COTRAL) {
+            emptyMap()
+        } else {
+            (mezzi + altre + listOfNotNull(evidenziato)).associate { v ->
+                val qui = if (forma.size >= 2) distanzaDalTracciato(v.lat, v.lon, forma) else Double.POSITIVE_INFINITY
+                val la = if (formaAltra.size >= 2) distanzaDalTracciato(v.lat, v.lon, formaAltra) else Double.POSITIVE_INFINITY
+                v.chiave() to minOf(qui, la)
+            }.filterValues { it.isFinite() }
+        }
     }
     val fuoriPercorso: Set<String> = lontananze.filterValues { it > METRI_FUORI_PERCORSO }.keys
 

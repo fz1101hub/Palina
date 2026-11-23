@@ -237,15 +237,18 @@ class ProvaSchermate {
     fun a8_cotralETreni() {
         // una fermata dei bus Cotral, una stazione dei treni Cotral (tempo reale da ASTRAL),
         // una stazione Trenitalia: se una rete manca nell'APK la prova lo dice con una schermata
-        apriFermataDellaRete("Frascati", "Cotral", "16-fermata-cotral")
+        apriFermataDellaRete("Frascati", "Cotral", "16-fermata-cotral", poiRiga = "16b-bus-cotral")
         apriFermataDellaRete("Lido Centro", "Treni Cotral", "17-stazione-treni-cotral")
         apriFermataDellaRete("Roma Ostiense", "Trenitalia", "18-stazione-trenitalia")
     }
 
     // ---------------------------------------------------------------------
 
-    /** Cerca [testo], apre il primo risultato della rete [etichetta] e fotografa i tempi. */
-    private fun apriFermataDellaRete(testo: String, etichetta: String, nome: String) {
+    /**
+     * Cerca [testo], apre il primo risultato della rete [etichetta] e fotografa i tempi.
+     * Con [poiRiga] tocca anche una riga (prima una col GPS) e fotografa dove porta.
+     */
+    private fun apriFermataDellaRete(testo: String, etichetta: String, nome: String, poiRiga: String? = null) {
         tocca(By.res("cerca"))
         scrivi(testo)
         aspetta(By.res("riga-fermata"), 20_000, "i risultati per $testo")
@@ -271,6 +274,16 @@ class ProvaSchermate {
             )
             attendi(4_000)
             schermata(nome)
+            if (poiRiga != null) {
+                val riga = telefono.findObject(By.res("arrivo").hasDescendant(By.textContains("GPS")))
+                    ?: telefono.findObject(By.res("arrivo").textContains("GPS"))
+                    ?: telefono.findObject(By.res("arrivo"))
+                if (riga != null) {
+                    riga.click()
+                    attendi(10_000)
+                    schermata(poiRiga)
+                }
+            }
             tornaA(By.desc("Chiudi la ricerca"), "la ricerca")
         }
         aspetta(By.desc("Chiudi la ricerca"), 10_000, "la ricerca").click()
