@@ -28,6 +28,13 @@ class ProvaOrologio {
     private val contesto = strumenti.targetContext
     private val prefisso = "wear${Build.VERSION.SDK_INT}"
 
+    /** La complicazione si costruisce (usa classi di Android: si prova qui, non sul computer). */
+    @Test
+    fun a0_complicazione() {
+        val c = testoComplicazione("SG335D", System.currentTimeMillis() / 1000 + 300, "Frascati", null)
+        assertTrue(c.title != null)
+    }
+
     @Test
     fun a1_tabelloneDalTelefono() {
         orologio.executeShellCommand("mkdir -p $CARTELLA")

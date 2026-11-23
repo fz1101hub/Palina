@@ -25,12 +25,6 @@ class RiquadroTest {
     }
 
     @Test
-    fun laComplicazioneHaLaLineaComeTitolo() {
-        val c = testoComplicazione("SG335D", adesso + 300, "Frascati", null)
-        assertNotNull(c)
-    }
-
-    @Test
     fun ilTabelloneVecchioSiChiedeDiNuovo() {
         val t = tabelloneDiEsempio(adesso)
         assertEquals(false, ArchivioOrologio.vecchio(t, adesso * 1000 + 30_000))
