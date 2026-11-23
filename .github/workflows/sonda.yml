@@ -1,4 +1,4 @@
-name: Sonda BusOne Cotral
+name: Sonda
 
 # Solo sul ramo "sonda": verifiche una tantum.
 on:
@@ -14,25 +14,47 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Versioni delle librerie Wear OS su Google Maven
+      - name: Versioni delle librerie (widget Wear OS 7, Live Updates, ongoing)
         run: |
           mkdir -p /tmp/sonda
-          for g in androidx/wear/tiles androidx/wear/protolayout androidx/wear/compose androidx/wear/watchface androidx/wear com/google/android/gms androidx/concurrent; do
-            echo "== $g"
-            curl -s "https://dl.google.com/android/maven2/$g/group-index.xml" \
-              | grep -E "<(tiles|tiles-tooling-preview|tiles-renderer|protolayout|protolayout-material3|protolayout-expression|compose-foundation|compose-material3|compose-navigation|compose-navigation3|compose-ui-tooling|watchface-complications-data-source-ktx|watchface-complications-data-source|wear|wear-tooling-preview|wear-ongoing|wear-phone-interactions|wear-remote-interactions|play-services-wearable|concurrent-futures|concurrent-futures-ktx) " \
-              | sed -E 's/versions="([^"]*)"/\n   \1/' | awk 'NR%2==1{n=$0} NR%2==0{c=split($0,v,","); printf "%s ... %s\n", n, (c>6? v[c-5]","v[c-4]","v[c-3]","v[c-2]","v[c-1]","v[c] : $0)}'
+          M=https://dl.google.com/android/maven2
+          for a in androidx/glance/wear/wear androidx/glance/wear/wear-core androidx/glance/wear/wear-tooling-preview \
+                   androidx/compose/remote/remote-creation-compose androidx/compose/remote/remote-core \
+                   androidx/compose/remote/remote-creation androidx/compose/remote/remote-creation-core \
+                   androidx/wear/compose/remote/remote-material3 androidx/core/core androidx/core/core-ktx \
+                   androidx/wear/wear-ongoing androidx/wear/tiles/tiles androidx/wear/protolayout/protolayout \
+                   androidx/wear/compose/compose-material3 androidx/compose/compose-bom androidx/activity/activity-compose; do
+            v=$(curl -s "$M/$a/maven-metadata.xml" | grep -oE "<version>[^<]+</version>" | sed -E 's/<\/?version>//g' | tail -8 | tr '\n' ' ')
+            echo "$a: $v"
           done | tee /tmp/sonda/versioni.txt
-      - name: Immagini e profili Wear OS nell'SDK
+      - name: Sorgenti, POM e manifest delle librerie dei widget
         run: |
-          mkdir -p /tmp/sonda
-          S="$ANDROID_HOME/cmdline-tools/latest/bin"
-          [ -x "$S/sdkmanager" ] || S="$(dirname "$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)")"
-          yes | "$S/sdkmanager" --licenses > /dev/null 2>&1 || true
-          "$S/sdkmanager" --list 2>/dev/null | grep -iE "wear|android-3[4-7];google_apis;x86_64" | sort -u > /tmp/sonda/immagini.txt || true
-          "$S/avdmanager" list device -c > /tmp/sonda/dispositivi.txt 2>&1 || true
-          ls "$ANDROID_HOME/platforms" > /tmp/sonda/piattaforme.txt 2>&1 || true
-          cat /tmp/sonda/immagini.txt; grep -i wear /tmp/sonda/dispositivi.txt
+          M=https://dl.google.com/android/maven2
+          ultima() { curl -s "$M/$1/maven-metadata.xml" | grep -oE "<latest>[^<]+</latest>" | sed -E 's/<\/?latest>//g'; }
+          mkdir -p /tmp/sonda/sorgenti /tmp/sonda/pom /tmp/sonda/manifest /tmp/lavoro
+          for a in androidx/glance/wear/wear androidx/glance/wear/wear-core \
+                   androidx/compose/remote/remote-creation-compose androidx/compose/remote/remote-creation \
+                   androidx/compose/remote/remote-creation-core androidx/compose/remote/remote-core \
+                   androidx/wear/compose/remote/remote-material3 androidx/wear/wear-ongoing androidx/core/core; do
+            v=$(ultima $a); n=$(basename $a)
+            echo "$a -> $v"
+            curl -sf -o "/tmp/sonda/pom/$n-$v.pom" "$M/$a/$v/$n-$v.pom" || echo "  niente pom"
+            if curl -sf -o "/tmp/lavoro/$n.aar" "$M/$a/$v/$n-$v.aar"; then
+              (cd /tmp/lavoro && rm -rf x && mkdir x && cd x && unzip -q ../$n.aar AndroidManifest.xml proguard.txt 2>/dev/null; \
+                cp AndroidManifest.xml "/tmp/sonda/manifest/$n.xml" 2>/dev/null; cp proguard.txt "/tmp/sonda/manifest/$n-proguard.txt" 2>/dev/null) || true
+            else
+              curl -sf -o "/tmp/lavoro/$n.jar" "$M/$a/$v/$n-$v.jar" && echo "  jar"
+            fi
+            if curl -sf -o "/tmp/lavoro/$n-src.jar" "$M/$a/$v/$n-$v-sources.jar"; then
+              mkdir -p "/tmp/sonda/sorgenti/$n" && (cd "/tmp/sonda/sorgenti/$n" && unzip -q -o "/tmp/lavoro/$n-src.jar")
+            else
+              echo "  niente sorgenti"
+            fi
+          done
+          # di androidx.core bastano le notifiche
+          find /tmp/sonda/sorgenti/core -type f ! -name "Notification*" -delete 2>/dev/null || true
+          find /tmp/sonda/sorgenti -type d -empty -delete
+          du -sh /tmp/sonda/sorgenti/*
       - name: Pubblica l'esito sul ramo sonda-esito
         if: always()
         run: |
