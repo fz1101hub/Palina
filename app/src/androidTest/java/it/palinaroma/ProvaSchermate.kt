@@ -190,8 +190,7 @@ class ProvaSchermate {
         tocca(By.textStartsWith("Scuro"))
         attendi(1_000)
         schermata("11-impostazioni-scure")
-        telefono.pressBack()
-        aspetta(By.res("cerca"), 10_000, "la Home")
+        tornaA(By.res("cerca"), "la Home")
         attendi(6_000)
         schermata("12-home-scura")
         apriFermataConITempi()
@@ -203,7 +202,7 @@ class ProvaSchermate {
         )
         attendi(2_000)
         schermata("13-fermata-scura")
-        telefono.pressBack()
+        tornaA(By.desc("Impostazioni"), "la Home")
 
         // si torna a come segue il telefono
         tocca(By.desc("Impostazioni"))
@@ -272,7 +271,7 @@ class ProvaSchermate {
             )
             attendi(4_000)
             schermata(nome)
-            telefono.pressBack()
+            tornaA(By.desc("Chiudi la ricerca"), "la ricerca")
         }
         aspetta(By.desc("Chiudi la ricerca"), 10_000, "la ricerca").click()
         aspetta(By.res("cerca"), 10_000, "la Home")
@@ -287,6 +286,21 @@ class ProvaSchermate {
     }
 
     private fun attendi(ms: Long) = Thread.sleep(ms)
+
+    /**
+     * Torna indietro finche' non compare [selettore]. Su un emulatore lento il tasto
+     * Indietro puo' finire su un dialogo di sistema ("Pixel Launcher non risponde"):
+     * si chiude il dialogo e si riprova, fino a tre volte.
+     */
+    private fun tornaA(selettore: BySelector, cosa: String): UiObject2 {
+        repeat(3) {
+            telefono.pressBack()
+            telefono.wait(Until.findObject(selettore), 6_000)?.let { return it }
+            chiudiAvvisiDiSistema()
+            telefono.findObject(selettore)?.let { return it }
+        }
+        return aspetta(selettore, 5_000, cosa)
+    }
 
     private fun schermata(nome: String) {
         attendi(500)
