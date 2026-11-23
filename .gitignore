@@ -15,3 +15,4 @@
 /app/src/main/assets/orario-incluso.txt
 /app/src/main/assets/reti.db
 /app/src/main/assets/reti-incluse.txt
+__pycache__/
