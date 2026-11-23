@@ -8,6 +8,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.Configurator
+import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
@@ -233,7 +234,49 @@ class ProvaSchermate {
         }
     }
 
+    @Test
+    fun a8_cotralETreni() {
+        // una fermata dei bus Cotral, una stazione dei treni Cotral (tempo reale da ASTRAL),
+        // una stazione Trenitalia: se una rete manca nell'APK la prova lo dice con una schermata
+        apriFermataDellaRete("Frascati", "Cotral", "16-fermata-cotral")
+        apriFermataDellaRete("Lido Centro", "Treni Cotral", "17-stazione-treni-cotral")
+        apriFermataDellaRete("Roma Ostiense", "Trenitalia", "18-stazione-trenitalia")
+    }
+
     // ---------------------------------------------------------------------
+
+    /** Cerca [testo], apre il primo risultato della rete [etichetta] e fotografa i tempi. */
+    private fun apriFermataDellaRete(testo: String, etichetta: String, nome: String) {
+        tocca(By.res("cerca"))
+        scrivi(testo)
+        aspetta(By.res("riga-fermata"), 20_000, "i risultati per $testo")
+        attendi(800)
+        val cercata = By.res("riga-fermata").descContains(", $etichetta")
+        var riga = telefono.findObject(cercata)
+        var giri = 0
+        while (riga == null && giri < 5) {
+            telefono.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.8f)
+            attendi(600)
+            riga = telefono.findObject(cercata)
+            giri++
+        }
+        if (riga == null) {
+            schermata("$nome-NON-TROVATA")
+        } else {
+            riga.click()
+            aspettaUnoDi(
+                90_000,
+                "i tempi a $testo",
+                By.textContains("Aggiornato"),
+                By.textContains("Non riesco a leggere i passaggi"),
+            )
+            attendi(4_000)
+            schermata(nome)
+            telefono.pressBack()
+        }
+        aspetta(By.desc("Chiudi la ricerca"), 10_000, "la ricerca").click()
+        aspetta(By.res("cerca"), 10_000, "la Home")
+    }
 
     /** Apre una fermata vicina: la seconda, perche' la prima in piazza Venezia ha solo una linea poco frequente. */
     private fun apriFermataConITempi() {

@@ -140,19 +140,33 @@ class ScrittoreDb(file: File) : DestinazioneOrario {
     }
 }
 
-/** Lettura dell'orario gia' trasformato. */
-class Orario(private val db: SQLiteDatabase) {
+/**
+ * Lettura dell'orario gia' trasformato: [db] e' quello di Roma (aggiornabile dal
+ * telefono), [reti] quello delle altre reti incluso nell'APK (Cotral, Trenitalia),
+ * con le stesse tabelle e i codici con il prefisso della rete (vedi [Rete]).
+ */
+class Orario(private val db: SQLiteDatabase, private val reti: SQLiteDatabase? = null) {
+
+    private val basi = listOfNotNull(db, reti)
+
+    /** Il database che contiene una fermata, una linea o un tracciato, dal prefisso del codice. */
+    private fun baseDi(id: String): SQLiteDatabase = if (reti != null && Rete.di(id) != Rete.ROMA) reti else db
 
     private val linee: Map<String, Linea> by lazy {
         val mappa = HashMap<String, Linea>()
-        db.rawQuery("SELECT id, nome, descrizione, tipo, colore, colore_testo FROM linee", null).use { c ->
-            while (c.moveToNext()) {
-                val l = Linea(c.getString(0), c.getString(1), c.getString(2), c.getInt(3), c.getString(4), c.getString(5))
-                mappa[l.id] = l
+        for (base in basi) {
+            base.rawQuery("SELECT id, nome, descrizione, tipo, colore, colore_testo FROM linee", null).use { c ->
+                while (c.moveToNext()) {
+                    val l = Linea(c.getString(0), c.getString(1), c.getString(2), c.getInt(3), c.getString(4), c.getString(5))
+                    mappa[l.id] = l
+                }
             }
         }
         mappa
     }
+
+    /** Ci sono le fermate di Cotral e Trenitalia (l'APK le include). */
+    val conAltreReti: Boolean get() = reti != null
 
     fun info(chiave: String): String? =
         db.rawQuery("SELECT valore FROM info WHERE chiave = ?", arrayOf(chiave)).use { c ->
@@ -174,46 +188,52 @@ class Orario(private val db: SQLiteDatabase) {
 
     private fun Cursor.fermata() = Fermata(getString(0), getString(1), getString(2), getDouble(3), getDouble(4))
 
-    private fun fermateDa(sql: String, argomenti: Array<String>): List<Fermata> =
-        db.rawQuery(sql, argomenti).use { c ->
+    private fun fermateDa(sql: String, argomenti: Array<String>, base: SQLiteDatabase = db): List<Fermata> =
+        base.rawQuery(sql, argomenti).use { c ->
             val lista = ArrayList<Fermata>()
             while (c.moveToNext()) lista.add(c.fermata())
             lista
         }
 
     fun fermata(id: String): Fermata? =
-        fermateDa("SELECT id, codice, nome, lat, lon FROM fermate WHERE id = ?", arrayOf(id)).firstOrNull()
+        fermateDa("SELECT id, codice, nome, lat, lon FROM fermate WHERE id = ?", arrayOf(id), baseDi(id)).firstOrNull()
 
     fun fermate(ids: Collection<String>): Map<String, Fermata> {
         val risultato = HashMap<String, Fermata>()
-        ids.distinct().chunked(400).forEach { blocco ->
-            val segnaposto = blocco.joinToString(",") { "?" }
-            fermateDa("SELECT id, codice, nome, lat, lon FROM fermate WHERE id IN ($segnaposto)", blocco.toTypedArray())
-                .forEach { risultato[it.id] = it }
+        ids.distinct().groupBy { baseDi(it) }.forEach { (base, elenco) ->
+            elenco.chunked(400).forEach { blocco ->
+                val segnaposto = blocco.joinToString(",") { "?" }
+                fermateDa("SELECT id, codice, nome, lat, lon FROM fermate WHERE id IN ($segnaposto)", blocco.toTypedArray(), base)
+                    .forEach { risultato[it.id] = it }
+            }
         }
         return risultato
     }
 
+    /** Prima le fermate di Roma, poi quelle delle altre reti. */
     fun cercaFermate(testo: String): List<Fermata> {
         val t = testo.trim()
         if (t.isEmpty()) return emptyList()
         val risultati = LinkedHashMap<String, Fermata>()
-        if (t.all { it.isDigit() }) {
-            fermateDa("SELECT id, codice, nome, lat, lon FROM fermate WHERE codice = ? OR id = ?", arrayOf(t, t))
-                .forEach { risultati[it.id] = it }
-        }
-        val parole = normalizza(t).split(" ").filter { it.isNotEmpty() }
-        if (parole.isNotEmpty() && parole.joinToString("").length >= 2) {
-            val condizioni = parole.joinToString(" AND ") { "nome_norm LIKE ?" }
-            val frase = parole.joinToString(" ")
-            // prima i nomi che cominciano con il testo cercato ("Termini..."), poi quelli
-            // in cui e' una parola intera ("Siculiana/Termini Imerese"), poi gli altri
-            fermateDa(
-                "SELECT id, codice, nome, lat, lon FROM fermate WHERE $condizioni " +
-                    "ORDER BY CASE WHEN nome_norm LIKE ? THEN 0 WHEN nome_norm LIKE ? THEN 1 ELSE 2 END, " +
-                    "length(nome), nome LIMIT 60",
-                (parole.map { "%$it%" } + listOf("$frase%", "% $frase%")).toTypedArray(),
-            ).forEach { risultati.putIfAbsent(it.id, it) }
+        for (base in basi) {
+            if (t.all { it.isDigit() }) {
+                fermateDa("SELECT id, codice, nome, lat, lon FROM fermate WHERE codice = ? OR id = ?", arrayOf(t, t), base)
+                    .forEach { risultati[it.id] = it }
+            }
+            val parole = normalizza(t).split(" ").filter { it.isNotEmpty() }
+            if (parole.isNotEmpty() && parole.joinToString("").length >= 2) {
+                val condizioni = parole.joinToString(" AND ") { "nome_norm LIKE ?" }
+                val frase = parole.joinToString(" ")
+                // prima i nomi che cominciano con il testo cercato ("Termini..."), poi quelli
+                // in cui e' una parola intera ("Siculiana/Termini Imerese"), poi gli altri
+                fermateDa(
+                    "SELECT id, codice, nome, lat, lon FROM fermate WHERE $condizioni " +
+                        "ORDER BY CASE WHEN nome_norm LIKE ? THEN 0 WHEN nome_norm LIKE ? THEN 1 ELSE 2 END, " +
+                        "length(nome), nome LIMIT 60",
+                    (parole.map { "%$it%" } + listOf("$frase%", "% $frase%")).toTypedArray(),
+                    base,
+                ).forEach { risultati.putIfAbsent(it.id, it) }
+            }
         }
         return risultati.values.toList()
     }
@@ -222,17 +242,17 @@ class Orario(private val db: SQLiteDatabase) {
     fun fermateVicine(lat: Double, lon: Double, raggio: Double = 700.0): List<Pair<Fermata, Double>> {
         val dLat = raggio / 111_320.0
         val dLon = raggio / (111_320.0 * cos(Math.toRadians(lat)))
-        return fermateDa(
-            "SELECT id, codice, nome, lat, lon FROM fermate WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?",
-            arrayOf((lat - dLat).toString(), (lat + dLat).toString(), (lon - dLon).toString(), (lon + dLon).toString()),
-        ).map { it to distanzaMetri(lat, lon, it.lat, it.lon) }
+        val limiti = arrayOf((lat - dLat).toString(), (lat + dLat).toString(), (lon - dLon).toString(), (lon + dLon).toString())
+        return basi.flatMap { base ->
+            fermateDa("SELECT id, codice, nome, lat, lon FROM fermate WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?", limiti, base)
+        }.map { it to distanzaMetri(lat, lon, it.lat, it.lon) }
             .filter { it.second <= raggio }
             .sortedBy { it.second }
             .take(40)
     }
 
     fun lineeAllaFermata(fermataId: String): List<LineaFermata> =
-        db.rawQuery(
+        baseDi(fermataId).rawQuery(
             "SELECT linea, direzione, capolinea FROM fermata_linee WHERE fermata = ?", arrayOf(fermataId),
         ).use { c ->
             val lista = ArrayList<LineaFermata>()
@@ -244,7 +264,7 @@ class Orario(private val db: SQLiteDatabase) {
         }
 
     fun percorsi(lineaId: String): List<Percorso> =
-        db.rawQuery(
+        baseDi(lineaId).rawQuery(
             "SELECT linea, direzione, capolinea, forma FROM percorsi WHERE linea = ? ORDER BY direzione", arrayOf(lineaId),
         ).use { c ->
             val lista = ArrayList<Percorso>()
@@ -259,11 +279,12 @@ class Orario(private val db: SQLiteDatabase) {
             "SELECT f.id, f.codice, f.nome, f.lat, f.lon FROM percorso_fermate p JOIN fermate f ON f.id = p.fermata " +
                 "WHERE p.linea = ? AND p.direzione = ? ORDER BY p.posizione",
             arrayOf(lineaId, direzione.toString()),
+            baseDi(lineaId),
         )
 
     fun forma(id: String): List<Punto> {
         if (id.isEmpty()) return emptyList()
-        val testo = db.rawQuery("SELECT punti FROM forme WHERE id = ?", arrayOf(id)).use { c ->
+        val testo = baseDi(id).rawQuery("SELECT punti FROM forme WHERE id = ?", arrayOf(id)).use { c ->
             if (c.moveToFirst()) c.getString(0) else null
         } ?: return emptyList()
         return testo.split(';').mapNotNull { coppia ->
@@ -288,5 +309,8 @@ class Orario(private val db: SQLiteDatabase) {
         return risultato
     }
 
-    fun chiudi() = db.close()
+    fun chiudi() {
+        db.close()
+        reti?.close()
+    }
 }

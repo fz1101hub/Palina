@@ -9,6 +9,7 @@
     <application
         android:name=".PalinaApp"
         android:dataExtractionRules="@xml/regole_estrazione"
+        android:networkSecurityConfig="@xml/rete_sicura"
         android:fullBackupContent="@xml/regole_backup"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"

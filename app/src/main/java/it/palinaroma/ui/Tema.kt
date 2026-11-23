@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import it.palinaroma.R
 import it.palinaroma.dati.Arrivo
 import it.palinaroma.dati.Fermata
+import it.palinaroma.dati.Rete
 import it.palinaroma.dati.daLeggere
 import it.palinaroma.dati.minutiAttesa
 import java.text.SimpleDateFormat
@@ -68,6 +69,27 @@ val Oro = Color(0xFFF2A900)
 
 /** Il testo sopra l'oro. */
 val Inchiostro = Color(0xFF1C1A1A)
+
+/** I riquadri delle linee delle altre reti: blu Cotral, verde dei regionali Trenitalia. */
+val BluCotral = Color(0xFF1D4F91)
+val VerdeTreni = Color(0xFF00703C)
+
+/** Il colore del riquadro di una linea, dalla sua rete. */
+fun coloreRete(id: String): Color = when (Rete.di(id)) {
+    Rete.ROMA -> Porpora
+    Rete.COTRAL, Rete.COTRAL_TRENI -> BluCotral
+    Rete.TRENITALIA -> VerdeTreni
+}
+
+/** Sotto il nome di una fermata: "Palina 70078", "Cotral · palina 12345", "Stazione · Trenitalia". */
+fun descrizioneFermata(fermata: Fermata): String {
+    val rete = Rete.di(fermata.id)
+    return when {
+        rete == Rete.ROMA -> "Palina ${fermata.codice}"
+        rete.treni -> "Stazione · ${rete.etichetta}"
+        else -> "${rete.etichetta} · palina ${fermata.codice}"
+    }
+}
 
 /** Il grigio dei disegni sulle mappe (tracciati, vetture dell'altra direzione): le mappe restano chiare. */
 val GrigioMappa = Color(0xFF5F5A57)
@@ -257,10 +279,10 @@ fun BarraSuperiore(
 
 /** Il numero della linea nel riquadro porpora, come sulle paline. */
 @Composable
-fun BadgeLinea(nome: String, modifier: Modifier = Modifier, grande: Boolean = false) {
+fun BadgeLinea(nome: String, modifier: Modifier = Modifier, grande: Boolean = false, colore: Color = Porpora) {
     Box(
         modifier
-            .background(Porpora, RoundedCornerShape(if (grande) 8.dp else 6.dp))
+            .background(colore, RoundedCornerShape(if (grande) 8.dp else 6.dp))
             .widthIn(min = if (grande) 48.dp else 36.dp)
             .heightIn(min = if (grande) 36.dp else 24.dp)
             .padding(horizontal = if (grande) 7.dp else 6.dp, vertical = 2.dp),
@@ -332,7 +354,11 @@ fun PillolaAttesa(arrivo: Arrivo, adesso: Long) {
     val fondo = if (primo.tracciato) AccentoFondo else MaterialTheme.colorScheme.surfaceVariant
     val colore = if (primo.tracciato) Accento else ColoreOrario
     Text(
-        if (primo.tracciato) "${arrivo.nomeLinea} · $tempo" else "${arrivo.nomeLinea} · $tempo orario",
+        when {
+            primo.avviso == "soppresso" -> "${arrivo.nomeLinea} · soppresso"
+            primo.tracciato -> "${arrivo.nomeLinea} · $tempo"
+            else -> "${arrivo.nomeLinea} · $tempo orario"
+        },
         color = colore,
         fontWeight = if (primo.tracciato) FontWeight.Bold else FontWeight.Medium,
         fontSize = 13.sp,
@@ -357,10 +383,13 @@ fun RigaFermata(
     adesso: Long = 0,
 ) {
     val conTempi = !arrivi.isNullOrEmpty()
+    val rete = Rete.di(fermata.id)
+    val sotto = descrizioneFermata(fermata)
     val descrizione = buildString {
         append(daLeggere(fermata.nome))
+        if (rete != Rete.ROMA) append(", ${rete.etichetta}")
         if (distanza != null) append(", a ${distanza.roundToInt()} metri")
-        append(". Palina ${fermata.codice}.")
+        append(if (rete.treni) ". Stazione." else ". Palina ${fermata.codice}.")
         if (conTempi) {
             append(" ")
             append(arrivi.orEmpty().take(4).joinToString(" ") { a ->
@@ -392,7 +421,8 @@ fun RigaFermata(
                 // con i tempi la riga della palina non c'e': il numero va qui, per distinguere
                 // le fermate con lo stesso nome (le paline ai due lati della strada)
                 Text(
-                    "palina ${fermata.codice}" + (distanza?.let { " · ${it.roundToInt()} m" } ?: ""),
+                    (if (rete == Rete.ROMA) sotto.replaceFirstChar { it.lowercase() } else sotto) +
+                        (distanza?.let { " · ${it.roundToInt()} m" } ?: ""),
                     color = Secondario,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -414,13 +444,13 @@ fun RigaFermata(
                 }
             }
         } else {
-            Text("Palina ${fermata.codice}", color = Secondario, style = MaterialTheme.typography.bodySmall)
+            Text(sotto, color = Secondario, style = MaterialTheme.typography.bodySmall)
             if (linee.isNotEmpty()) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    linee.take(14).forEach { BadgeLinea(it) }
+                    linee.take(14).forEach { BadgeLinea(it, colore = coloreRete(fermata.id)) }
                 }
             }
         }

@@ -94,6 +94,11 @@ object Archivio {
             } catch (e: Exception) {
                 Log.e("Archivio", "Orario incluso non installato", e)
             }
+            try {
+                installaReti()
+            } catch (e: Exception) {
+                Log.e("Archivio", "Reti Cotral e Trenitalia non installate", e)
+            }
             apri()
             _pronto.value = true
             aggiornaInWiFi()
@@ -110,6 +115,7 @@ object Archivio {
             File(app.filesDir, "orario-nuovo.db-wal"),
             File(app.filesDir, "orario-nuovo.db-shm"),
             File(app.filesDir, "orario-incluso.tmp"),
+            File(app.filesDir, "reti-incluse.tmp"),
             File(app.cacheDir, "orario.zip"),
         ).forEach { runCatching { it.delete() } }
     }
@@ -145,6 +151,35 @@ object Archivio {
         impostazioni.edit().putLong("orario_aggiornato", data).apply()
     }
 
+    private fun fileReti() = File(app.filesDir, "reti.db")
+
+    /**
+     * Fermate e linee di Cotral (bus e treni) e le stazioni Trenitalia del Lazio:
+     * sono nell'APK (reti.db) e si aggiornano con l'app, non dal telefono. Si
+     * copiano al primo avvio e quando l'APK ne porta una versione diversa.
+     */
+    private fun installaReti() {
+        val creato = runCatching {
+            app.assets.open("reti-incluse.txt").bufferedReader().use { it.readText().trim().toLong() }
+        }.getOrNull() ?: return
+        if (fileReti().exists() && impostazioni.getLong("reti_create", 0L) == creato) return
+        val copia = File(app.filesDir, "reti-incluse.tmp")
+        try {
+            app.assets.open("reti.db").use { ingresso ->
+                copia.outputStream().use { ingresso.copyTo(it, 1 shl 16) }
+            }
+            SQLiteDatabase.openDatabase(copia.path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+                db.rawQuery("SELECT count(*) FROM fermate", null).use { c ->
+                    if (!c.moveToFirst() || c.getInt(0) == 0) throw IOException("Reti incluse vuote")
+                }
+            }
+            if (!copia.renameTo(fileReti())) throw IOException("Impossibile salvare le reti incluse")
+        } finally {
+            copia.delete()
+        }
+        impostazioni.edit().putLong("reti_create", creato).apply()
+    }
+
     /** Senza costi: rete Wi-Fi o comunque non a consumo. */
     private fun reteSenzaCosti(): Boolean = runCatching {
         // runCatching copre anche i telefoni senza il servizio di rete
@@ -163,8 +198,14 @@ object Archivio {
         if (!file.exists()) return
         try {
             val db = SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)
+            // le altre reti sono un di piu': se mancano o non si aprono l'app funziona con Roma
+            val reti = fileReti().takeIf { it.exists() }?.let { f ->
+                runCatching { SQLiteDatabase.openDatabase(f.path, null, SQLiteDatabase.OPEN_READONLY) }
+                    .onFailure { Log.e("Archivio", "Reti non leggibili", it) }
+                    .getOrNull()
+            }
             val vecchio = _orario.value
-            _orario.value = Orario(db)
+            _orario.value = Orario(db, reti)
             // chiude il vecchio quando le schermate hanno finito di usarlo
             if (vecchio != null) ambito.launch { delay(10_000); vecchio.chiudi() }
         } catch (e: Exception) {

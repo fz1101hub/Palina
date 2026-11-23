@@ -4,5 +4,6 @@
 <full-backup-content>
     <exclude domain="file" path="orario.db" />
     <exclude domain="file" path="orario-nuovo.db" />
+    <exclude domain="file" path="reti.db" />
     <exclude domain="sharedpref" path="osmdroid.xml" />
 </full-backup-content>

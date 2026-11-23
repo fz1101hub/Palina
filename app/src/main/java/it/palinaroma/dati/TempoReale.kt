@@ -12,7 +12,11 @@ import java.io.IOException
  * Un passaggio previsto. [tracciato] vale true se la corsa ha una vettura seguita
  * via GPS; altrimenti il tempo e' calcolato sull'orario programmato.
  */
-data class Passaggio(val orario: Long, val corsaId: String, val tracciato: Boolean)
+/**
+ * Un passaggio a una fermata. [avviso] per quello che il solo orario non dice
+ * (per ora dai treni Cotral: "soppresso", "bus sostitutivo").
+ */
+data class Passaggio(val orario: Long, val corsaId: String, val tracciato: Boolean, val avviso: String? = null)
 
 /** Un gruppo di passaggi della stessa linea e direzione a una fermata. */
 data class Arrivo(
@@ -169,10 +173,15 @@ fun passaggiTempoReale(
 }
 
 /** Corsa di Transitous: "20261109_17:05_it-Lazio-Rome_" + codice della corsa nell'orario. */
-private val FORMATO_CORSA = Regex("^\\d{8}_\\d{2}:\\d{2}_[^_]+_(.+)$")
+private val FORMATO_CORSA = Regex("^\\d{8}_\\d{2}:\\d{2}_([^_]+)_(.+)$")
 
-/** Il codice della corsa nell'orario dentro quello di Transitous; null se il formato non e' quello. */
-fun corsaDaTransitous(id: String): String? = FORMATO_CORSA.find(id)?.groupValues?.get(1)
+/**
+ * Il codice della corsa nell'orario di Roma dentro quello di Transitous; null se
+ * il formato non e' quello o se la corsa e' di un'altra rete (Cotral, Trenitalia):
+ * il suo codice potrebbe coincidere per caso con quello di una corsa di Roma.
+ */
+fun corsaDaTransitous(id: String): String? =
+    FORMATO_CORSA.find(id)?.takeIf { it.groupValues[1] == Rete.ROMA.datiTransitous }?.groupValues?.get(2)
 
 /**
  * Il codice dell'orario dentro un codice di Transitous: per le corse quello dopo
@@ -189,8 +198,21 @@ fun codiceDaTransitous(id: String): String? =
  */
 internal fun candidatiCorsa(id: String): List<String> = listOfNotNull(corsaDaTransitous(id), id).distinct()
 
-/** I codici dell'orario da provare per una linea di Transitous ("it-Lazio-Rome_913"). */
-internal fun candidatiLinea(id: String): List<String> = listOfNotNull(codiceDaTransitous(id), id).distinct()
+/**
+ * I codici dell'orario da provare per una linea di Transitous: "it-Lazio-Rome_913"
+ * -> 913 di Roma; "it-Lazio-Cotral_45" -> "C:45" (con il prefisso della rete,
+ * mai il 45 di Roma); di altri dati solo il codice intero.
+ */
+internal fun candidatiLinea(id: String): List<String> {
+    val rete = Rete.daTransitous(id)
+    val codice = id.substringAfter('_', "").ifEmpty { null }
+    return when {
+        codice == null -> listOf(id)
+        rete == Rete.ROMA -> listOf(codice, id).distinct()
+        rete != null -> listOf(rete.prefisso + codice)
+        else -> listOf(id)
+    }
+}
 
 /**
  * I passaggi di Transitous (orario programmato, con il tempo reale quando c'e'),

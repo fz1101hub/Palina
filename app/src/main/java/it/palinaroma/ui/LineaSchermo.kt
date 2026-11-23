@@ -69,6 +69,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.Rete
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.MezzoRT
 import it.palinaroma.dati.Punto
@@ -152,7 +153,13 @@ fun LineaSchermo(
     var selezionato by remember { mutableStateOf<String?>(null) }
 
     val ciclo = LocalLifecycleOwner.current
+    // le vetture con il GPS ci sono solo per le linee di Roma: per Cotral e Trenitalia solo il percorso
+    val conVetture = Rete.di(lineaId) == Rete.ROMA
     LaunchedEffect(lineaId, percorso?.direzione, o) {
+        if (!conVetture) {
+            caricato = true
+            return@LaunchedEffect
+        }
         ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 try {
@@ -360,7 +367,7 @@ fun LineaSchermo(
                             .align(Alignment.BottomCenter)
                             .padding(10.dp),
                     )
-                    corsaEvidenziata != null && caricato -> SchedaSenzaGps(
+                    corsaEvidenziata != null && caricato && conVetture -> SchedaSenzaGps(
                         fermata = fermataAttesa,
                         arrivo = arrivoAtteso,
                         adesso = adesso,
@@ -380,10 +387,14 @@ fun LineaSchermo(
                         .background(Oro, CircleShape),
                 )
                 Text(
-                    when (mezzi.size) {
-                        0 -> if (caricato) "Nessuna vettura GPS in questa direzione" else "Cerco le vetture…"
-                        1 -> "1 vettura GPS in questa direzione"
-                        else -> "${mezzi.size} vetture GPS in questa direzione"
+                    if (!conVetture) {
+                        "${Rete.di(lineaId).etichetta}: la posizione dei mezzi non è disponibile, solo il percorso"
+                    } else {
+                        when (mezzi.size) {
+                            0 -> if (caricato) "Nessuna vettura GPS in questa direzione" else "Cerco le vetture…"
+                            1 -> "1 vettura GPS in questa direzione"
+                            else -> "${mezzi.size} vetture GPS in questa direzione"
+                        }
                     } + when (altre.size) {
                         0 -> ""
                         1 -> " · 1 nell'altra (in grigio)"

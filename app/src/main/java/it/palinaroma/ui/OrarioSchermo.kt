@@ -56,6 +56,13 @@ fun OrarioSchermo(indietro: () -> Unit) {
                     "(niente, se i dati non sono cambiati): con il traffico dati tienilo presente.",
             )
             Scheda(
+                "Cotral e Trenitalia",
+                "Fermate e linee dei bus e dei treni Cotral e le stazioni Trenitalia del Lazio sono incluse nell'app " +
+                    "e si aggiornano con l'app. Le partenze arrivano da Transitous, con il tempo reale quando c'è " +
+                    "(bus Cotral e treni Trenitalia); per Metromare e Roma–Viterbo orari, ritardi e soppressioni " +
+                    "vengono dal servizio orari di ASTRAL. Le posizioni dei mezzi sulla mappa ci sono solo per ATAC e Roma TPL.",
+            )
+            Scheda(
                 "La tua posizione",
                 "Per le fermate vicine e per il segnalino \"sei qui\" sulle mappe la posizione resta sul telefono. " +
                     "Solo quando calcoli un tragitto da o verso la tua posizione le coordinate vengono inviate a Transitous, " +
@@ -66,8 +73,11 @@ fun OrarioSchermo(indietro: () -> Unit) {
                 "Fonti",
                 "Orario e tempo reale: open data di Roma Servizi per la Mobilità (licenza CC BY 3.0 IT). " +
                     "Tragitti e orari programmati alle fermate: Transitous. Mappe © OpenStreetMap contributors. " +
+                    "Bus e treni Cotral: open data di Cotral. Ritardi dei treni Cotral: ASTRAL. " +
+                    "Stazioni e treni Trenitalia: BusOne (https://busone.app) e Trenitalia, uso personale non commerciale. " +
                     "Cifre a punti: carattere Doto, © The Doto Project Authors (SIL Open Font License 1.1). " +
-                    "App personale, non affiliata ad ATAC, a Roma Servizi per la Mobilità né a Transitous.",
+                    "App personale, non affiliata ad ATAC, Roma Servizi per la Mobilità, Cotral, ASTRAL, Trenitalia, " +
+                    "BusOne né Transitous.",
             )
             Text(
                 "Palina Roma ${BuildConfig.VERSION_NAME}",

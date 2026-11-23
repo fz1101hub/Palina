@@ -60,6 +60,40 @@ jobs:
           python3 strumenti/crea_orario.py /tmp/orario/orario.sql app/src/main/assets | tee -a orario.log
           rm -f /tmp/orario/orario.sql
 
+      # Fermate e linee di Cotral (bus e treni, dati aperti di Cotral) e le stazioni
+      # Trenitalia del Lazio (GTFS di BusOne, lo stesso che usa Transitous): un
+      # database a parte, incluso nell'APK. Ogni rete che non si scarica si salta.
+      - name: Prepara le reti Cotral e Trenitalia
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          mkdir -p /tmp/reti
+          scarica() {
+            local destinazione="$1"; shift
+            for url in "$@"; do
+              if curl -fsSL --retry 2 --max-time 600 -A "PalinaRoma-CI (+https://github.com/fz1101hub/Palina)" \
+                   -o "$destinazione" "$url" && unzip -tq "$destinazione" > /dev/null; then
+                echo "reti incluse: fonte $url, $(du -h "$destinazione" | cut -f1)" | tee -a orario.log
+                return 0
+              fi
+              echo "reti incluse: $url non raggiungibile" | tee -a orario.log
+            done
+            rm -f "$destinazione"
+            return 1
+          }
+          scarica /tmp/reti/cotral.zip \
+            http://travel.mob.cotralspa.it:7777/GTFS/GTFS_COTRAL.zip \
+            https://proxy.busone.app/cotral/gtfs.zip && export RETI_COTRAL=/tmp/reti/cotral.zip
+          scarica /tmp/reti/ferro.zip \
+            http://travel.mob.cotralspa.it:7777/GTFS/GTFS_FERRO.zip && export RETI_FERRO=/tmp/reti/ferro.zip
+          scarica /tmp/reti/trenitalia.zip \
+            https://proxy.busone.app/trenitalia/gtfs.zip && export RETI_TRENITALIA=/tmp/reti/trenitalia.zip
+          RETI_SQL=/tmp/reti/reti.sql \
+            ./gradlew --no-daemon --console=plain testDebugUnitTest --tests it.palinaroma.dati.GeneraRetiIncluse --rerun -i \
+            2>&1 | grep -E "reti incluse|FAILED|Exception|BUILD" | tee -a orario.log
+          python3 strumenti/crea_reti.py /tmp/reti/reti.sql app/src/main/assets | tee -a orario.log
+          rm -rf /tmp/reti
+
       # La password della firma arriva solo a questo passo: gli altri (e le azioni
       # di terzi) non la vedono. Agli altri passi dice solo se c'era.
       - name: Test e compilazione
@@ -79,7 +113,7 @@ jobs:
         run: |
           esito="${{ job.status }}"
           mkdir -p /tmp/esito
-          { echo "commit: $GITHUB_SHA"; echo "esito: $esito"; echo "firma: $FIRMA"; grep "^orario incluso" orario.log || echo "orario incluso: passo non eseguito"; } > /tmp/esito/ESITO.txt
+          { echo "commit: $GITHUB_SHA"; echo "esito: $esito"; echo "firma: $FIRMA"; grep -E "^(orario incluso|reti incluse)" orario.log || echo "orario incluso: passo non eseguito"; } > /tmp/esito/ESITO.txt
           { grep -E "^e: |error:|FAILED|BUILD (SUCCESSFUL|FAILED)|tests completed" compilazione.log | head -300; grep -A12 "What went wrong" compilazione.log | head -120; } > /tmp/esito/errori.txt || true
           grep -E -A3 "^w: |warning:|Problem found" compilazione.log | grep -E "^w: |warning:|Problem found|^ +Location:|^ {4}[^ ]" | head -300 > /tmp/esito/avvisi.txt || true
           tail -400 compilazione.log > /tmp/esito/coda.log || true
@@ -120,7 +154,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: orario-incluso
-          path: app/src/main/assets/orario*
+          path: |
+            app/src/main/assets/orario*
+            app/src/main/assets/reti*
           if-no-files-found: ignore
 
       # GitHub sospende le compilazioni programmate dopo 60 giorni senza modifiche

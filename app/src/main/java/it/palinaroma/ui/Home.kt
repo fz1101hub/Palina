@@ -75,10 +75,11 @@ import it.palinaroma.dati.Arrivo
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.Linea
 import it.palinaroma.dati.Orario
-import it.palinaroma.dati.PartenzaTransitous
+import it.palinaroma.dati.FontiFermata
+import it.palinaroma.dati.Rete
+import it.palinaroma.dati.caricaFonti
 import it.palinaroma.dati.StatoAggiornamento
 import it.palinaroma.dati.TempoReale
-import it.palinaroma.dati.Transitous
 import it.palinaroma.dati.ancoraAttesi
 import it.palinaroma.dati.arriviFermata
 import it.palinaroma.dati.distanzaMetri
@@ -109,6 +110,9 @@ private val SOTTO_IL_PULSANTE = PaddingValues(bottom = 96.dp)
 
 /** Le preferite con i passaggi completi (tempo reale e orario di Transitous): le altre solo tempo reale. */
 private const val PREFERITE_COMPLETE = 4
+
+/** Le fermate vicine di Cotral e Trenitalia con i passaggi (non sono nel tempo reale di Roma Mobilita'). */
+private const val VICINE_ALTRE_RETI = 3
 
 @Composable
 fun HomeSchermo(
@@ -194,7 +198,7 @@ private data class ArriviHome(
 private fun rememberArriviHome(orario: Orario, complete: List<Fermata>, soloTempoReale: List<String>, riprova: Int): ArriviHome {
     var stato by remember { mutableStateOf(ArriviHome()) }
     val ciclo = LocalLifecycleOwner.current
-    val partenze = remember { HashMap<String, Pair<Long, List<PartenzaTransitous>>>() }
+    val fonti = remember { HashMap<String, Pair<Long, FontiFermata>>() }
     val idComplete = complete.map { it.id }
     LaunchedEffect(orario, idComplete, soloTempoReale, riprova) {
         ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -205,20 +209,25 @@ private fun rememberArriviHome(orario: Orario, complete: List<Fermata>, soloTemp
                     val m = async { seRiesce { TempoReale.mezzi() } }
                     complete.map { f ->
                         async {
-                            val gia = partenze[f.id]
+                            val gia = fonti[f.id]
                             if (gia == null || adessoMs - gia.first > 60_000) {
-                                seRiesce { Transitous.partenze(f.id, f.lat, f.lon) }?.let { partenze[f.id] = adessoMs to it }
+                                caricaFonti(f, orario, adessoMs).takeIf { !it.vuote }?.let { fonti[f.id] = adessoMs to it }
                             }
                         }
                     }.awaitAll()
                     c.await() to m.await().orEmpty()
                 }
-                val fresche = complete.any { partenze[it.id]?.first == adessoMs }
+                val fresche = complete.any { fonti[it.id]?.first == adessoMs }
                 if (corse != null || fresche) {
                     val ids = (idComplete + soloTempoReale).distinct()
                     val adesso = System.currentTimeMillis() / 1000
                     val calcolati = withContext(Dispatchers.IO) {
-                        ids.associateWith { id -> arriviFermata(id, orario, corse, mezzi, partenze[id]?.second, adesso) }
+                        ids.associateWith { id ->
+                            val f = fonti[id]?.second
+                            // il tempo reale di Roma Mobilita' vale solo per le sue fermate
+                            val rt = if (Rete.di(id) == Rete.ROMA) corse else null
+                            arriviFermata(id, orario, rt, mezzi, f?.partenze, adesso, f?.treni)
+                        }
                     }
                     stato = ArriviHome(calcolati, System.currentTimeMillis(), errore = false)
                 } else {
@@ -324,9 +333,10 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
         else fermatePreferite.map { it to distanzaMetri(lat, lon, it.lat, it.lon) }.sortedBy { it.second }
     }
     val idVicine = vicino.fermate.map { it.fermata.id }
+    val vicineAltreReti = vicino.fermate.map { it.fermata }.filter { Rete.di(it.id) != Rete.ROMA }.take(VICINE_ALTRE_RETI)
     val arrivi = rememberArriviHome(
         orario,
-        complete = preferiteOrdinate.take(PREFERITE_COMPLETE).map { it.first },
+        complete = (preferiteOrdinate.take(PREFERITE_COMPLETE).map { it.first } + vicineAltreReti).distinctBy { it.id },
         soloTempoReale = idVicine,
         riprova = riprova,
     )
@@ -520,7 +530,8 @@ private fun SchedaPreferita(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "palina ${fermata.codice}" + (distanza?.let { " · " + testoMetri(it) } ?: ""),
+                (if (Rete.di(fermata.id) == Rete.ROMA) "palina ${fermata.codice}" else descrizioneFermata(fermata)) +
+                    (distanza?.let { " · " + testoMetri(it) } ?: ""),
                 style = MaterialTheme.typography.bodySmall,
                 color = Secondario,
             )
@@ -578,7 +589,7 @@ private fun RigaCompatta(arrivo: Arrivo, adesso: Long) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            BadgeLinea(arrivo.nomeLinea, grande = true)
+            BadgeLinea(arrivo.nomeLinea, grande = true, colore = coloreRete(arrivo.lineaId))
             Column(Modifier.weight(1f)) {
                 Text(
                     arrivo.capolinea.ifEmpty { "Direzione non indicata" },
@@ -591,7 +602,11 @@ private fun RigaCompatta(arrivo: Arrivo, adesso: Long) {
                     Text(poi, style = MaterialTheme.typography.bodySmall, color = Secondario)
                 }
             }
-            CifreAttesa(minutiAttesa(primo.orario, adesso), primo.tracciato, grandezza = 30)
+            if (primo.avviso == "soppresso") {
+                Text("soppresso", color = Accento, fontWeight = FontWeight.Bold)
+            } else {
+                CifreAttesa(minutiAttesa(primo.orario, adesso), primo.tracciato, grandezza = 30)
+            }
         }
         HorizontalDivider(color = Divisore)
     }
@@ -695,6 +710,7 @@ private fun SchedaCerca(
                                     .testTag("linea")
                                     .clickable(onClickLabel = "apri la linea") { apriLinea(l.id) },
                                 grande = true,
+                                colore = coloreRete(l.id),
                             )
                         }
                     }

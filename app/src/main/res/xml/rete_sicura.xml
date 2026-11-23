@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  gestionecorse.astralspa.it (orari e ritardi dei treni Cotral) manda il proprio
+  certificato senza l'intermedio che lo firma: i browser lo recuperano da soli,
+  Android no. Qui c'e' quell'intermedio ("Sectigo Public Server Authentication
+  CA OV R36", valido fino al 21/03/2036, SHA-256 65:42:D1:76:...:85:30), solo
+  per quel sito: la verifica dei certificati resta sempre attiva.
+-->
+<network-security-config>
+    <domain-config>
+        <domain includeSubdomains="false">gestionecorse.astralspa.it</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/sectigo_ov_r36" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

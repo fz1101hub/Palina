@@ -117,9 +117,9 @@ fun iconaVettura(
     return icona
 }
 
-/** Pallino porpora "GPS" oppure scritta grigia "da orario". */
+/** Pallino oro "GPS" (per i treni "tempo reale") oppure scritta grigia "da orario". */
 @Composable
-fun FonteTempo(tracciato: Boolean, modifier: Modifier = Modifier) {
+fun FonteTempo(tracciato: Boolean, modifier: Modifier = Modifier, etichetta: String = "GPS") {
     if (tracciato) {
         Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Box(
@@ -127,7 +127,7 @@ fun FonteTempo(tracciato: Boolean, modifier: Modifier = Modifier) {
                     .size(8.dp)
                     .background(Accento, CircleShape),
             )
-            Text("GPS", style = MaterialTheme.typography.labelSmall, color = Accento, fontWeight = FontWeight.Bold)
+            Text(etichetta, style = MaterialTheme.typography.labelSmall, color = Accento, fontWeight = FontWeight.Bold)
         }
     } else {
         Text("da orario", style = MaterialTheme.typography.labelSmall, color = Secondario, modifier = modifier)

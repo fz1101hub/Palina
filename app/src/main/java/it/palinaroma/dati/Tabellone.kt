@@ -6,7 +6,7 @@ package it.palinaroma.dati
  * dentro, cosi' si provano con i test di unita'.
  */
 
-/** Mette insieme le fonti di una fermata; ognuna puo' mancare. [adesso] in secondi. */
+/** Mette insieme le fonti di una fermata; ognuna puo' mancare. [adesso] in secondi; [treni] da ASTRAL. */
 fun arriviFermata(
     fermataId: String,
     orario: Orario?,
@@ -14,10 +14,11 @@ fun arriviFermata(
     mezzi: List<MezzoRT>,
     partenze: List<PartenzaTransitous>?,
     adesso: Long,
+    treni: List<PassaggioLinea>? = null,
 ): List<Arrivo> {
     val tracciate = mezzi.mapNotNull { it.corsaId.ifEmpty { null } }.toSet()
     val inTempoReale = corse?.let { passaggiTempoReale(it, fermataId, orario, adesso, tracciate = tracciate) }.orEmpty()
-    val programmati = partenze?.let { passaggiProgrammati(it, orario, adesso, mezzi = mezzi) }.orEmpty()
+    val programmati = partenze?.let { passaggiProgrammati(it, orario, adesso, mezzi = mezzi) }.orEmpty() + treni.orEmpty()
     return raggruppa(uniscPassaggi(inTempoReale, programmati), orario)
 }
 
@@ -85,7 +86,7 @@ fun fraseArrivo(arrivo: Arrivo, adesso: Long): String {
     val minuti = minutiAttesa(primo.orario, adesso)
     val verso = if (arrivo.capolinea.isEmpty()) "" else " per " + daLeggere(arrivo.capolinea)
     val quando = if (minuti < 1) "In arrivo" else "Tra " + minutiAParole(minuti)
-    val fonte = if (primo.tracciato) "in tempo reale" else "secondo l'orario"
+    val fonte = primo.avviso ?: if (primo.tracciato) "in tempo reale" else "secondo l'orario"
     val successivi = arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) }
     val poi = when {
         successivi.isEmpty() -> ""

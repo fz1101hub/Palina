@@ -229,7 +229,7 @@ fun urlTragitti(da: Luogo, a: Luogo, istante: Long?, arrivaEntro: Boolean, curso
  * usa le coordinate: solo le fermate entro 30 metri.
  */
 fun urlPartenze(fermataId: String, lat: Double, lon: Double): String =
-    Transitous.API + "/v5/stoptimes?stopId=" + codifica(Transitous.DATI_ROMA + "_" + fermataId) +
+    Transitous.API + "/v5/stoptimes?stopId=" + codifica(fermataTransitous(fermataId)) +
         "&center=" + codifica(String.format(Locale.ROOT, "%.6f,%.6f", lat, lon)) +
         "&radius=30&exactRadius=true&n=40&window=5400&language=it"
 
@@ -251,7 +251,9 @@ fun leggiPartenze(json: String, fermataId: String, lat: Double, lon: Double): Li
         val luogo = m.oggetto("place") ?: return@mapNotNull null
         if (m.testo("pickupDropoffType") == "NOT_ALLOWED") return@mapNotNull null
         val codice = luogo.testo("stopId").orEmpty()
-        val stessoCodice = codice == fermataId || codice.endsWith("_$fermataId")
+        val originale = idOriginale(fermataId)
+        val stessoCodice = codice == fermataId || codice == fermataTransitous(fermataId) ||
+            (Rete.di(fermataId) == Rete.ROMA && codice.endsWith("_$originale"))
         val latLuogo = luogo.numero("lat")
         val lonLuogo = luogo.numero("lon")
         val distanza = if (latLuogo != null && lonLuogo != null) distanzaMetri(lat, lon, latLuogo, lonLuogo) else null

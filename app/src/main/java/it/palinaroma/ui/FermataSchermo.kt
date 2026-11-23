@@ -62,10 +62,11 @@ import it.palinaroma.dati.Arrivo
 import it.palinaroma.dati.ArriviDivisi
 import it.palinaroma.dati.CorsaRT
 import it.palinaroma.dati.Fermata
+import it.palinaroma.dati.FontiFermata
+import it.palinaroma.dati.Rete
+import it.palinaroma.dati.caricaFonti
 import it.palinaroma.dati.MezzoRT
-import it.palinaroma.dati.PartenzaTransitous
 import it.palinaroma.dati.TempoReale
-import it.palinaroma.dati.Transitous
 import it.palinaroma.dati.ancoraAttesi
 import it.palinaroma.dati.arriviFermata
 import it.palinaroma.dati.dividiArrivi
@@ -116,28 +117,33 @@ fun FermataSchermo(
     var aggiornatoAlle by remember { mutableLongStateOf(0L) }
     var soloTempoReale by remember { mutableStateOf(false) }
     var adessoMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    // per le stazioni dei treni Cotral: true se ASTRAL ha risposto, false se si vede l'orario
+    var conAstral by remember { mutableStateOf<Boolean?>(null) }
     val adesso = adessoMs / 1000
     val ambito = rememberCoroutineScope()
     val ciclo = LocalLifecycleOwner.current
+    val rete = Rete.di(fermataId)
 
-    suspend fun componi(corse: List<CorsaRT>?, mezzi: List<MezzoRT>, partenze: List<PartenzaTransitous>?): List<Arrivo> =
+    suspend fun componi(corse: List<CorsaRT>?, mezzi: List<MezzoRT>, fonti: FontiFermata?): List<Arrivo> =
         withContext(Dispatchers.IO) {
-            arriviFermata(fermataId, o, corse, mezzi, partenze, System.currentTimeMillis() / 1000)
+            arriviFermata(fermataId, o, corse, mezzi, fonti?.partenze, System.currentTimeMillis() / 1000, fonti?.treni)
         }
 
     // Tre fonti in parallelo, ognuna puo' mancare:
-    // - tempo reale di Roma Mobilita' (vetture seguite via GPS),
+    // - tempo reale di Roma Mobilita' (vetture seguite via GPS), solo per le fermate di Roma,
     // - posizioni delle vetture,
-    // - Transitous: tutte le partenze da orario, aggiornate col tempo reale quando c'e'.
+    // - Transitous: tutte le partenze da orario, aggiornate col tempo reale quando c'e'
+    //   (per i treni Cotral prima ASTRAL, con i ritardi).
     suspend fun carica(forza: Boolean) {
         aggiornando = true
         try {
             val f = fermata
-            val (corse, mezzi, partenze) = coroutineScope {
-                val c = async { seRiesce { TempoReale.corse(forza) } }
-                val m = async { seRiesce { TempoReale.mezzi(forza) } }
-                val p = async { if (f == null) null else seRiesce { Transitous.partenze(fermataId, f.lat, f.lon) } }
-                if (arrivi == null) {
+            val roma = rete == Rete.ROMA
+            val (corse, mezzi, fonti) = coroutineScope {
+                val c = async { if (roma) seRiesce { TempoReale.corse(forza) } else null }
+                val m = async { if (roma) seRiesce { TempoReale.mezzi(forza) } else null }
+                val p = async { if (f == null) null else caricaFonti(f, o) }
+                if (arrivi == null && roma) {
                     // Alla prima apertura si mostra subito la fonte che risponde per prima (di solito
                     // Transitous: poche righe contro i MB del feed); il resto si aggiunge appena arriva.
                     val primaTransitous = select<Boolean> {
@@ -153,9 +159,10 @@ fun FermataSchermo(
                 }
                 Triple(c.await(), m.await().orEmpty(), p.await())
             }
-            if (corse == null && partenze == null) throw IllegalStateException("nessuna fonte disponibile")
-            arrivi = componi(corse, mezzi, partenze)
-            soloTempoReale = partenze == null
+            if (corse == null && (fonti == null || fonti.vuote)) throw IllegalStateException("nessuna fonte disponibile")
+            arrivi = componi(corse, mezzi, fonti)
+            soloTempoReale = roma && (fonti == null || fonti.vuote)
+            if (rete == Rete.COTRAL_TRENI) conAstral = fonti?.treni != null
             errore = null
             aggiornatoAlle = System.currentTimeMillis()
         } catch (e: CancellationException) {
@@ -196,7 +203,7 @@ fun FermataSchermo(
         topBar = {
             BarraSuperiore(
                 titolo = fermata?.nome ?: "Fermata $fermataId",
-                sottotitolo = fermata?.let { "Palina ${it.codice}" },
+                sottotitolo = fermata?.let { descrizioneFermata(it) },
                 indietro = indietro,
                 azioni = {
                     fermata?.let { f ->
@@ -253,16 +260,36 @@ fun FermataSchermo(
                             testoVuoto = when {
                                 errore != null || aggiornatoAlle == 0L -> null
                                 soloTempoReale -> "Nessun mezzo seguito in tempo reale nei prossimi 90 minuti."
+                                rete.treni -> "Nessun treno nei prossimi 90 minuti."
                                 else -> "Nessun passaggio nei prossimi 90 minuti, né in tempo reale né da orario."
                             },
-                            apri = { a -> apriVettura(a.lineaId, a.direzione, a.passaggi.first().corsaId) },
+                            // Roma: la vettura sulla mappa; le altre reti: il percorso della linea, se c'e' nell'orario
+                            apri = { a ->
+                                when {
+                                    Rete.di(a.lineaId) == Rete.ROMA && rete == Rete.ROMA ->
+                                        ({ apriVettura(a.lineaId, a.direzione, a.passaggi.first().corsaId) })
+                                    o?.linea(a.lineaId) != null -> ({ apriLinea(a.lineaId, a.direzione) })
+                                    else -> null
+                                }
+                            },
                             fissa = { lineaId -> Archivio.alternaLineaFissata(fermataId, lineaId) },
                         )
                     }
                     item {
                         Text(
-                            "Cifre oro con il pallino: vettura vista ora dal GPS. Grigie: tempo calcolato sull'orario. " +
-                                "Tocca una riga per vedere la vettura sulla mappa, trascina giù per aggiornare.",
+                            when (rete) {
+                                Rete.ROMA ->
+                                    "Cifre oro con il pallino: vettura vista ora dal GPS. Grigie: tempo calcolato sull'orario. " +
+                                        "Tocca una riga per vedere la vettura sulla mappa, trascina giù per aggiornare."
+                                Rete.COTRAL_TRENI -> when (conAstral) {
+                                    true -> "Orari, ritardi e soppressioni dei treni: ASTRAL. Cifre oro: ritardo già comunicato; " +
+                                        "grigie: orario programmato. Tocca una riga per vedere la linea."
+                                    else -> "ASTRAL non risponde: vedi l'orario programmato dei treni, senza ritardi."
+                                }
+                                else ->
+                                    "Cifre oro con il pallino: in tempo reale (${rete.etichetta}, tramite Transitous). " +
+                                        "Grigie: orario programmato. Tocca una riga per vedere il percorso della linea."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = Secondario,
                             modifier = Modifier.padding(horizontal = 8.dp),
@@ -277,13 +304,15 @@ fun FermataSchermo(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.padding(horizontal = 8.dp),
                         ) {
-                            linee.distinctBy { it.linea.id }.forEach { lf ->
+                            // per le stazioni (centinaia di treni con nomi uguali) una volta per nome
+                            linee.distinctBy { if (rete.treni) it.linea.nome else it.linea.id }.forEach { lf ->
                                 BadgeLinea(
                                     lf.linea.nome,
                                     Modifier
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable(onClickLabel = "apri la linea") { apriLinea(lf.linea.id, lf.direzione) },
                                     grande = true,
+                                    colore = coloreRete(lf.linea.id),
                                 )
                             }
                         }
@@ -353,7 +382,7 @@ private fun TabelloneFermata(
     conFissate: Boolean,
     adesso: Long,
     testoVuoto: String?,
-    apri: (Arrivo) -> Unit,
+    apri: (Arrivo) -> (() -> Unit)?,
     fissa: (String) -> Unit,
 ) {
     Column(
@@ -365,10 +394,10 @@ private fun TabelloneFermata(
         if (conFissate) {
             TitolettoTabellone("Le tue linee", Accento)
             diviso.fissate.forEach { a ->
-                RigaArrivo(a, adesso, fissata = true, apri = { apri(a) }, fissa = { fissa(a.lineaId) })
+                RigaArrivo(a, adesso, fissata = true, apri = apri(a), fissa = { fissa(a.lineaId) })
             }
             diviso.senzaPassaggi.forEach { id ->
-                RigaFissataVuota(nomiLinee[id] ?: id, togli = { fissa(id) })
+                RigaFissataVuota(nomiLinee[id] ?: id, id, togli = { fissa(id) })
             }
             if (diviso.altre.isNotEmpty()) TitolettoTabellone("Altre linee", Secondario)
         } else if (diviso.altre.isNotEmpty()) {
@@ -380,7 +409,7 @@ private fun TabelloneFermata(
             )
         }
         diviso.altre.forEach { a ->
-            RigaArrivo(a, adesso, fissata = false, apri = { apri(a) }, fissa = { fissa(a.lineaId) })
+            RigaArrivo(a, adesso, fissata = false, apri = apri(a), fissa = { fissa(a.lineaId) })
         }
         if (diviso.fissate.isEmpty() && diviso.altre.isEmpty() && testoVuoto != null) {
             Text(testoVuoto, color = Secondario, modifier = Modifier.padding(vertical = 16.dp))
@@ -395,9 +424,10 @@ private fun TitolettoTabellone(testo: String, colore: androidx.compose.ui.graphi
 
 /** Una linea alla fermata: numero, direzione, prossimi passaggi, minuti grandi e puntina. */
 @Composable
-private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: () -> Unit, fissa: () -> Unit) {
+private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (() -> Unit)?, fissa: () -> Unit) {
     val primo = arrivo.passaggi.first()
     val frase = fraseArrivo(arrivo, adesso)
+    val reteLinea = Rete.di(arrivo.lineaId)
     Column {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(
@@ -406,13 +436,22 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: () 
                     .heightIn(min = 64.dp)
                     .testTag("arrivo")
                     .clip(RoundedCornerShape(10.dp))
-                    .clickable(onClickLabel = "vedi la vettura sulla mappa", onClick = apri)
+                    .then(
+                        if (apri != null) {
+                            Modifier.clickable(
+                                onClickLabel = if (reteLinea == Rete.ROMA) "vedi la vettura sulla mappa" else "vedi la linea",
+                                onClick = apri,
+                            )
+                        } else {
+                            Modifier
+                        },
+                    )
                     .clearAndSetSemantics { contentDescription = frase }
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                BadgeLinea(arrivo.nomeLinea, grande = true)
+                BadgeLinea(arrivo.nomeLinea, grande = true, colore = coloreRete(arrivo.lineaId))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         arrivo.capolinea.ifEmpty { "Direzione non indicata" },
@@ -428,8 +467,17 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: () 
                     }
                 }
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    CifreAttesa(minutiAttesa(primo.orario, adesso), primo.tracciato)
-                    FonteTempo(primo.tracciato)
+                    if (primo.avviso == "soppresso") {
+                        Text("soppresso", color = Accento, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(ora(primo.orario * 1000), style = MaterialTheme.typography.labelSmall, color = Secondario)
+                    } else {
+                        CifreAttesa(minutiAttesa(primo.orario, adesso), primo.tracciato)
+                        if (primo.avviso != null) {
+                            Text(primo.avviso, style = MaterialTheme.typography.labelSmall, color = Accento, fontWeight = FontWeight.Bold)
+                        } else {
+                            FonteTempo(primo.tracciato, etichetta = if (reteLinea == Rete.ROMA) "GPS" else "tempo reale")
+                        }
+                    }
                 }
             }
             IconButton(onClick = fissa) {
@@ -447,7 +495,7 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: () 
 
 /** Una linea fissata che nei prossimi 90 minuti non passa: resta in cima e lo dice. */
 @Composable
-private fun RigaFissataVuota(nome: String, togli: () -> Unit) {
+private fun RigaFissataVuota(nome: String, lineaId: String, togli: () -> Unit) {
     Column {
         Row(
             Modifier
@@ -456,7 +504,7 @@ private fun RigaFissataVuota(nome: String, togli: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            BadgeLinea(nome, grande = true)
+            BadgeLinea(nome, grande = true, colore = coloreRete(lineaId))
             Text(
                 "Nessun passaggio nei prossimi 90 minuti",
                 style = MaterialTheme.typography.bodyMedium,
