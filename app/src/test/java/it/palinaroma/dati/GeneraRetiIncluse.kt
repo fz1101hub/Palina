@@ -37,6 +37,7 @@ class FiltroRete(
     private val forme = HashMap<String, List<Punto>>()
     private val fermateTenute = HashSet<String>()
     private val lineeUsate = HashSet<String>()
+    private val giaScritte = HashSet<String>()
 
     var fermate = 0
         private set
@@ -56,7 +57,7 @@ class FiltroRete(
     override fun fermata(id: String, codice: String, nome: String, lat: Double, lon: Double) {
         if (area != null && !area.invoke(lat, lon)) return
         fermateTenute.add(id)
-        dentro.fermata(p(id), codice, nome, lat, lon)
+        dentro.fermata(p(id), codice, nomeFermataCotral(nome), lat, lon)
         fermate++
     }
 
@@ -69,7 +70,16 @@ class FiltroRete(
     override fun fermataLinea(fermata: String, linea: String, direzione: Int, capolinea: String) {
         if (fermata !in fermateTenute) return
         lineeUsate.add(linea)
-        dentro.fermataLinea(p(fermata), p(linea), direzione, capolinea)
+        when (rete) {
+            // alle stazioni le "linee" Trenitalia sono categorie (REG, RV, FR): una volta per nome basta
+            Rete.TRENITALIA -> {
+                val nome = linee[linea]?.nome ?: linea
+                if (giaScritte.add(fermata + '\u0000' + nome)) dentro.fermataLinea(p(fermata), p(linea), 0, "")
+            }
+            // il capolinea lo dice Transitous a ogni partenza: qui pesa e basta (13 mila fermate Cotral)
+            Rete.COTRAL -> dentro.fermataLinea(p(fermata), p(linea), direzione, "")
+            else -> dentro.fermataLinea(p(fermata), p(linea), direzione, capolinea)
+        }
     }
 
     override fun forma(id: String, punti: List<Punto>) {
@@ -95,6 +105,13 @@ class FiltroRete(
         }
         for (id in formeUsate) forme[id]?.let { dentro.forma(p(id), it) }
     }
+}
+
+/** "FRASCATI | Via 24 Maggio" (fermate Cotral) -> "Frascati · Via 24 Maggio". Gli altri nomi restano. */
+fun nomeFermataCotral(nome: String): String {
+    if ('|' !in nome) return nome
+    val (paese, via) = nome.split('|', limit = 2).map { it.trim() }
+    return listOf(bellaScrittura(paese), bellaScrittura(via)).filter { it.isNotEmpty() }.joinToString(" · ")
 }
 
 /** Il Lazio, con un po' di margine: le stazioni Trenitalia che servono. */
@@ -186,5 +203,12 @@ class GeneraRetiIncluse {
         assertTrue(testo.contains("INSERT OR REPLACE INTO forme VALUES('F:F1',"))
         assertFalse(testo.contains("INTO forme VALUES('F:F2'"))
         assertFalse("niente corse", testo.contains("INTO corse"))
+    }
+
+    @Test
+    fun nomiDelleFermateCotral() {
+        assertEquals("Frascati · Via 24 Maggio", nomeFermataCotral("FRASCATI | Via 24 Maggio"))
+        assertEquals("Roma · Anagnina (Metro A)", nomeFermataCotral("ROMA | Anagnina (Metro A)"))
+        assertEquals("Lido Centro", nomeFermataCotral("Lido Centro"))
     }
 }

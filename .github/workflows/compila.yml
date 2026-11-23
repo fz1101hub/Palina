@@ -93,6 +93,7 @@ jobs:
             2>&1 | grep -E "reti incluse|FAILED|Exception|BUILD" | tee -a orario.log
           python3 strumenti/crea_reti.py /tmp/reti/reti.sql app/src/main/assets | tee -a orario.log
           rm -rf /tmp/reti
+          python3 strumenti/prova_reti.py app/src/main/assets app/src/main/res/raw/sectigo_ov_r36.pem | tee -a orario.log
 
       # La password della firma arriva solo a questo passo: gli altri (e le azioni
       # di terzi) non la vedono. Agli altri passi dice solo se c'era.
