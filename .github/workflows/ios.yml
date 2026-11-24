@@ -5,7 +5,7 @@ name: App iOS
 # toccano il motore o l'app iOS.
 on:
   push:
-    branches: [ios]
+    branches: [ios, main]
   workflow_dispatch:
 
 permissions:
@@ -18,6 +18,8 @@ concurrency:
 jobs:
   # 1. Android con il motore: deve compilare e passare i test come prima
   android:
+    # su main Android lo prova gia' compila.yml
+    if: github.ref_name != 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -47,6 +49,7 @@ jobs:
 
   # 1b. L'app Android con il motore sui telefoni simulati (le stesse prove di main)
   android-emulatore:
+    if: github.ref_name != 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     strategy:
@@ -285,8 +288,12 @@ jobs:
         run: |
           gh release view ios-prova > /dev/null 2>&1 || gh release create ios-prova --prerelease --target "$GITHUB_SHA" \
             --title "App iOS (prova)" --notes "App per iPhone non firmata, da installare con AltStore o Sideloadly. Compilata dal ramo ios."
-          gh release edit ios-prova --notes "App per iPhone non firmata, da installare con AltStore o Sideloadly. Compilata dal commit $GITHUB_SHA del ramo ios."
+          gh release edit ios-prova --notes "App per iPhone non firmata, da installare con AltStore o Sideloadly. Compilata dal commit $GITHUB_SHA del ramo $GITHUB_REF_NAME."
           gh release upload ios-prova /tmp/ipa/PalinaRoma-iOS.ipa --clobber
+          # da main anche accanto agli APK, nella release "ultima"
+          if [ "$GITHUB_REF_NAME" = "main" ] && gh release view ultima > /dev/null 2>&1; then
+            gh release upload ultima /tmp/ipa/PalinaRoma-iOS.ipa --clobber
+          fi
 
       - uses: actions/upload-artifact@v7
         if: always()

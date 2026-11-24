@@ -294,6 +294,7 @@ struct SchedaSeguito: View {
                 Label("Smetti di seguire", systemImage: "bell.slash")
             }
             .buttonStyle(.borderless)
+            .foregroundStyle(.red)
         }
         .padding(.vertical, 4)
         .accessibilityIdentifier("seguito")

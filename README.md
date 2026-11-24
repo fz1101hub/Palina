@@ -88,6 +88,27 @@ Come per il telefono, nella versione di prova per aggiornare va prima disinstall
 Dopo la compilazione GitHub prova l'app anche su due orologi simulati, Wear OS 5 e Wear OS 7
 (`ProvaOrologio`, in `orologio/src/androidTest`).
 
+## iPhone e Apple Watch
+
+Nella stessa release c'è `PalinaRoma-iOS.ipa`, con dentro anche l'app per Apple Watch. Non è
+firmato: si installa dal computer con [AltStore](https://altstore.io) o
+[Sideloadly](https://sideloadly.io) e un Apple ID (con un account gratuito va reinstallato ogni
+7 giorni). Le schermate sono in SwiftUI, ma dati, calcoli e testi vengono dallo stesso motore
+Kotlin dell'app Android (`motore/`): una modifica lì vale per tutte e due.
+
+- **iPhone**: fermate vicine e preferite, tabellone con le linee fissate, mappa delle linee con le
+  vetture, treni Cotral e Trenitalia, tragitti con Transitous, impostazioni. L'orario si aggiorna da
+  solo in Wi-Fi: ogni settimana la compilazione pubblica nella release `orario.db` e `reti.db`
+  compressi (circa 8 MB).
+- **Segui**: scorrendo una riga del tabellone (o tenendola premuta) parte il conto alla rovescia
+  sulla schermata di blocco, nella Dynamic Island e nello Smart Stack dell'Apple Watch, con un
+  avviso 2 minuti prima. È il "Segui" di Wear OS, con lo stesso calcolo; i tempi si aggiornano
+  mentre Palina è aperta, chiusa il conto alla rovescia continua sull'ultimo tempo letto.
+- **Apple Watch**: tabellone delle fermate preferite e vicine calcolato dall'iPhone, dettaglio dei
+  treni, complicazioni e widget nello Smart Stack con la prossima linea.
+
+GitHub prova l'app sul simulatore di iPhone e di Apple Watch a ogni modifica (`.github/workflows/ios.yml`).
+
 ## Come funziona
 
 - **Orario statico** (`rome_static_gtfs.zip`): `CostruttoreOrario` legge linee, fermate, corse,
@@ -132,13 +153,22 @@ app/src/test/   test del decodificatore, dell'orario, dei testi e del client Tra
 app/src/androidTest/   ProvaSchermate: prova dell'app intera sull'emulatore
 app/src/main/java/it/palinaroma/PerOrologio.kt   i tabelloni per l'orologio (ServizioOrologio)
 motore/         il motore condiviso (Kotlin Multiplatform) per Android, iPhone e Apple Watch:
-                dati, fonti, orario, tempo reale e cosa mostrano le schermate; in
-                ponte/ cosa si scambiano telefono e orologio (TabelloneOrologio, in JSON)
-ios/            le app per iPhone e Apple Watch (SwiftUI) sopra il motore
+                dati, fonti, orario, tempo reale, tragitti, testi delle impostazioni e
+                cosa mostrano le schermate; in ponte/ cosa si scambiano telefono e
+                orologio (TabelloneOrologio, in JSON), "Segui" e il contenuto di
+                widget e complicazioni
+ios/            le app per iPhone e Apple Watch (SwiftUI) sopra il motore:
+  Palina/            l'app per iPhone (Home, fermate, linee, treni, tragitti, impostazioni,
+                     "Segui"); l'orario si aggiorna da solo dalla release "ultima"
+  PalinaWidget/      la Live Activity di "Segui" (schermata di blocco, Dynamic Island)
+  PalinaWatch/       l'app per Apple Watch (tabellone calcolato dall'iPhone)
+  PalinaWatchWidget/ complicazioni e Smart Stack dell'Apple Watch
+  Condiviso/         i pezzi comuni tra app ed estensioni
 orologio/       l'app Wear OS: Principale (fermate, linea, treno), Riquadro (tile e
                 complicazione), Widget (widget di Wear OS 7), Segui (linea seguita e
                 Live Update), ArchivioOrologio (dati ricevuti e richieste al telefono)
 strumenti/      crea_orario.py: dalle istruzioni SQL al database incluso nell'APK;
+                orari_iphone.py: lo stesso orario compresso per l'aggiornamento dell'iPhone;
                 prova-emulatore.sh: avvia l'emulatore e prova l'app
 ```
 

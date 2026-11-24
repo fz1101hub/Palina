@@ -132,7 +132,7 @@ jobs:
         env:
           FIRMA: ${{ steps.compila.outputs.firma }}
         run: |
-          note="Compilata dal commit $GITHUB_SHA. Dal telefono scarica app-release.apk e installala. Per l'orologio Wear OS (dalla versione 5) c'e' orologio-release.apk: va installato sull'orologio insieme all'APK del telefono della stessa compilazione."
+          note="Compilata dal commit $GITHUB_SHA. Dal telefono scarica app-release.apk e installala. Per l'orologio Wear OS (dalla versione 5) c'e' orologio-release.apk: va installato sull'orologio insieme all'APK del telefono della stessa compilazione. Per iPhone e Apple Watch c'e' PalinaRoma-iOS.ipa (non firmato: si installa con AltStore o Sideloadly)."
           orario=$(grep -m1 "^orario incluso: si" orario.log 2>/dev/null | grep -o "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}" | head -1 || true)
           if [ -n "$orario" ]; then
             note="$note Contiene l'orario di Roma Mobilità del $orario."

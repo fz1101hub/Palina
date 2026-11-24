@@ -12,8 +12,8 @@ android {
         applicationId = "it.palinaroma"
         minSdk = 26
         targetSdk = 37
-        versionCode = 21
-        versionName = "0.20"
+        versionCode = 22
+        versionName = "0.21"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

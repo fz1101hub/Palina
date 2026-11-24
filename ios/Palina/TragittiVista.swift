@@ -490,8 +490,9 @@ struct SceltaLuogoVista: View {
         .listStyle(.insetGrouped)
         .navigationTitle(campo == "da" ? "Da dove parti?" : "Dove vai?")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { fuoco = true }
-        .task(id: testo) { await cerca() }
+        // con un testo gia' scritto (dalla Home) si vedono subito i risultati, senza tastiera
+        .onAppear { fuoco = testo.isEmpty }
+        .task(id: "\(testo)#\(tragitti.stato != nil)") { await cerca() }
     }
 
     private func cerca() async {
@@ -576,6 +577,8 @@ struct DettaglioTragittoVista: View {
         }
         .navigationTitle(dettaglio?.titolo ?? "Tragitto")
         .navigationBarTitleDisplayMode(.inline)
+        // sopra la mappa il titolo resta leggibile
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 0) {
@@ -613,7 +616,7 @@ struct DettaglioTragittoVista: View {
                 }
             }
             ForEach(Array(vetture.enumerated()), id: \.offset) { _, v in
-                Annotation(v.linea, coordinate: CLLocationCoordinate2D(latitude: v.lat, longitude: v.lon), anchor: .center) {
+                Annotation("", coordinate: CLLocationCoordinate2D(latitude: v.lat, longitude: v.lon), anchor: .center) {
                     Text(v.linea)
                         .font(.caption2.bold())
                         .lineLimit(1)

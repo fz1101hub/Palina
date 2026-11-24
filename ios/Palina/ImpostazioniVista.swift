@@ -17,8 +17,8 @@ struct ImpostazioniVista: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(scelta.nome).foregroundStyle(.primary)
-                                Text(scelta.descrizione).font(.footnote).foregroundStyle(.secondary)
+                                Text(scelta.nome).foregroundStyle(Color.primary)
+                                Text(scelta.descrizione).font(.footnote).foregroundStyle(Color.secondary)
                             }
                             Spacer()
                             if aspetto == scelta.chiave {
@@ -26,6 +26,8 @@ struct ImpostazioniVista: View {
                             }
                         }
                     }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
                     .accessibilityAddTraits(aspetto == scelta.chiave ? .isSelected : [])
                 }
                 Toggle(isOn: $cifreLed) {
