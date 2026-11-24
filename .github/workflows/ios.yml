@@ -189,6 +189,12 @@ jobs:
           xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "fermata:$id" -apriPrimoTreno YES
           sleep 20
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-07-treno.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 6c. Lo stesso da Lido Centro (come la prova Android): per confronto
+          lido=$(sqlite3 ios/Risorse/reti.db "SELECT id FROM fermate WHERE id LIKE 'F:%' AND nome LIKE '%Lido Centro%' LIMIT 1")
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "fermata:$lido" -apriPrimoTreno YES
+          sleep 20
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-07b-treno-lido.png
           ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i palina > /tmp/esito/crash.txt || true
           # 7. Apple Watch con il tabellone di esempio del motore (senza iPhone collegato)
           orologio=$(xcrun simctl create prova-watch "Apple Watch Series 11 (46mm)" 2>/dev/null || xcrun simctl create prova-watch "Apple Watch Series 10 (46mm)")
