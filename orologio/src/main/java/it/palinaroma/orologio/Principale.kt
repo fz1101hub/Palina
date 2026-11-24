@@ -66,6 +66,8 @@ import it.palinaroma.ponte.FermataTreno
 import it.palinaroma.ponte.RigaOrologio
 import it.palinaroma.ponte.TabelloneOrologio
 import it.palinaroma.ponte.TrenoOrologio
+import it.palinaroma.ponte.Seguimento
+import it.palinaroma.ponte.seguimento
 import it.palinaroma.ponte.chiaveLinea
 import it.palinaroma.ponte.oraBreve
 import it.palinaroma.ponte.prossimi

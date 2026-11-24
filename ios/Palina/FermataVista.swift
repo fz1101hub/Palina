@@ -8,6 +8,7 @@ struct FermataVista: View {
     @EnvironmentObject private var preferiti: Preferiti
     @EnvironmentObject private var navigazione: Navigazione
     @EnvironmentObject private var tragitti: Tragitti
+    @EnvironmentObject private var seguito: Seguito
     @State private var motore: MotoreFermata?
     @State private var voce: VoceFermata?
     @State private var linee: [VoceLinea] = []
@@ -122,9 +123,30 @@ struct FermataVista: View {
                 Label(riga.fissata ? "Togli" : "Fissa", systemImage: riga.fissata ? "pin.slash" : "pin")
             }
             .tint(Tavolozza.oro)
+            Button {
+                Task { await seguito.segui(fermataId: fermataId, lineaId: riga.lineaId, capolinea: riga.capolinea) }
+            } label: {
+                Label("Segui", systemImage: "bell")
+            }
+            .tint(Tavolozza.porpora)
+        }
+        .contextMenu {
+            Button {
+                Task { await seguito.segui(fermataId: fermataId, lineaId: riga.lineaId, capolinea: riga.capolinea) }
+            } label: {
+                Label("Segui il \(riga.nome): avviso 2 minuti prima", systemImage: "bell")
+            }
+            Button {
+                if let chiave = motore?.chiaveDaFissare(lineaId: riga.lineaId) { preferiti.alternaFissata(chiave) }
+            } label: {
+                Label(riga.fissata ? "Togli dalle tue linee" : "Fissa in cima", systemImage: riga.fissata ? "pin.slash" : "pin")
+            }
         }
         .accessibilityAction(named: riga.fissata ? "Togli il \(riga.nome) dalle tue linee" : "Fissa il \(riga.nome) in cima") {
             if let chiave = motore?.chiaveDaFissare(lineaId: riga.lineaId) { preferiti.alternaFissata(chiave) }
+        }
+        .accessibilityAction(named: "Segui il \(riga.nome)") {
+            Task { await seguito.segui(fermataId: fermataId, lineaId: riga.lineaId, capolinea: riga.capolinea) }
         }
     }
 
@@ -144,6 +166,10 @@ struct FermataVista: View {
                 if caricando, Prova.apriPrimoTreno,
                    let treno = ((tabellone?.fissate ?? []) + (tabellone?.altre ?? [])).compactMap({ $0.treno }).first {
                     navigazione.percorso.append(.corsa(treno))
+                }
+                // prove: -provaSegui YES segue la prima linea del tabellone
+                if caricando, Prova.segui, let prima = ((tabellone?.fissate ?? []) + (tabellone?.altre ?? [])).first {
+                    await seguito.segui(fermataId: fermataId, lineaId: prima.lineaId, capolinea: prima.capolinea)
                 }
                 caricando = false
             } else {

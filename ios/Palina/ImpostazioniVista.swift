@@ -10,7 +10,7 @@ struct ImpostazioniVista: View {
 
     var body: some View {
         List {
-            Section(testi.ASPETTO) {
+            Section {
                 ForEach(testi.aspetti, id: \.chiave) { scelta in
                     Button {
                         aspetto = scelta.chiave
@@ -41,6 +41,8 @@ struct ImpostazioniVista: View {
                     Text("7′").font(Tavolozza.cifre(26, aPunti: cifreLed)).foregroundStyle(Tavolozza.oro)
                 }
                 .accessibilityHidden(true)
+            } header: {
+                Text(testi.ASPETTO)
             } footer: {
                 Text(testi.grandezzaTesto(sistema: "iOS"))
             }

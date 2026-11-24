@@ -7,6 +7,7 @@ struct HomeVista: View {
     @EnvironmentObject private var posizione: Posizione
     @EnvironmentObject private var preferiti: Preferiti
     @EnvironmentObject private var navigazione: Navigazione
+    @EnvironmentObject private var seguito: Seguito
     @State private var testo = ""
     @State private var vicine: [VoceFermata] = []
     @State private var stato: StatoHome?
@@ -87,6 +88,11 @@ struct HomeVista: View {
 
     @ViewBuilder
     private var contenuto: some View {
+        if let s = seguito.stato {
+            Section("Stai seguendo") {
+                SchedaSeguito(stato: s) { seguito.smetti() }
+            }
+        }
         if let avviso = stato?.avviso {
             Text(avviso).font(.footnote).foregroundStyle(Tavolozza.oro)
         }
@@ -253,5 +259,43 @@ struct Pillola: View {
                 pillola.tempoReale ? Tavolozza.oro.opacity(0.16) : Color(.tertiarySystemFill),
                 in: RoundedRectangle(cornerRadius: 13)
             )
+    }
+}
+
+/** La linea seguita: linea, capolinea, fermata e il conto alla rovescia, con "Smetti". */
+struct SchedaSeguito: View {
+    let stato: StatoSegui
+    let smetti: () -> Void
+
+    var body: some View {
+        let arrivo = Date(timeIntervalSince1970: Double(stato.arrivoMs) / 1000)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                BadgeLinea(nome: stato.linea, colore: stato.colore, grande: true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("→ " + stato.capolinea).font(.headline).lineLimit(1)
+                    Text(stato.fermata + " · " + stato.fonte).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer()
+                Group {
+                    if arrivo > Date() {
+                        Text(timerInterval: Date()...arrivo, countsDown: true)
+                    } else {
+                        Text("ora")
+                    }
+                }
+                .font(.title2.bold())
+                .monospacedDigit()
+                .foregroundStyle(stato.tempoReale ? Tavolozza.oro : .primary)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(stato.titolo + ". " + stato.testo)
+            Button(role: .destructive, action: smetti) {
+                Label("Smetti di seguire", systemImage: "bell.slash")
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(.vertical, 4)
+        .accessibilityIdentifier("seguito")
     }
 }

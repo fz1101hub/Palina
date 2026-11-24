@@ -15,20 +15,6 @@ enum Tavolozza {
     }
 }
 
-extension Color {
-    /** Un colore ARGB del motore (0xFF862633). */
-    init(argb: Int64) {
-        let v = UInt32(truncatingIfNeeded: argb)
-        self.init(
-            .sRGB,
-            red: Double((v >> 16) & 0xFF) / 255,
-            green: Double((v >> 8) & 0xFF) / 255,
-            blue: Double(v & 0xFF) / 255,
-            opacity: Double((v >> 24) & 0xFF) / 255
-        )
-    }
-}
-
 /** Il riquadro colorato con il nome della linea ("64", "MEB", "Metromare"). */
 struct BadgeLinea: View {
     let nome: String

@@ -1,6 +1,7 @@
 package it.palinaroma.ponte
 
 import it.palinaroma.dati.Orario
+import it.palinaroma.dati.ScriviJson
 import it.palinaroma.dati.Punto
 import it.palinaroma.dati.StatoCorsa
 import it.palinaroma.dati.statoCorsa
@@ -80,6 +81,8 @@ data class StatoWatch(
 class MotoreWatch {
     private var tabellone: TabelloneOrologio? = null
 
+    internal fun tabelloneAttuale(): TabelloneOrologio? = tabellone
+
     /** Il tabellone ricevuto in JSON: vero se e' piu' nuovo di quello che c'era. */
     fun ricevi(json: String): Boolean {
         val nuovo = CodificaOrologio.leggi(json) ?: return false
@@ -137,4 +140,39 @@ class MotoreWatch {
             vecchio = adessoMs - t.creato > 60_000,
         )
     }
+}
+
+/**
+ * Le complicazioni e lo Smart Stack dell'Apple Watch: il contenuto del widget
+ * Wear OS (stesso calcolo) minuto per minuto per la prossima ora, in JSON, da
+ * dare a WidgetKit. Ogni voce: "alle" (ms), "titolo", "righe" (linea, colore,
+ * passaggi, tempoReale), "nota", e per le complicazioni piccole "linea" e "tra".
+ */
+fun MotoreWatch.complicazioni(): String = complicazioniDi(tabelloneAttuale(), adessoMs())
+
+internal fun complicazioniDi(t: TabelloneOrologio?, adessoMs: Long): String {
+    val inizio = adessoMs / 60_000 * 60_000
+    val voci = (0 until 60).map { i ->
+        val alle = inizio + i * 60_000L
+        val adesso = alle / 1000
+        val c = contenutoWidget(t, adesso, piccolo = false)
+        val primo = fermataDelRiquadro(t, adesso)?.primoPassaggio(adesso)
+        buildMap<String, Any?> {
+            put("alle", alle)
+            put("titolo", c.titolo)
+            put(
+                "righe",
+                c.righe.map { r ->
+                    mapOf("linea" to r.linea, "colore" to (r.colore.toLong() and 0xFFFFFFFFL), "passaggi" to r.passaggi, "tempoReale" to r.tempoReale)
+                },
+            )
+            put("nota", c.nota)
+            if (primo != null) {
+                put("linea", primo.first.linea.take(7))
+                put("tra", testoMinuti(primo.second, adesso))
+                put("colore", primo.first.colore.toLong() and 0xFFFFFFFFL)
+            }
+        }
+    }
+    return ScriviJson.testo(mapOf("voci" to voci))
 }

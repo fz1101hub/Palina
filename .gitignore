@@ -23,3 +23,5 @@ __pycache__/
 /ios/Palina.xcodeproj/
 /ios/Risorse/*.db
 .kotlin/
+/ios/Risorse/orario-incluso.txt
+/ios/Risorse/reti-incluse.txt

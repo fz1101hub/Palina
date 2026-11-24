@@ -19,6 +19,8 @@ targets:
     platform: iOS
     sources:
       - path: Palina
+      - path: Condiviso/Colore.swift
+      - path: Condiviso/Segui
       - path: Risorse
         type: folder
         buildPhase: resources
@@ -28,6 +30,9 @@ targets:
       - sdk: libsqlite3.tbd
       # l'app per Apple Watch va dentro quella per iPhone
       - target: PalinaWatch
+      # la Live Activity di "Segui"
+      - target: PalinaWidget
+        embed: true
     info:
       path: Palina/Info.plist
       properties:
@@ -39,6 +44,8 @@ targets:
         NSLocationWhenInUseUsageDescription: "Palina usa la tua posizione per mostrarti le fermate vicine e per calcolare i tragitti."
         # le cifre a punti delle paline (Doto, SIL Open Font License)
         UIAppFonts: [Doto-Black.ttf]
+        # "Segui": il conto alla rovescia sulla schermata di blocco e nella Dynamic Island
+        NSSupportsLiveActivities: true
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:
@@ -59,9 +66,18 @@ targets:
     platform: watchOS
     sources:
       - path: PalinaWatch
+      - path: Condiviso/Colore.swift
+      - path: Condiviso/Orologio
     dependencies:
       - framework: ../motore/build/XCFrameworks/debug/Motore.xcframework
         embed: false
+      # complicazioni e Smart Stack
+      - target: PalinaWatchWidget
+        embed: true
+    entitlements:
+      path: PalinaWatch/PalinaWatch.entitlements
+      properties:
+        com.apple.security.application-groups: [group.it.palinaroma]
     info:
       path: PalinaWatch/Info.plist
       properties:
@@ -75,6 +91,61 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: it.palinaroma.watchkitapp
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         OTHER_LDFLAGS: ["-lc++"]
+        EXCLUDED_ARCHS[sdk=watchsimulator*]: x86_64
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
+
+  # La Live Activity di "Segui" sull'iPhone (anche nello Smart Stack dell'Apple Watch)
+  PalinaWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PalinaWidget
+      - path: Condiviso/Colore.swift
+      - path: Condiviso/Segui
+    info:
+      path: PalinaWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Palina
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.palinaroma.widget
+        TARGETED_DEVICE_FAMILY: "1"
+        EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
+
+  # Le complicazioni dell'Apple Watch: la prossima linea alla fermata preferita piu' vicina
+  PalinaWatchWidget:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: PalinaWatchWidget
+      - path: Condiviso/Colore.swift
+      - path: Condiviso/Orologio
+    entitlements:
+      path: PalinaWatchWidget/PalinaWatchWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [group.it.palinaroma]
+    info:
+      path: PalinaWatchWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Palina
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.palinaroma.watchkitapp.widget
         EXCLUDED_ARCHS[sdk=watchsimulator*]: x86_64
         CODE_SIGN_STYLE: Manual
         CODE_SIGNING_ALLOWED: "NO"

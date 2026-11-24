@@ -7,6 +7,7 @@ struct PalinaApp: App {
     @StateObject private var posizione = Posizione()
     @StateObject private var preferiti = Preferiti()
     @StateObject private var tragitti = Tragitti()
+    @StateObject private var seguito = Seguito()
     @AppStorage("aspetto") private var aspetto = "AUTOMATICO"
 
     init() {
@@ -22,6 +23,7 @@ struct PalinaApp: App {
                 .environmentObject(posizione)
                 .environmentObject(preferiti)
                 .environmentObject(tragitti)
+                .environmentObject(seguito)
                 .tint(Tavolozza.oro)
                 .onAppear {
                     // l'Apple Watch chiede il tabellone all'iPhone
@@ -32,7 +34,14 @@ struct PalinaApp: App {
                     guard let orario = archivio.orario else { return }
                     let primo = tragitti.motore == nil
                     tragitti.prepara(orario: orario)
+                    seguito.prepara(orario: orario)
                     if primo, let fermata = Prova.tragittoVerso { tragitti.versoFermata(fermata) }
+                }
+                .task { await seguito.ciclo() }
+                .alert("Segui", isPresented: Binding(get: { seguito.messaggio != nil }, set: { if !$0 { seguito.messaggio = nil } })) {
+                    Button("OK", role: .cancel) { seguito.messaggio = nil }
+                } message: {
+                    Text(seguito.messaggio ?? "")
                 }
                 .preferredColorScheme(aspetto == "CHIARO" ? .light : aspetto == "SCURO" ? .dark : nil)
         }
@@ -127,6 +136,9 @@ enum Prova {
         guard let apri = UserDefaults.standard.string(forKey: "apri"), apri.hasPrefix("tragitto:") else { return nil }
         return String(apri.dropFirst("tragitto:".count))
     }
+
+    /** `-provaSegui YES`: nella fermata aperta segue la prima linea (senza chiedere le notifiche). */
+    static var segui: Bool { UserDefaults.standard.bool(forKey: "provaSegui") }
 
     /** `-apriPrimoTragitto YES`: apre il primo tragitto appena c'e'. */
     static var apriPrimoTragitto: Bool { UserDefaults.standard.bool(forKey: "apriPrimoTragitto") }

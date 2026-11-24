@@ -26,9 +26,9 @@ import androidx.wear.watchface.complications.data.TimeDifferenceStyle
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import com.google.common.util.concurrent.ListenableFuture
-import it.palinaroma.ponte.FermataOrologio
 import it.palinaroma.ponte.RigaOrologio
 import it.palinaroma.ponte.TabelloneOrologio
+import it.palinaroma.ponte.fermataDelRiquadro
 import it.palinaroma.ponte.primoPassaggio
 import it.palinaroma.ponte.prossimi
 import it.palinaroma.ponte.testoPassaggi
@@ -76,10 +76,6 @@ fun riquadro(t: TabelloneOrologio?, adesso: Long, pacchetto: String): TileBuilde
         .setFreshnessIntervalMillis(60_000)
         .setTileTimeline(TimelineBuilders.Timeline.fromLayoutElement(contenutoRiquadro(t, adesso, pacchetto)))
         .build()
-
-/** La fermata da mostrare: la prima con qualche passaggio, altrimenti la prima. */
-fun fermataDelRiquadro(t: TabelloneOrologio?, adesso: Long): FermataOrologio? =
-    t?.fermate?.firstOrNull { f -> f.righe.any { it.prossimi(adesso).isNotEmpty() } } ?: t?.fermate?.firstOrNull()
 
 fun contenutoRiquadro(t: TabelloneOrologio?, adesso: Long, pacchetto: String): LayoutElementBuilders.LayoutElement {
     val colonna = LayoutElementBuilders.Column.Builder()

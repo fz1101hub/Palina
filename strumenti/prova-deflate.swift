@@ -3,7 +3,10 @@
 import Foundation
 
 let argomenti = CommandLine.arguments
-let compresso = try NSData(contentsOfFile: argomenti[1])
+guard let compresso = NSData(contentsOfFile: argomenti[1]) else {
+    print("orario compresso per iPhone: non trovo \(argomenti[1])")
+    exit(1)
+}
 let aperto = try compresso.decompressed(using: .zlib) as Data
 let originale = try Data(contentsOf: URL(fileURLWithPath: argomenti[2]))
 if aperto == originale {

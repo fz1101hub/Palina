@@ -120,6 +120,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -o pipefail
           mkdir -p /tmp/apk
           gh release download ultima -p app-release.apk -D /tmp/apk
           unzip -o -j /tmp/apk/app-release.apk assets/orario.db assets/reti.db assets/orario-incluso.txt assets/reti-incluse.txt -d ios/Risorse
@@ -218,6 +219,20 @@ jobs:
           sleep 8
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-11-impostazioni.png
           xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 11. Segui la prima linea di piazza Venezia: Live Activity, poi la Home con "Stai seguendo"
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri fermata:70078 -provaSegui YES
+          sleep 16
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-12-segui.png
+          # con Palina dietro un'altra app il conto alla rovescia va nella Dynamic Island
+          xcrun simctl launch "$dispositivo" com.apple.Preferences
+          sleep 4
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-13-isola.png
+          xcrun simctl terminate "$dispositivo" com.apple.Preferences || true
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826
+          sleep 10
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-14-home-segui.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
           ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i palina > /tmp/esito/crash.txt || true
           # 7. Apple Watch con il tabellone di esempio del motore (senza iPhone collegato)
           orologio=$(xcrun simctl create prova-watch "Apple Watch Series 11 (46mm)" 2>/dev/null || xcrun simctl create prova-watch "Apple Watch Series 10 (46mm)")
@@ -245,6 +260,21 @@ jobs:
             CODE_SIGNING_ALLOWED=NO build 2>&1 | tee /tmp/esito/xcode-iphone.log | grep -E "error:|BUILD" || true
           mkdir -p /tmp/ipa/Payload
           cp -R build/dd/Build/Products/Debug-iphoneos/Palina.app /tmp/ipa/Payload/
+          # firma "ad hoc" con gli entitlement (il gruppo per le complicazioni dell'Apple Watch):
+          # AltStore e Sideloadly rifirmano con il proprio account ma leggono da qui cosa serve
+          app=/tmp/ipa/Payload/Palina.app
+          for estensione in "$app"/Watch/*.app/PlugIns/*.appex; do
+            [ -d "$estensione" ] && codesign -f -s - --entitlements PalinaWatchWidget/PalinaWatchWidget.entitlements "$estensione"
+          done
+          for orologio in "$app"/Watch/*.app; do
+            [ -d "$orologio" ] && codesign -f -s - --entitlements PalinaWatch/PalinaWatch.entitlements "$orologio"
+          done
+          for estensione in "$app"/PlugIns/*.appex; do
+            [ -d "$estensione" ] && codesign -f -s - "$estensione"
+          done
+          codesign -f -s - "$app"
+          codesign -d --entitlements - "$app"/Watch/*.app 2>&1 | tee /tmp/esito/firma.txt || true
+          find "$app" -maxdepth 4 -name "*.appex" -o -maxdepth 4 -name "*.app" | tee -a /tmp/esito/firma.txt
           (cd /tmp/ipa && zip -qr PalinaRoma-iOS.ipa Payload)
           test -f /tmp/ipa/Payload/Palina.app/Palina
           ls -la /tmp/ipa/PalinaRoma-iOS.ipa | tee /tmp/esito/ipa.txt

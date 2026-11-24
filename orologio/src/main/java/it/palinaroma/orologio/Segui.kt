@@ -16,15 +16,13 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.wear.ongoing.OngoingActivity
 import androidx.wear.ongoing.Status
-import it.palinaroma.ponte.FermataOrologio
-import it.palinaroma.ponte.LineaSeguita
-import it.palinaroma.ponte.RigaOrologio
-import it.palinaroma.ponte.TabelloneOrologio
-import it.palinaroma.ponte.chiaveLinea
-import it.palinaroma.ponte.oraBreve
-import it.palinaroma.ponte.prossimi
-import it.palinaroma.ponte.riga
-import it.palinaroma.ponte.testoMinuti
+import it.palinaroma.ponte.AVVISO_SECONDI
+import it.palinaroma.ponte.Seguimento
+import it.palinaroma.ponte.ricalcola
+import it.palinaroma.ponte.testoAvvisoSegui
+import it.palinaroma.ponte.testoSegui
+import it.palinaroma.ponte.titoloAvvisoSegui
+import it.palinaroma.ponte.titoloSegui
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -37,100 +35,6 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.math.abs
-
-/** Per quanto si segue al massimo una linea (poi si smette da soli). */
-const val DURATA_MASSIMA_MS = 2 * 60 * 60_000L
-
-/** A quanti secondi dall'arrivo l'orologio vibra. */
-const val AVVISO_SECONDI = 120L
-
-/**
- * Una linea seguita sull'orologio: il prossimo passaggio a una fermata, con il
- * conto alla rovescia sul quadrante (Live Update da Wear OS 7, attivita' in
- * corso prima) finche' il mezzo non arriva.
- */
-data class Seguimento(
-    val fermataId: String,
-    val fermata: String,
-    /** Per ritrovare la riga nei tabelloni successivi (vedi [chiaveLinea]). */
-    val chiaveLinea: String,
-    val lineaId: String,
-    val linea: String,
-    val capolinea: String,
-    val colore: Int,
-    /** Il passaggio seguito, in secondi. */
-    val obiettivo: Long,
-    val tempoReale: Boolean,
-    /** Quando si e' cominciato, in millisecondi. */
-    val inizio: Long,
-    /** Il tabellone da cui viene [obiettivo] ([TabelloneOrologio.creato]). */
-    val aggiornato: Long,
-    /** Ha gia' vibrato per l'arrivo. */
-    val avvisato: Boolean = false,
-) {
-    /** Da chiedere al telefono, perche' la tenga nel tabellone anche lontano dalla fermata. */
-    val lineaSeguita: LineaSeguita? get() = lineaId.takeIf { it.isNotEmpty() }?.let { LineaSeguita(fermataId, it) }
-
-    fun stessaRiga(fermataId: String, chiaveLinea: String, capolinea: String): Boolean =
-        this.fermataId == fermataId && this.chiaveLinea == chiaveLinea && this.capolinea == capolinea
-}
-
-/** Si comincia a seguire il prossimo passaggio della riga [r]; null se non ne ha. [adesso] in secondi. */
-fun seguimento(f: FermataOrologio, r: RigaOrologio, t: TabelloneOrologio, adesso: Long): Seguimento? {
-    val primo = r.prossimi(adesso).firstOrNull() ?: return null
-    return Seguimento(
-        fermataId = f.id,
-        fermata = f.nome,
-        chiaveLinea = r.chiaveLinea,
-        lineaId = r.lineaId,
-        linea = r.linea,
-        capolinea = r.capolinea,
-        colore = r.colore,
-        obiettivo = primo,
-        tempoReale = r.tempoReale,
-        inizio = adesso * 1000,
-        aggiornato = t.creato,
-    )
-}
-
-/**
- * Il seguimento [s] con i tempi del tabellone [t]. Finche' il mezzo non e'
- * arrivato si segue il passaggio piu' vicino a quello di prima (il tempo reale
- * lo sposta); quando e' arrivato non si passa al successivo. Null quando e'
- * finito: passato da un minuto, o dopo [DURATA_MASSIMA_MS]. [adesso] in secondi.
- */
-fun ricalcola(s: Seguimento, t: TabelloneOrologio?, adesso: Long): Seguimento? {
-    if (adesso * 1000 - s.inizio > DURATA_MASSIMA_MS) return null
-    var nuovo = s
-    if (t != null && t.creato > s.aggiornato && s.obiettivo > adesso + 30) {
-        val riga = t.riga(s.fermataId, s.chiaveLinea, s.capolinea)
-        val prossimi = riga?.prossimi(adesso).orEmpty()
-        val scelto = prossimi.minByOrNull { abs(it - s.obiettivo) }
-        nuovo = if (riga != null && scelto != null) {
-            s.copy(
-                obiettivo = scelto,
-                tempoReale = riga.tempoReale && scelto == prossimi.first(),
-                aggiornato = t.creato,
-                // se il mezzo e' in ritardo si vibra di nuovo quando si avvicina
-                avvisato = s.avvisato && scelto - adesso <= AVVISO_SECONDI + 30,
-            )
-        } else {
-            s.copy(aggiornato = t.creato)
-        }
-    }
-    return nuovo.takeIf { it.obiettivo >= adesso - 60 }
-}
-
-/** "64 → Stazione San Pietro". */
-fun titoloSegui(s: Seguimento): String = "${s.linea} → ${s.capolinea}"
-
-/** "Piazza Venezia · tra 4' (14:05) · tempo reale". [adesso] in secondi. */
-fun testoSegui(s: Seguimento, adesso: Long): String {
-    val minuti = testoMinuti(s.obiettivo, adesso)
-    val quando = if (minuti == "ora") "in arrivo" else "tra $minuti"
-    return "${s.fermata} · $quando (${oraBreve(s.obiettivo * 1000)}) · " + if (s.tempoReale) "tempo reale" else "da orario"
-}
 
 /** Il seguimento in corso. */
 object Seguito {
@@ -238,11 +142,10 @@ object NotificheSegui {
 
     /** La vibrazione quando il mezzo e' vicino. */
     fun avvisoArrivo(context: Context, s: Seguimento, adesso: Long): Notification {
-        val minuti = testoMinuti(s.obiettivo, adesso)
         return NotificationCompat.Builder(context, CANALE_ARRIVO)
             .setSmallIcon(R.drawable.ic_notifica)
-            .setContentTitle("${s.linea} in arrivo")
-            .setContentText("${s.fermata}: " + (if (minuti == "ora") "ora" else "tra $minuti") + ", verso ${s.capolinea}")
+            .setContentTitle(titoloAvvisoSegui(s))
+            .setContentText(testoAvvisoSegui(s, adesso))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)

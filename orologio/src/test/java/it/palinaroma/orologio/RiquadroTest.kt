@@ -3,6 +3,12 @@ package it.palinaroma.orologio
 import it.palinaroma.ponte.RigaOrologio
 import it.palinaroma.ponte.TabelloneOrologio
 import it.palinaroma.ponte.tabelloneDiEsempio
+import it.palinaroma.ponte.contenutoWidget
+import it.palinaroma.ponte.fermataDelRiquadro
+import it.palinaroma.ponte.ricalcola
+import it.palinaroma.ponte.seguimento
+import it.palinaroma.ponte.testoSegui
+import it.palinaroma.ponte.titoloSegui
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull

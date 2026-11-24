@@ -442,18 +442,18 @@ fun corsaDiEsempio(treno: TrenoOrologio, adesso: Long): CorsaOrologio {
 // --- lettura del JSON (oggetti come Map, numeri come Double), come gli opt* di org.json
 
 @Suppress("UNCHECKED_CAST")
-private fun oggetto(v: Any?): Map<String, Any?> = v as? Map<String, Any?> ?: throw IllegalArgumentException("non e' un oggetto")
+internal fun oggetto(v: Any?): Map<String, Any?> = v as? Map<String, Any?> ?: throw IllegalArgumentException("non e' un oggetto")
 
 @Suppress("UNCHECKED_CAST")
-private fun oggetti(v: Any?): List<Map<String, Any?>> = (v as? List<*>).orEmpty().mapNotNull { it as? Map<String, Any?> }
+internal fun oggetti(v: Any?): List<Map<String, Any?>> = (v as? List<*>).orEmpty().mapNotNull { it as? Map<String, Any?> }
 
-private fun Map<String, Any?>.testoO(chiave: String): String = when (val v = this[chiave]) {
+internal fun Map<String, Any?>.testoO(chiave: String): String = when (val v = this[chiave]) {
     null -> ""
     is String -> v
     is Double -> if (v == kotlin.math.floor(v)) v.toLong().toString() else v.toString()
     else -> v.toString()
 }
 
-private fun Map<String, Any?>.lungo(chiave: String): Long? = (this[chiave] as? Number)?.toLong()
+internal fun Map<String, Any?>.lungo(chiave: String): Long? = (this[chiave] as? Number)?.toLong()
 
-private fun Map<String, Any?>.intero(chiave: String): Int? = (this[chiave] as? Number)?.toLong()?.toInt()
+internal fun Map<String, Any?>.intero(chiave: String): Int? = (this[chiave] as? Number)?.toLong()?.toInt()

@@ -1,5 +1,6 @@
 import Foundation
 import WatchConnectivity
+import WidgetKit
 import Motore
 
 /**
@@ -24,6 +25,7 @@ final class ArchivioWatch: NSObject, ObservableObject, WCSessionDelegate {
             _ = motore.ricevi(json: salvato)
         }
         stato = motore.stato()
+        scriviComplicazioni()
         if WCSession.isSupported() {
             WCSession.default.delegate = self
             WCSession.default.activate()
@@ -75,6 +77,13 @@ final class ArchivioWatch: NSObject, ObservableObject, WCSessionDelegate {
         memoria.set(json, forKey: "tabellone")
         irraggiungibile = false
         stato = motore.stato()
+        scriviComplicazioni()
+    }
+
+    /** Le voci delle complicazioni per la prossima ora (dal motore), poi WidgetKit le ridisegna. */
+    private func scriviComplicazioni() {
+        Gruppo.memoria.set(motore.complicazioni(), forKey: Gruppo.chiave)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // MARK: WCSessionDelegate

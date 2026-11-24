@@ -185,8 +185,9 @@ object StatoTragitto {
             is Quando.Arrivo -> q.istante to true
         }
         val r = cercaTragitti(partenza, arrivo, istante, arrivaEntro)
-        if (r.errore != null) {
-            esito = EsitoTragitti.Errore(r.errore)
+        val errore = r.errore
+        if (errore != null) {
+            esito = EsitoTragitti.Errore(errore)
             return
         }
         richiesta = Richiesta(partenza!!, arrivo!!, istante, arrivaEntro)
