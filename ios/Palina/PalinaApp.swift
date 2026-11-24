@@ -137,6 +137,9 @@ enum Prova {
         return String(apri.dropFirst("tragitto:".count))
     }
 
+    /** `-provaAggiorna YES`: nelle impostazioni cerca subito un orario nuovo nella release. */
+    static var aggiorna: Bool { UserDefaults.standard.bool(forKey: "provaAggiorna") }
+
     /** `-provaSegui YES`: nella fermata aperta segue la prima linea (senza chiedere le notifiche). */
     static var segui: Bool { UserDefaults.standard.bool(forKey: "provaSegui") }
 

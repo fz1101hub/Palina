@@ -222,6 +222,16 @@ jobs:
           sleep 8
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-11-impostazioni.png
           xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 10b. "Aggiorna ora": l'orario pubblicato nella release (o "gia' il piu' recente")
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "impostazioni:1" -provaAggiorna YES
+          sleep 40
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-11b-aggiornamento.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # dopo l'aggiornamento l'app riparte con l'orario scaricato
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "impostazioni:1"
+          sleep 10
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-11c-dopo-aggiornamento.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
           # 11. Segui la prima linea di piazza Venezia: Live Activity, poi la Home con "Stai seguendo"
           xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri fermata:70078 -provaSegui YES
           sleep 16

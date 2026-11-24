@@ -86,6 +86,10 @@ struct ImpostazioniVista: View {
         .listStyle(.insetGrouped)
         .navigationTitle(testi.TITOLO)
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            // prove: scarica l'orario pubblicato nella release, come "Aggiorna ora"
+            if Prova.aggiorna, archivio.orario != nil { await archivio.controlla(automatico: false) }
+        }
     }
 
     private var versione: String {
