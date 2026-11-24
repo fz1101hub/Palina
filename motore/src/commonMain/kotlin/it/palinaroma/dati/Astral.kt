@@ -1,18 +1,9 @@
 package it.palinaroma.dati
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
-import java.time.ZonedDateTime
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * I treni Cotral (Metromare e Roma–Viterbo) in tempo reale, dal servizio orari
@@ -44,25 +35,22 @@ object Astral {
     )
 
     /** Le stazioni di ogni percorso cambiano di rado: si leggono una volta per avvio dell'app. */
-    private val stazioni = ConcurrentHashMap<String, List<StazioneAstral>>()
+    private val stazioni = MappaCondivisa<String, List<StazioneAstral>>()
 
-    private val tipoJson = "application/json".toMediaType()
-
-    private fun chiedi(percorso: String, corpo: String): String {
-        val richiesta = Request.Builder()
-            .url("$API/$percorso")
-            .post(corpo.toRequestBody(tipoJson))
-            .header("User-Agent", Archivio.agenteUtente)
-            .header("Accept", "application/json")
-            .build()
-        Archivio.httpBreve.newCall(richiesta).execute().use { risposta ->
-            val testo = risposta.body.string()
-            if (!risposta.isSuccessful) throw IllegalStateException("ASTRAL ha risposto ${risposta.code}")
-            return testo
-        }
+    private suspend fun chiedi(percorso: String, corpo: String): String {
+        val risposta = Collegamento.http.richiedi(
+            "$API/$percorso",
+            mapOf("User-Agent" to Collegamento.agenteUtente, "Accept" to "application/json"),
+            Attesa.BREVE,
+            corpo.encodeToByteArray(),
+            "application/json; charset=utf-8",
+        )
+        val testo = risposta.testo()
+        if (!risposta.riuscita) throw IllegalStateException("ASTRAL ha risposto ${risposta.codice}")
+        return testo
     }
 
-    private fun stazioniDi(percorso: String): List<StazioneAstral> =
+    private suspend fun stazioniDi(percorso: String): List<StazioneAstral> =
         stazioni[percorso] ?: leggiStazioni(chiedi("fermate/$percorso", "{}")).also { stazioni[percorso] = it }
 
     /**
@@ -75,7 +63,7 @@ object Astral {
         lineeGtfs: Map<String, String>,
         adessoMs: Long,
         orizzonteMinuti: Int = 90,
-    ): List<PassaggioLinea>? = withContext(Dispatchers.IO) {
+    ): List<PassaggioLinea>? = withContext(dispatcherDati) {
         val percorsi = PERCORSI.filter { it.linea in lineeGtfs }
         if (percorsi.isEmpty()) return@withContext null
         val risultati = coroutineScope {
@@ -124,7 +112,7 @@ private fun righe(testo: String): List<Map<String, Any?>> {
 private fun testoDi(v: Any?): String = when (v) {
     null -> ""
     is String -> v.trim()
-    is Double -> if (v == Math.floor(v) && !v.isInfinite()) v.toLong().toString() else v.toString()
+    is Double -> if (v == kotlin.math.floor(v) && !v.isInfinite()) v.toLong().toString() else v.toString()
     is Number -> v.toString()
     is Boolean -> if (v) "Y" else ""
     else -> ""
@@ -190,7 +178,6 @@ private fun sottosequenza(corta: String, lunga: String): Boolean {
     return i == corta.length
 }
 
-private val ROMA = ZoneId.of("Europe/Rome")
 
 /**
  * I transiti del giorno trasformati nei passaggi dei prossimi [orizzonteMinuti]:
@@ -204,16 +191,14 @@ fun passaggiDaTransiti(
     adessoMs: Long,
     orizzonteMinuti: Int,
 ): List<PassaggioLinea> {
-    val adesso = ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(adessoMs), ROMA)
-    val oggi: LocalDate = adesso.toLocalDate()
+    val oggi = giornoARoma(adessoMs)
+    val adessoS = adessoMs / 1000
     return voci.mapNotNull { v ->
         val (h, m) = v.ora.split(':').map { it.toInt() }
         if (h > 23 || m > 59) return@mapNotNull null
-        var quando = ZonedDateTime.of(oggi, LocalTime.of(h, m), ROMA)
-        if (quando.isBefore(adesso.minusHours(6))) quando = quando.plusDays(1)
-        val previsto = quando.toEpochSecond()
+        var previsto = secondiARoma(oggi, h, m)
+        if (previsto < adessoS - 6 * 3600) previsto = secondiARoma(oggi, h, m, giorniDopo = 1)
         val atteso = previsto + (v.ritardo ?: 0) * 60L
-        val adessoS = adessoMs / 1000
         if (atteso - adessoS !in -30..(orizzonteMinuti * 60L)) return@mapNotNull null
         val avviso = when {
             v.soppresso -> "soppresso"

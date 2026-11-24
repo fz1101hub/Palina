@@ -72,17 +72,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Arrivo
-import it.palinaroma.dati.BusOne
+import it.palinaroma.dati.ArriviFermate
+import it.palinaroma.dati.CaricatoreArrivi
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.Linea
 import it.palinaroma.dati.Orario
-import it.palinaroma.dati.FontiFermata
 import it.palinaroma.dati.Rete
-import it.palinaroma.dati.caricaFonti
 import it.palinaroma.dati.StatoAggiornamento
-import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.ancoraAttesi
-import it.palinaroma.dati.arriviStazione
 import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.dividiArrivi
 import it.palinaroma.dati.fraseArrivo
@@ -95,9 +92,6 @@ import it.palinaroma.dati.testoAggiornato
 import it.palinaroma.dati.testoMetri
 import it.palinaroma.dati.testoPoi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
@@ -182,71 +176,20 @@ fun HomeSchermo(
     }
 }
 
-/** I passaggi delle fermate mostrate in Home, e di quando sono. */
-private data class ArriviHome(
-    val perFermata: Map<String, List<Arrivo>> = emptyMap(),
-    val aggiornatoAlle: Long = 0L,
-    val errore: Boolean = false,
-    /** Il feed di Roma Mobilita' si legge ma non ha nessuna corsa (o e' fermo). */
-    val romaFerma: Boolean = false,
-)
-
 /**
  * Tiene aggiornati i passaggi delle fermate in Home, ogni 30 secondi e solo
- * mentre la Home si vede. Per tutte: il feed in tempo reale di Roma Mobilita'
- * (uno solo per tutta la citta', gia' in memoria se si e' aperta una fermata).
- * Per le prime preferite anche gli orari di Transitous, al massimo una volta al minuto.
+ * mentre la Home si vede (il calcolo e' nel motore condiviso: [CaricatoreArrivi]).
  */
 @Composable
-private fun rememberArriviHome(orario: Orario, complete: List<Fermata>, soloTempoReale: List<String>, riprova: Int): ArriviHome {
-    var stato by remember { mutableStateOf(ArriviHome()) }
+private fun rememberArriviHome(orario: Orario, complete: List<Fermata>, soloTempoReale: List<String>, riprova: Int): ArriviFermate {
+    var stato by remember { mutableStateOf(ArriviFermate()) }
     val ciclo = LocalLifecycleOwner.current
-    val fonti = remember { HashMap<String, Pair<Long, FontiFermata>>() }
+    val caricatore = remember { CaricatoreArrivi() }
     val idComplete = complete.map { it.id }
     LaunchedEffect(orario, idComplete, soloTempoReale, riprova) {
         ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
-                val adessoMs = System.currentTimeMillis()
-                // i bus Cotral col GPS servono solo se in Home c'e' una fermata Cotral
-                val conCotral = (idComplete + soloTempoReale).any { Rete.di(it) == Rete.COTRAL }
-                val (corse, mezzi) = coroutineScope {
-                    val c = async { seRiesce { TempoReale.corse() } }
-                    val m = async { seRiesce { TempoReale.mezzi() } }
-                    val mc = async { if (conCotral) seRiesce { BusOne.mezzi() } else null }
-                    // per le stazioni di scambio (Metromare e Metro B...) le fonti di ogni loro fermata
-                    val daCaricare = withContext(Dispatchers.IO) {
-                        complete.flatMap { f ->
-                            val membri = orario.stazioneUnita(f.id)
-                            if (membri.size == 1) listOf(f) else orario.fermate(membri).values.toList()
-                        }.distinctBy { it.id }
-                    }
-                    daCaricare.map { f ->
-                        async {
-                            val gia = fonti[f.id]
-                            if (gia == null || adessoMs - gia.first > 60_000) {
-                                caricaFonti(f, orario, adessoMs).takeIf { !it.vuote }?.let { fonti[f.id] = adessoMs to it }
-                            }
-                        }
-                    }.awaitAll()
-                    // i codici Cotral hanno il prefisso "C:": non si confondono con quelli di Roma
-                    c.await() to (m.await().orEmpty() + mc.await().orEmpty())
-                }
-                val fresche = fonti.values.any { it.first == adessoMs }
-                if (corse != null || fresche) {
-                    val ids = (idComplete + soloTempoReale).distinct()
-                    val adesso = System.currentTimeMillis() / 1000
-                    val calcolati = withContext(Dispatchers.IO) {
-                        ids.associateWith { id ->
-                            // il tempo reale di Roma Mobilita' vale solo per le sue fermate (lo filtra arriviStazione)
-                            val membri = orario.stazioneUnita(id)
-                            arriviStazione(membri, orario, corse, mezzi, membri.associateWith { fonti[it]?.second }, adesso)
-                        }
-                    }
-                    stato = ArriviHome(calcolati, System.currentTimeMillis(), errore = false, romaFerma = TempoReale.fermo(corse))
-                } else {
-                    // senza rete restano i tempi gia' letti, che si consumano da soli
-                    stato = stato.copy(errore = true)
-                }
+                stato = caricatore.aggiorna(orario, complete, soloTempoReale, stato)
                 delay(30_000)
             }
         }

@@ -2,12 +2,17 @@ package it.palinaroma
 
 import android.app.Application
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.Collegamento
+import it.palinaroma.dati.HttpAndroid
 import org.osmdroid.config.Configuration
 import java.io.File
 
 class PalinaApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        // la rete del motore condiviso con l'app per iPhone
+        Collegamento.http = HttpAndroid
+        Collegamento.agenteUtente = Archivio.agenteUtente
         val mappe = Configuration.getInstance()
         mappe.load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
         mappe.userAgentValue = Archivio.agenteUtente

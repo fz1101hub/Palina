@@ -1,7 +1,6 @@
 package it.palinaroma.dati
 
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
@@ -29,10 +28,10 @@ fun lineeGtfsTreniCotral(linee: List<LineaFermata>): Map<String, String> =
     linee.filter { Rete.di(it.linea.id) == Rete.COTRAL_TRENI }
         .associate { lf -> lf.linea.descrizione.ifEmpty { idOriginale(lf.linea.id) }.trim().uppercase() to lf.linea.id }
 
-suspend fun caricaFonti(fermata: Fermata, orario: Orario?, adessoMs: Long = System.currentTimeMillis()): FontiFermata {
+suspend fun caricaFonti(fermata: Fermata, orario: Orario?, adessoMs: Long = adessoMs()): FontiFermata {
     if (Rete.di(fermata.id) == Rete.COTRAL_TRENI) {
         // prima ASTRAL; Transitous solo se non risponde (altrimenti si aspetterebbe anche lui)
-        val linee = withContext(Dispatchers.IO) { lineeGtfsTreniCotral(orario?.lineeAllaFermata(fermata.id).orEmpty()) }
+        val linee = withContext(dispatcherDati) { lineeGtfsTreniCotral(orario?.lineeAllaFermata(fermata.id).orEmpty()) }
         provando { Astral.passaggi(fermata.nome, linee, adessoMs) }?.let { return FontiFermata(null, it) }
     }
     return FontiFermata(provando { Transitous.partenze(fermata.id, fermata.lat, fermata.lon) }, null)

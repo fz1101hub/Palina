@@ -1,5 +1,7 @@
 package it.palinaroma.dati
 
+import kotlin.math.roundToInt
+
 import kotlin.math.abs
 
 /**
@@ -27,7 +29,7 @@ data class FermataCorsa(
 ) {
     /** Minuti di ritardo (negativi se in anticipo), se l'orario e' aggiornato. */
     val ritardoMinuti: Int?
-        get() = if (orario != null && previsto != null) Math.round((orario - previsto) / 60_000.0).toInt() else null
+        get() = if (orario != null && previsto != null) ((orario - previsto) / 60_000.0).roundToInt() else null
 }
 
 /** Da dove vengono gli orari del dettaglio. */

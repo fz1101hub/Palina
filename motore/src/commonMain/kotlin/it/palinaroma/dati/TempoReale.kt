@@ -1,12 +1,12 @@
 package it.palinaroma.dati
 
+import kotlin.concurrent.Volatile
+
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import okhttp3.Request
-import java.io.IOException
 
 /**
  * Un passaggio a una fermata. [tracciato]: il tempo viene dal tempo reale (per
@@ -53,7 +53,7 @@ class RispostaFeed(val dati: ByteArray, val etag: String?, val modificato: Strin
 class FeedInMemoria<T>(
     private val validitaMs: Long,
     private val tolleranzaMs: Long = 120_000,
-    private val orologio: () -> Long = System::currentTimeMillis,
+    private val orologio: () -> Long = ::adessoMs,
     private val scarica: suspend (etag: String?, modificato: String?) -> RispostaFeed?,
     private val decodifica: (ByteArray) -> List<T>,
 ) {
@@ -114,7 +114,7 @@ object TempoReale {
     suspend fun mezzi(forza: Boolean = false): List<MezzoRT> = feedMezzi.ottieni(forza)
 
     /** Vero se il feed delle corse appena letto non dice niente: vedi [senzaTempoReale]. */
-    fun fermo(corse: List<CorsaRT>?): Boolean = senzaTempoReale(corse, istanteCorse, System.currentTimeMillis() / 1000)
+    fun fermo(corse: List<CorsaRT>?): Boolean = senzaTempoReale(corse, istanteCorse, adessoMs() / 1000)
 }
 
 /**
@@ -136,24 +136,19 @@ internal suspend fun scaricaFeed(
     etag: String?,
     modificato: String?,
     intestazioni: Map<String, String> = emptyMap(),
-): RispostaFeed? =
-    withContext(Dispatchers.IO) {
-        val richiesta = Request.Builder().url(url).header("User-Agent", Archivio.agenteUtente)
-        intestazioni.forEach { (nome, valore) -> richiesta.header(nome, valore) }
-        if (etag != null) richiesta.header("If-None-Match", etag)
-        if (modificato != null) richiesta.header("If-Modified-Since", modificato)
-        Archivio.httpMedio.newCall(richiesta.build()).execute().use { risposta ->
-            when {
-                risposta.code == 304 -> null
-                !risposta.isSuccessful -> throw IOException("Il server ha risposto ${risposta.code}")
-                else -> RispostaFeed(
-                    risposta.body.bytes(),
-                    risposta.header("ETag"),
-                    risposta.header("Last-Modified"),
-                )
-            }
-        }
+): RispostaFeed? {
+    val campi = LinkedHashMap<String, String>()
+    campi["User-Agent"] = Collegamento.agenteUtente
+    campi.putAll(intestazioni)
+    if (etag != null) campi["If-None-Match"] = etag
+    if (modificato != null) campi["If-Modified-Since"] = modificato
+    val risposta = Collegamento.http.richiedi(url, campi, Attesa.MEDIA)
+    return when {
+        risposta.codice == 304 -> null
+        !risposta.riuscita -> throw ErroreRete("Il server ha risposto ${risposta.codice}")
+        else -> RispostaFeed(risposta.corpo, risposta.intestazione("ETag"), risposta.intestazione("Last-Modified"))
     }
+}
 
 /** Un passaggio con la sua linea, prima di raggruppare per linea e direzione. */
 data class PassaggioLinea(
@@ -247,14 +242,14 @@ fun codiceDaTransitous(id: String): String? =
  * Transitous, se ha quel formato, e il codice intero. Mai pezzi piu' corti:
  * di "913_1_5" non si prova "1_5", che puo' essere la corsa di tutt'altra linea.
  */
-internal fun candidatiCorsa(id: String): List<String> = listOfNotNull(corsaDaTransitous(id), id).distinct()
+fun candidatiCorsa(id: String): List<String> = listOfNotNull(corsaDaTransitous(id), id).distinct()
 
 /**
  * I codici dell'orario da provare per una linea di Transitous: "it-Lazio-Rome_913"
  * -> 913 di Roma; "it-Lazio-Cotral_45" -> "C:45" (con il prefisso della rete,
  * mai il 45 di Roma); di altri dati solo il codice intero.
  */
-internal fun candidatiLinea(id: String): List<String> {
+fun candidatiLinea(id: String): List<String> {
     val rete = Rete.daTransitous(id)
     val codice = id.substringAfter('_', "").ifEmpty { null }
     return when {
@@ -467,7 +462,7 @@ fun distanzaDalTracciato(lat: Double, lon: Double, forma: List<Punto>): Double {
     if (forma.isEmpty()) return Double.POSITIVE_INFINITY
     if (forma.size == 1) return distanzaMetri(lat, lon, forma[0].lat, forma[0].lon)
     // piano locale in metri attorno al punto: basta per distanze di qualche chilometro
-    val kx = 111_320.0 * kotlin.math.cos(Math.toRadians(lat))
+    val kx = 111_320.0 * kotlin.math.cos(radianti(lat))
     val ky = 110_540.0
     var minimo = Double.POSITIVE_INFINITY
     for (i in 0 until forma.size - 1) {

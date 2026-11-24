@@ -113,3 +113,118 @@ fun intestazioneFermata(orario: Orario, fermataId: String): VoceFermata? {
     val fermata = orario.fermataUnita(fermataId) ?: orario.fermata(fermataId) ?: return null
     return voceFermata(fermata.copy(id = fermataId), null, orario)
 }
+
+/** Un prossimo passaggio in una riga di fermata: "64 · 3′", in oro se in tempo reale. */
+data class PillolaPassaggio(val testo: String, val tempoReale: Boolean)
+
+/** La pillola del primo passaggio di [arrivo] ([adesso] in secondi). */
+fun pillolaPassaggio(arrivo: Arrivo, adesso: Long): PillolaPassaggio {
+    val primo = arrivo.passaggi.first()
+    val minuti = minutiAttesa(primo.orario, adesso)
+    val tempo = if (minuti < 1) "in arrivo" else "$minuti′"
+    val testo = when {
+        primo.avviso == "soppresso" -> "${arrivo.nomeLinea} · soppresso"
+        primo.tracciato -> "${arrivo.nomeLinea} · $tempo"
+        else -> "${arrivo.nomeLinea} · $tempo orario"
+    }
+    return PillolaPassaggio(testo, primo.tracciato)
+}
+
+/** Una fermata in Home con i suoi prossimi passaggi (al massimo 4) e quante altre linee ci passano. */
+data class FermataConTempi(val voce: VoceFermata, val pillole: List<PillolaPassaggio>, val altre: Int, val perVoce: String)
+
+fun fermateConTempi(voci: List<VoceFermata>, arrivi: ArriviFermate, adesso: Long): List<FermataConTempi> =
+    voci.map { v ->
+        val presi = ancoraAttesi(arrivi.perFermata[v.id].orEmpty(), adesso).take(4)
+        val perVoce = if (presi.isEmpty()) v.perVoce else v.perVoce.substringBefore(" Linee ") + " " +
+            presi.joinToString(" ") { a ->
+                val m = minutiAttesa(a.passaggi.first().orario, adesso)
+                "${a.nomeLinea} " + (if (m < 1) "in arrivo" else "tra $m minuti") + "."
+            }
+        FermataConTempi(
+            voce = v,
+            pillole = presi.map { pillolaPassaggio(it, adesso) },
+            altre = (v.linee.size - presi.map { it.nomeLinea }.distinct().size).coerceAtLeast(0),
+            perVoce = perVoce,
+        )
+    }
+
+/** Le fermate per cui chiedere anche Transitous o ASTRAL: le prime 4 preferite e 3 vicine delle altre reti. */
+fun fermateComplete(preferite: List<Fermata>, vicine: List<Fermata>): List<Fermata> =
+    (preferite.take(4) + vicine.filter { Rete.di(it.id) != Rete.ROMA }.take(3)).distinctBy { it.id }
+
+/** L'avviso sopra i tempi, se la rete non risponde o Roma Mobilita' e' ferma; null se va tutto bene. */
+fun avvisoArrivi(arrivi: ArriviFermate, conRoma: Boolean): String? = when {
+    arrivi.errore && arrivi.aggiornatoAlle > 0 ->
+        "Non riesco ad aggiornare: i tempi sono quelli delle ${oraARoma(arrivi.aggiornatoAlle)}."
+    arrivi.errore -> "Non riesco a leggere i tempi d'attesa. Controlla la connessione."
+    arrivi.romaFerma && conRoma ->
+        "Roma Mobilità ora non pubblica il tempo reale: i tempi di Roma sono calcolati sull'orario."
+    else -> null
+}
+
+/** Una riga del tabellone di una fermata: linea, direzione, minuti e da dove vengono. */
+data class RigaArrivo(
+    val lineaId: String,
+    val nome: String,
+    val colore: Long,
+    /** "Casaletto", o "Direzione non indicata". */
+    val capolinea: String,
+    val capolineaNoto: Boolean,
+    /** "poi 12 · 25 min", o vuoto. */
+    val poi: String,
+    /** "3", "in arrivo", "soppresso". */
+    val attesa: String,
+    /** Vero se [attesa] sono minuti (si scrive grande). */
+    val minuti: Boolean,
+    /** "GPS", "tempo reale", "da orario", un avviso ("bus sostitutivo") o l'ora del treno soppresso. */
+    val sotto: String,
+    val tempoReale: Boolean,
+    /** Soppresso o con un avviso: si scrive nel colore d'accento. */
+    val evidenzia: Boolean,
+    val perVoce: String,
+)
+
+fun rigaArrivo(arrivo: Arrivo, adesso: Long): RigaArrivo {
+    val primo = arrivo.passaggi.first()
+    val rete = Rete.di(arrivo.lineaId)
+    val minuti = minutiAttesa(primo.orario, adesso)
+    val soppresso = primo.avviso == "soppresso"
+    return RigaArrivo(
+        lineaId = arrivo.lineaId,
+        nome = arrivo.nomeLinea,
+        colore = coloreReteArgb(arrivo.lineaId),
+        capolinea = arrivo.capolinea.ifEmpty { "Direzione non indicata" },
+        capolineaNoto = arrivo.capolinea.isNotEmpty(),
+        poi = testoPoi(arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) }),
+        attesa = when {
+            soppresso -> "soppresso"
+            minuti < 1 -> "in arrivo"
+            else -> minuti.toString()
+        },
+        minuti = !soppresso && minuti >= 1,
+        sotto = when {
+            soppresso -> oraARoma(primo.orario * 1000)
+            primo.avviso != null -> primo.avviso
+            !primo.tracciato -> "da orario"
+            rete == Rete.ROMA || primo.gps -> "GPS"
+            else -> "tempo reale"
+        },
+        tempoReale = primo.tracciato,
+        evidenzia = soppresso || primo.avviso != null,
+        perVoce = fraseArrivo(arrivo, adesso),
+    )
+}
+
+/** Il tabellone di una fermata: le righe in ordine e l'avviso, se c'e'. */
+data class TabelloneFermata(val righe: List<RigaArrivo>, val avviso: String?, val aggiornato: String?)
+
+fun tabelloneFermata(fermataId: String, arrivi: ArriviFermate, adessoMs: Long): TabelloneFermata {
+    val adesso = adessoMs / 1000
+    val righe = ancoraAttesi(arrivi.perFermata[fermataId].orEmpty(), adesso).map { rigaArrivo(it, adesso) }
+    return TabelloneFermata(
+        righe = righe,
+        avviso = avvisoArrivi(arrivi, Rete.di(fermataId) == Rete.ROMA),
+        aggiornato = if (arrivi.aggiornatoAlle > 0) "Aggiornato " + testoAggiornato(arrivi.aggiornatoAlle, adessoMs) else null,
+    )
+}

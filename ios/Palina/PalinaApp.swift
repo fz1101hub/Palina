@@ -6,6 +6,12 @@ struct PalinaApp: App {
     @StateObject private var archivio = Archivio()
     @StateObject private var posizione = Posizione()
 
+    init() {
+        // la rete del motore; il contatto e' l'indirizzo del progetto, mai una email
+        let versione = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+        MotoreSchermateKt.preparaMotore(agenteUtente: "PalinaRoma-iOS/\(versione)")
+    }
+
     var body: some Scene {
         WindowGroup {
             Principale()

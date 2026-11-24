@@ -30,6 +30,10 @@ kotlin {
     }
 
     sourceSets {
+        commonMain.dependencies {
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
+        }
         iosMain.dependencies {
             // SQLite di iOS per l'orario incluso nell'app
             implementation("androidx.sqlite:sqlite-framework:2.7.1")

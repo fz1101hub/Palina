@@ -1,7 +1,6 @@
 package it.palinaroma.dati
 
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** Cosa serve per aprire il dettaglio di una corsa dal tabellone (vedi [CercaCorsa]). */
@@ -34,7 +33,7 @@ class CercaCorsa(private val orario: Orario?, private val richiesta: RichiestaCo
     private val stazione: Fermata? by lazy { orario?.fermata(richiesta.fermataId) }
 
     suspend fun aggiorna(): Esito = try {
-        val f = withContext(Dispatchers.IO) { stazione }
+        val f = withContext(dispatcherDati) { stazione }
         val r = richiesta
         if (trovata == null && f != null) {
             val partenze = Transitous.partenze(f.id, f.lat, f.lon, da = r.previsto * 1000 - 5 * 60_000)
@@ -43,9 +42,9 @@ class CercaCorsa(private val orario: Orario?, private val richiesta: RichiestaCo
         // il ritardo di ASTRAL si aggiorna come nel tabellone della stazione
         val o = orario
         if (r.corsaAstral != null && f != null && o != null) {
-            val linee = withContext(Dispatchers.IO) { lineeGtfsTreniCotral(o.lineeAllaFermata(f.id)) }
+            val linee = withContext(dispatcherDati) { lineeGtfsTreniCotral(o.lineeAllaFermata(f.id)) }
             val treni = try {
-                Astral.passaggi(f.nome, linee, System.currentTimeMillis())
+                Astral.passaggi(f.nome, linee, adessoMs())
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {

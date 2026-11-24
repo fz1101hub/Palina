@@ -5,6 +5,8 @@ import Motore
 @MainActor
 final class Archivio: ObservableObject {
     @Published private(set) var orario: Orario?
+    /** Il motore della Home (fermate vicine, ricerca, tempi), pronto con l'orario. */
+    @Published private(set) var home: MotoreHome?
     @Published private(set) var errore: String?
 
     init() {
@@ -16,7 +18,10 @@ final class Archivio: ObservableObject {
                 return
             }
             let orario = BaseIosKt.orarioDaFile(roma: roma, reti: reti)
-            await MainActor.run { self.orario = orario }
+            await MainActor.run {
+                self.orario = orario
+                self.home = MotoreHome(orario: orario)
+            }
         }
     }
 }

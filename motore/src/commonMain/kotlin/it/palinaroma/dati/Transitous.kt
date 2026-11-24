@@ -2,12 +2,6 @@ package it.palinaroma.dati
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.net.URLEncoder
-import java.time.Instant
-import java.time.OffsetDateTime
-import java.util.Locale
 import kotlin.math.pow
 
 /*
@@ -26,7 +20,7 @@ data class Luogo(
     val lon: Double,
     val tipo: TipoLuogo,
 ) {
-    val coordinate: String get() = String.format(Locale.ROOT, "%.6f,%.6f", lat, lon)
+    val coordinate: String get() = decimali(lat, 6) + "," + decimali(lon, 6)
     val haCoordinate: Boolean get() = !lat.isNaN() && !lon.isNaN()
 
     companion object {
@@ -170,10 +164,11 @@ object Transitous {
     /** Centro di Roma, per favorire i risultati in citta'. */
     val ROMA = Punto(41.9028, 12.4964)
 
-    private val agente: String get() = Archivio.agenteUtente + " (+" + SITO_APP + ")"
+    private val agente: String get() = Collegamento.agenteUtente + " (+" + SITO_APP + ")"
 
-    suspend fun cerca(testo: String, vicino: Punto?): List<Luogo> = withContext(Dispatchers.IO) {
-        leggiLuoghi(scarica(urlLuoghi(testo, vicino ?: ROMA), Archivio.httpBreve))
+    suspend fun cerca(testo: String, vicino: Punto?): List<Luogo> {
+        val testoJson = scarica(urlLuoghi(testo, vicino ?: ROMA), Attesa.BREVE)
+        return withContext(Dispatchers.Default) { leggiLuoghi(testoJson) }
     }
 
     suspend fun tragitti(
@@ -182,36 +177,36 @@ object Transitous {
         istante: Long?,
         arrivaEntro: Boolean,
         cursore: String?,
-    ): RisultatoTragitti = withContext(Dispatchers.IO) {
-        leggiTragitti(scarica(urlTragitti(da, a, istante, arrivaEntro, cursore), Archivio.httpMedio), da.nome, a.nome)
+    ): RisultatoTragitti {
+        val testoJson = scarica(urlTragitti(da, a, istante, arrivaEntro, cursore), Attesa.MEDIA)
+        return withContext(Dispatchers.Default) { leggiTragitti(testoJson, da.nome, a.nome) }
     }
 
     /** Le prossime partenze (90 minuti) dalla fermata dell'app [fermataId], da adesso o da [da] (ms). */
-    suspend fun partenze(fermataId: String, lat: Double, lon: Double, da: Long? = null): List<PartenzaTransitous> =
-        withContext(Dispatchers.IO) {
-            leggiPartenze(scarica(urlPartenze(fermataId, lat, lon, da), Archivio.httpBreve), fermataId, lat, lon)
-        }
-
-    /** Una corsa con tutte le sue fermate (solo quelle dove si sale o si scende), o null se non c'e'. */
-    suspend fun corsa(corsaId: String): Tratto? = withContext(Dispatchers.IO) {
-        leggiCorsa(scarica(urlCorsa(corsaId), Archivio.httpBreve))
+    suspend fun partenze(fermataId: String, lat: Double, lon: Double, da: Long? = null): List<PartenzaTransitous> {
+        val testoJson = scarica(urlPartenze(fermataId, lat, lon, da), Attesa.BREVE)
+        return withContext(Dispatchers.Default) { leggiPartenze(testoJson, fermataId, lat, lon) }
     }
 
-    private fun scarica(url: String, http: OkHttpClient): String {
-        val richiesta = Request.Builder()
-            .url(url)
-            .header("User-Agent", agente)
-            .header("Accept", "application/json")
-            .build()
-        http.newCall(richiesta).execute().use { risposta ->
-            val corpo = risposta.body.string()
-            if (!risposta.isSuccessful) throw ErroreTransitous(messaggioErrore(risposta.code, corpo))
-            return corpo
-        }
+    /** Una corsa con tutte le sue fermate (solo quelle dove si sale o si scende), o null se non c'e'. */
+    suspend fun corsa(corsaId: String): Tratto? {
+        val testoJson = scarica(urlCorsa(corsaId), Attesa.BREVE)
+        return withContext(Dispatchers.Default) { leggiCorsa(testoJson) }
+    }
+
+    private suspend fun scarica(url: String, attesa: Attesa): String {
+        val risposta = Collegamento.http.richiedi(
+            url,
+            mapOf("User-Agent" to agente, "Accept" to "application/json"),
+            attesa,
+        )
+        val corpo = risposta.testo()
+        if (!risposta.riuscita) throw ErroreTransitous(messaggioErrore(risposta.codice, corpo))
+        return corpo
     }
 }
 
-private fun codifica(valore: String): String = URLEncoder.encode(valore, "UTF-8")
+private fun codifica(valore: String): String = codificaUrl(valore)
 
 /**
  * Ricerca di indirizzi e luoghi. [vicino] serve solo a preferire i risultati in
@@ -220,7 +215,7 @@ private fun codifica(valore: String): String = URLEncoder.encode(valore, "UTF-8"
 fun urlLuoghi(testo: String, vicino: Punto): String =
     Transitous.API + "/v1/geocode?text=" + codifica(testo.trim()) +
         "&language=it&numResults=8&place=" +
-        codifica(String.format(Locale.ROOT, "%.2f,%.2f", vicino.lat, vicino.lon))
+        codifica(decimali(vicino.lat, 2) + "," + decimali(vicino.lon, 2))
 
 fun urlTragitti(da: Luogo, a: Luogo, istante: Long?, arrivaEntro: Boolean, cursore: String?): String {
     val parametri = mutableListOf(
@@ -229,7 +224,7 @@ fun urlTragitti(da: Luogo, a: Luogo, istante: Long?, arrivaEntro: Boolean, curso
         "numItineraries" to "5",
         "language" to "it",
     )
-    if (istante != null) parametri += "time" to Instant.ofEpochSecond(istante / 1000).toString()
+    if (istante != null) parametri += "time" to testoIstante(istante / 1000 * 1000)
     if (arrivaEntro) parametri += "arriveBy" to "true"
     if (cursore != null) parametri += "pageCursor" to cursore
     return Transitous.API + "/v5/plan?" + parametri.joinToString("&") { (k, v) -> k + "=" + codifica(v) }
@@ -241,9 +236,9 @@ fun urlTragitti(da: Luogo, a: Luogo, istante: Long?, arrivaEntro: Boolean, curso
  */
 fun urlPartenze(fermataId: String, lat: Double, lon: Double, da: Long? = null): String =
     Transitous.API + "/v5/stoptimes?stopId=" + codifica(fermataTransitous(fermataId)) +
-        "&center=" + codifica(String.format(Locale.ROOT, "%.6f,%.6f", lat, lon)) +
+        "&center=" + codifica(decimali(lat, 6) + "," + decimali(lon, 6)) +
         "&radius=30&exactRadius=true&n=40&window=5400&language=it" +
-        (da?.let { "&time=" + codifica(java.time.Instant.ofEpochMilli(it).toString()) } ?: "")
+        (da?.let { "&time=" + codifica(testoIstante(it)) } ?: "")
 
 /** Una corsa intera, senza le fermate dove il treno passa senza fermarsi. */
 fun urlCorsa(corsaId: String): String =
@@ -311,9 +306,7 @@ fun messaggioErrore(codice: Int, corpo: String): String {
 /** Data e ora ISO 8601 in millisecondi, o null. */
 fun leggiIstante(testo: String?): Long? {
     if (testo.isNullOrBlank()) return null
-    return runCatching { OffsetDateTime.parse(testo).toInstant().toEpochMilli() }
-        .recoverCatching { Instant.parse(testo).toEpochMilli() }
-        .getOrNull()
+    return istanteDaTesto(testo)
 }
 
 /** Polilinea codificata alla Google con la precisione indicata (5, 6 o 7 decimali). */
@@ -498,12 +491,12 @@ fun luogoDaRiga(riga: String): Luogo? {
 /** "35 min", "1 h 05 min". */
 fun testoDurata(secondi: Int): String {
     val minuti = (secondi + 59) / 60
-    return if (minuti < 60) "$minuti min" else "${minuti / 60} h " + String.format(Locale.ROOT, "%02d", minuti % 60) + " min"
+    return if (minuti < 60) "$minuti min" else "${minuti / 60} h " + (minuti % 60).toString().padStart(2, '0') + " min"
 }
 
 /** "meno di 10 m", "450 m", "3,2 km". */
 fun testoMetri(metri: Double): String = when {
     metri < 10 -> "meno di 10 m"
     metri < 1000 -> "${(metri / 10).toInt() * 10} m"
-    else -> String.format(Locale.ITALY, "%.1f km", metri / 1000)
+    else -> decimali(metri / 1000, 1, ',') + " km"
 }
