@@ -52,7 +52,8 @@ passo "telefoni simulati: $("$SDK/emulator/emulator" -list-avds | tr '\n' ' ')"
 passo "avvio"
 # la console dell'emulatore senza parola d'ordine, cosi' "adb emu geo fix" funziona
 : > "$HOME/.emulator_console_auth_token"
-"$SDK/emulator/emulator" -avd prova -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim \
+# -skip-adb-auth: le immagini Wear OS firmate chiedono di autorizzare adb, e qui nessuno tocca "Consenti"
+"$SDK/emulator/emulator" -avd prova -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -skip-adb-auth \
     > "$RISULTATI/emulatore.log" 2>&1 &
 EMULATORE=$!
 
