@@ -1,6 +1,7 @@
 package it.palinaroma.dati
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** Cosa serve per aprire il dettaglio di una corsa dal tabellone (vedi [CercaCorsa]). */
