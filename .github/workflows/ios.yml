@@ -85,7 +85,7 @@ jobs:
           xcodebuild -project Palina.xcodeproj -scheme Palina -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build 2>&1 | tee /tmp/esito/xcode-simulatore.log | grep -E "error:|warning: .*swift|BUILD" || true
-          test -d build/dd/Build/Products/Debug-iphonesimulator/Palina.app
+          test -f build/dd/Build/Products/Debug-iphonesimulator/Palina.app/Palina
 
       - name: Prova sul simulatore con le schermate
         run: |
@@ -123,6 +123,7 @@ jobs:
           mkdir -p /tmp/ipa/Payload
           cp -R build/dd/Build/Products/Debug-iphoneos/Palina.app /tmp/ipa/Payload/
           (cd /tmp/ipa && zip -qr PalinaRoma-iOS.ipa Payload)
+          test -f /tmp/ipa/Payload/Palina.app/Palina
           ls -la /tmp/ipa/PalinaRoma-iOS.ipa | tee /tmp/esito/ipa.txt
 
       - name: IPA nella release "ios-prova"

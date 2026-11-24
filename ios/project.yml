@@ -40,6 +40,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: it.palinaroma
         TARGETED_DEVICE_FAMILY: "1"
         OTHER_LDFLAGS: ["-lsqlite3", "-lc++"]
+        # il motore per il simulatore c'e' solo per i Mac Apple Silicon (arm64)
+        EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
         CODE_SIGN_STYLE: Manual
         CODE_SIGNING_ALLOWED: "NO"
         CODE_SIGNING_REQUIRED: "NO"
