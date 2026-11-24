@@ -396,7 +396,7 @@ fun SchermataRiga(fermataId: String, chiaveLinea: String, capolinea: String, ade
     var avviso by remember { mutableStateOf<String?>(null) }
 
     val segui = {
-        val s = if (fermata != null && r != null && t != null) seguimento(fermata, r, t, System.currentTimeMillis() / 1000) else null
+        val s = if (fermata != null && r != null) seguimento(fermata, r, t, System.currentTimeMillis() / 1000) else null
         if (s == null) {
             avviso = "Nessun passaggio da seguire."
         } else {
@@ -598,7 +598,7 @@ private fun RigaFermataTreno(f: FermataTreno, qui: Boolean, adesso: Long) {
             )
             if (cambiato && !f.soppressa) {
                 Text(
-                    oraBreve(programmato!!),
+                    oraBreve(programmato),
                     color = GrigioOrologio,
                     textDecoration = TextDecoration.LineThrough,
                     style = MaterialTheme.typography.bodySmall,

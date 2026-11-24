@@ -71,7 +71,7 @@ class ServizioOrologio : WearableListenerService() {
                 pubblica(Ponte.TABELLONE, CodificaOrologio.scrivi(tabellone))
             }
             Ponte.RICHIESTA_CORSA -> runBlocking {
-                val treno = TrenoOrologio.leggi(evento.data?.let { String(it, Charsets.UTF_8) }) ?: return@runBlocking
+                val treno = TrenoOrologio.leggi(String(evento.data, Charsets.UTF_8)) ?: return@runBlocking
                 val corsa = withTimeoutOrNull(40_000) { corsaOrologio(treno) }
                     ?: CorsaOrologio(treno.chiave, System.currentTimeMillis(), "Treno", null, null, emptyList(), null, "Il telefono non ha trovato il treno in tempo: riprova.")
                 pubblica(Ponte.CORSA, CodificaCorsa.scrivi(corsa))

@@ -11,6 +11,7 @@ import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
+import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.Until
 import org.junit.Assert.assertFalse
 import org.junit.Assert.fail
@@ -89,7 +90,7 @@ class ProvaSchermate {
     fun a3_cercaUnaFermataEApriLaConITempi() {
         tocca(By.res("cerca"))
         scrivi("Termini")
-        aspetta(By.res("riga-fermata"), 20_000, "i risultati della ricerca").click()
+        premi(By.res("riga-fermata"), 20_000, "i risultati della ricerca")
         val esito = aspettaUnoDi(
             90_000,
             "i tempi d'attesa",
@@ -125,7 +126,7 @@ class ProvaSchermate {
     fun a4_lineaSullaMappaConLeVetture() {
         tocca(By.res("cerca"))
         scrivi("64")
-        aspetta(By.res("linea"), 20_000, "la linea tra i risultati").click()
+        premi(By.res("linea"), 20_000, "la linea tra i risultati")
         aspetta(By.text("DIREZIONE"), 20_000, "la schermata della linea")
         aspettaUnoDi(
             60_000,
@@ -152,7 +153,7 @@ class ProvaSchermate {
         scrivi("Colosseo")
         aspettaUnoDi(30_000, "i luoghi trovati", By.text("FERMATE"), By.text("INDIRIZZI E LUOGHI"))
         attendi(1_500)
-        aspetta(By.res("luogo"), 10_000, "un luogo da scegliere").click()
+        premi(By.res("luogo"), 10_000, "un luogo da scegliere")
         // Le soluzioni stesse, non la riga "Calcolato alle" che con molte soluzioni
         // resta fuori dallo schermo; e non "Transitous" da solo, che c'e' sempre
         // nella riga dell'attribuzione in fondo.
@@ -288,7 +289,7 @@ class ProvaSchermate {
             }
             tornaA(By.desc("Chiudi la ricerca"), "la ricerca")
         }
-        aspetta(By.desc("Chiudi la ricerca"), 10_000, "la ricerca").click()
+        premi(By.desc("Chiudi la ricerca"), 10_000, "la ricerca")
         aspetta(By.res("cerca"), 10_000, "la Home")
     }
 
@@ -350,8 +351,21 @@ class ProvaSchermate {
     }
 
     private fun tocca(selettore: BySelector) {
-        aspetta(selettore, 20_000, selettore.toString()).click()
+        premi(selettore, 20_000, selettore.toString())
         attendi(800)
+    }
+
+    /** Tocca il primo che compare; se la lista si aggiorna proprio in quel momento lo ricerca. */
+    private fun premi(selettore: BySelector, ms: Long, cosa: String) {
+        repeat(3) { tentativo ->
+            try {
+                aspetta(selettore, ms, cosa).click()
+                return
+            } catch (e: StaleObjectException) {
+                if (tentativo == 2) throw e
+                attendi(700)
+            }
+        }
     }
 
     private fun scrivi(testo: String) {
