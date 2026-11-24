@@ -1,0 +1,36 @@
+sqlite: 2.7.0-alpha03 2.7.0-alpha04 2.7.0-alpha05 2.7.0-alpha06 2.7.0-rc01 2.7.0 2.7.1 2.8.0-alpha01 2.8.0-alpha03 2.8.0-alpha04 
+sqlite-framework: 2.7.0-alpha03 2.7.0-alpha04 2.7.0-alpha05 2.7.0-alpha06 2.7.0-rc01 2.7.0 2.7.1 2.8.0-alpha01 2.8.0-alpha03 2.8.0-alpha04 
+sqlite-bundled: 2.7.0-alpha03 2.7.0-alpha04 2.7.0-alpha05 2.7.0-alpha06 2.7.0-rc01 2.7.0 2.7.1 2.8.0-alpha01 2.8.0-alpha03 2.8.0-alpha04 
+kotlinx-coroutines-core: 1.8.1 1.9.0-RC 1.9.0-RC.2 1.9.0 1.10.0 1.10.1 1.10.2 1.11.0-rc01 1.11.0-rc02 1.11.0 
+kotlinx-datetime: 0.6.2 0.7.0 0.7.0-0.6.x-compat 0.7.1 0.7.1-0.6.x-compat 0.8.0-rc01 0.8.0-rc02 0.8.0-rc02-0.6.x-compat 0.8.0 0.8.0-0.6.x-compat 
+kotlin-gradle-plugin: 2.4.20-Beta2 2.4.20-RC 2.4.20-RC2 2.4.20-RC3 2.4.20 2.4.21-RC 2.4.21 2.5.0-Beta1 2.5.0-Beta2 2.5.0-RC 
+"org.jetbrains.kotlin.native.target": "ios_arm64"
+"org.jetbrains.kotlin.native.target": "ios_simulator_arm64"
+"org.jetbrains.kotlin.native.target": "linux_arm64"
+"org.jetbrains.kotlin.native.target": "linux_x64"
+"org.jetbrains.kotlin.native.target": "macos_arm64"
+"org.jetbrains.kotlin.native.target": "tvos_arm64"
+"org.jetbrains.kotlin.native.target": "tvos_simulator_arm64"
+"org.jetbrains.kotlin.native.target": "watchos_arm64"
+"org.jetbrains.kotlin.native.target": "watchos_device_arm64"
+"org.jetbrains.kotlin.native.target": "watchos_simulator_arm64"
+"org.jetbrains.kotlin.native.target": "android_arm32"
+"org.jetbrains.kotlin.native.target": "android_arm64"
+"org.jetbrains.kotlin.native.target": "android_x64"
+"org.jetbrains.kotlin.native.target": "android_x86"
+"org.jetbrains.kotlin.native.target": "ios_arm64"
+"org.jetbrains.kotlin.native.target": "ios_simulator_arm64"
+"org.jetbrains.kotlin.native.target": "ios_x64"
+"org.jetbrains.kotlin.native.target": "linux_arm64"
+"org.jetbrains.kotlin.native.target": "linux_x64"
+"org.jetbrains.kotlin.native.target": "macos_arm64"
+"org.jetbrains.kotlin.native.target": "macos_x64"
+"org.jetbrains.kotlin.native.target": "mingw_x64"
+"org.jetbrains.kotlin.native.target": "tvos_arm64"
+"org.jetbrains.kotlin.native.target": "tvos_simulator_arm64"
+"org.jetbrains.kotlin.native.target": "tvos_x64"
+"org.jetbrains.kotlin.native.target": "watchos_arm32"
+"org.jetbrains.kotlin.native.target": "watchos_arm64"
+"org.jetbrains.kotlin.native.target": "watchos_device_arm64"
+"org.jetbrains.kotlin.native.target": "watchos_simulator_arm64"
+"org.jetbrains.kotlin.native.target": "watchos_x64"
