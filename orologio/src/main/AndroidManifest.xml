@@ -3,6 +3,12 @@
 
     <uses-feature android:name="android.hardware.type.watch" />
 
+    <!-- la linea seguita: notifica in corso (Live Update da Wear OS 7) aggiornata da un servizio -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
     <application
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -21,6 +27,7 @@
         <activity
             android:name=".Principale"
             android:exported="true"
+            android:launchMode="singleTop"
             android:taskAffinity="">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -55,6 +62,31 @@
                 android:name="androidx.wear.tiles.PREVIEW"
                 android:resource="@drawable/ic_launcher_foreground" />
         </service>
+
+        <!--
+            il widget di Wear OS 7 (piccolo 2x1 e grande 2x2). Fa parte dello stesso
+            gruppo del riquadro: dove l'orologio usa i widget prende il suo posto,
+            altrove (Wear OS 5 e 6, orologi senza widget) resta il riquadro.
+        -->
+        <service
+            android:name=".ServizioWidget"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/riquadro"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.glance.wear.action.BIND_WIDGET_PROVIDER" />
+            </intent-filter>
+            <meta-data
+                android:name="androidx.glance.wear.widget.provider"
+                android:resource="@xml/widget_palina" />
+        </service>
+
+        <!-- la linea seguita: tiene aggiornato il Live Update finche' il mezzo non arriva -->
+        <service
+            android:name=".ServizioSegui"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <!-- la complicazione: il prossimo passaggio, con il conto alla rovescia -->
         <service

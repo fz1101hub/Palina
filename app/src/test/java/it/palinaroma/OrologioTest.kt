@@ -44,4 +44,31 @@ class OrologioTest {
         val arrivi = (1..9).map { arrivo("L$it", "L$it", it) }
         assertEquals(6, righeOrologio(arrivi, emptySet(), adesso).size)
     }
+
+    @Test
+    fun treniConLaRichiestaDelleFermate() {
+        val treno = Arrivo(
+            "F:ROMALIDO", "Metromare", 0, "Cristoforo Colombo",
+            listOf(
+                Passaggio(adesso + 300, "astral:77", true, ritardo = 120),
+                Passaggio(adesso + 900, "F:corsa2", false, idTransitous = "it-Lazio-Cotral-Ferrovie_corsa2"),
+            ),
+        )
+        val bus = arrivo("64", "64", 2)
+        val righe = righeOrologio(listOf(treno, bus), emptySet(), adesso) { "F:RL_SANPAOLO" }
+        val metromare = righe.first { it.linea == "Metromare" }
+        assertEquals("F:ROMALIDO", metromare.lineaId)
+        assertEquals(2, metromare.treni.size)
+        // ASTRAL: l'orario programmato e' quello aggiornato meno il ritardo
+        val primo = metromare.treni[0]
+        assertEquals(adesso + 180, primo.previsto)
+        assertEquals("astral:77", primo.corsaAstral)
+        assertEquals("F:RL_SANPAOLO", primo.fermataId)
+        assertNull(primo.corsaId)
+        assertEquals("it-Lazio-Cotral-Ferrovie_corsa2", metromare.treni[1].corsaId)
+        assertNull(metromare.treni[1].corsaAstral)
+        // i bus non hanno treni da aprire
+        assertTrue(righe.first { it.linea == "64" }.treni.isEmpty())
+        assertEquals("64", righe.first { it.linea == "64" }.lineaId)
+    }
 }

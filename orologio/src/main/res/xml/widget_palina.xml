@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Il widget di Wear OS 7: nello stesso gruppo del riquadro (Riquadro), che sostituisce dove ci sono i widget. -->
+<wearwidget-provider
+    description="@string/riquadro_descrizione"
+    group="it.palinaroma.orologio.Riquadro"
+    icon="@mipmap/ic_launcher"
+    label="@string/riquadro"
+    preferredType="LARGE">
+
+    <container
+        type="SMALL"
+        previewImage="@drawable/anteprima_widget_piccolo" />
+
+    <container
+        type="LARGE"
+        previewImage="@drawable/anteprima_widget_grande" />
+
+</wearwidget-provider>

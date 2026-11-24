@@ -59,6 +59,17 @@ quadrante) con la prima fermata e una **complicazione** per il quadrante con la 
 alla rovescia del prossimo passaggio. Le notifiche *Avvisami* del telefono arrivano già
 sull'orologio da sole.
 
+- **Una linea**: toccandola si vedono i prossimi passaggi e la si può **seguire**: il conto
+  alla rovescia resta sul quadrante (da Wear OS 7 come *Live Update*, prima come attività in
+  corso), segue il tempo reale se il mezzo ritarda e l'orologio vibra 2 minuti prima.
+  Si smette da soli quando il mezzo è passato (o dopo due ore).
+- **Un treno**: per Trenitalia, Metromare, Roma Nord e Roma–Viterbo ogni passaggio apre tutte le
+  fermate di quel treno, con orari, ritardo e binario, come sul telefono (le calcola il telefono).
+- **Widget di Wear OS 7**: sugli orologi che li hanno (piccolo 2×1 e grande 2×2) il widget prende
+  il posto del riquadro; altrove resta il riquadro. È fatto con Jetpack Glance e Remote Compose,
+  librerie ancora in prova (alpha).
+- **APK leggero**: l'APK per l'orologio è ridotto da R8 (codice e risorse inutilizzati).
+
 L'orologio non scarica i dati: li calcola il telefono (`ServizioOrologio`, con le stesse fonti
 della Home) quando l'orologio li chiede, e glieli manda come dato condiviso di Wear OS. Per
 questo serve Palina anche sul telefono, e le due app devono avere la stessa firma: vanno
@@ -121,8 +132,9 @@ app/src/test/   test del decodificatore, dell'orario, dei testi e del client Tra
 app/src/androidTest/   ProvaSchermate: prova dell'app intera sull'emulatore
 app/src/main/java/it/palinaroma/PerOrologio.kt   i tabelloni per l'orologio (ServizioOrologio)
 ponte/          cosa si scambiano telefono e orologio (TabelloneOrologio, in JSON)
-orologio/       l'app Wear OS: Principale (schermata), Riquadro (tile e complicazione),
-                ArchivioOrologio (dati ricevuti e richieste al telefono)
+orologio/       l'app Wear OS: Principale (fermate, linea, treno), Riquadro (tile e
+                complicazione), Widget (widget di Wear OS 7), Segui (linea seguita e
+                Live Update), ArchivioOrologio (dati ricevuti e richieste al telefono)
 strumenti/      crea_orario.py: dalle istruzioni SQL al database incluso nell'APK;
                 prova-emulatore.sh: avvia l'emulatore e prova l'app
 ```

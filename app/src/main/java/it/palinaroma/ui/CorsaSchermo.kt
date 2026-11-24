@@ -43,23 +43,16 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
-import it.palinaroma.dati.Astral
+import it.palinaroma.dati.CercaCorsa
 import it.palinaroma.dati.DettaglioCorsa
 import it.palinaroma.dati.FermataCorsa
-import it.palinaroma.dati.FonteCorsa
-import it.palinaroma.dati.Rete
+import it.palinaroma.dati.RichiestaCorsa
 import it.palinaroma.dati.Tragitto
 import it.palinaroma.dati.bellaScrittura
-import it.palinaroma.dati.Transitous
-import it.palinaroma.dati.dettaglioCorsa
 import it.palinaroma.dati.fermataDaTransitous
-import it.palinaroma.dati.lineeGtfsTreniCotral
-import it.palinaroma.dati.nomeLineaTreniCotral
-import it.palinaroma.dati.scegliCorsa
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
+import it.palinaroma.dati.nomeLineaCorsa
+import it.palinaroma.dati.testoFonte
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 
 /**
  * Il dettaglio di una corsa di un treno: tutte le sue fermate (solo quelle dove
@@ -85,7 +78,6 @@ fun CorsaSchermo(
 ) {
     val orario by Archivio.orario.collectAsStateWithLifecycle()
     val o = orario
-    val stazione = remember(o, fermataId) { o?.fermata(fermataId) }
     var dettaglio by remember { mutableStateOf<DettaglioCorsa?>(null) }
     var errore by remember { mutableStateOf<String?>(null) }
     var adessoMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -93,47 +85,19 @@ fun CorsaSchermo(
     val lista = rememberLazyListState()
     val seiQui = rememberSeiQui()
 
-    LaunchedEffect(corsaId, fermataId, o) {
-        var trovata = corsaId
-        var ritardoOra = ritardo
+    val richiesta = remember(corsaId, fermataId, lineaId, direzione, previsto, corsaAstral, ritardo) {
+        RichiestaCorsa(corsaId, fermataId, lineaId, direzione, previsto, corsaAstral, ritardo)
+    }
+    LaunchedEffect(richiesta, o) {
+        val cerca = CercaCorsa(o, richiesta)
         ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
-                try {
-                    val f = stazione
-                    if (trovata == null && f != null) {
-                        val partenze = Transitous.partenze(f.id, f.lat, f.lon, da = previsto * 1000 - 5 * 60_000)
-                        trovata = scegliCorsa(partenze, lineaId, direzione, previsto * 1000)?.corsaId
-                    }
-                    // il ritardo di ASTRAL si aggiorna come nel tabellone della stazione
-                    if (corsaAstral != null && f != null && o != null) {
-                        val linee = withContext(Dispatchers.IO) { lineeGtfsTreniCotral(o.lineeAllaFermata(f.id)) }
-                        val treni = try {
-                            Astral.passaggi(f.nome, linee, System.currentTimeMillis())
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (_: Exception) {
-                            null
-                        }
-                        treni?.firstOrNull { it.passaggio.corsaId == corsaAstral }?.passaggio?.ritardo?.let { ritardoOra = it }
-                    }
-                    val id = trovata
-                    if (id == null) {
-                        if (dettaglio == null) errore = "Non trovo questo treno negli orari: torna indietro e riprova."
-                    } else {
-                        val tratto = Transitous.corsa(id)
-                        if (tratto == null) {
-                            if (dettaglio == null) errore = "Non trovo le fermate di questo treno."
-                        } else {
-                            dettaglio = withContext(Dispatchers.Default) {
-                                dettaglioCorsa(tratto, fermataId, f?.lat ?: Double.NaN, f?.lon ?: Double.NaN, ritardoOra)
-                            }
-                            errore = null
-                        }
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    if (dettaglio == null) errore = "Non riesco a leggere le fermate. Controlla la connessione e riprova."
+                val esito = cerca.aggiorna()
+                if (esito.dettaglio != null) {
+                    dettaglio = esito.dettaglio
+                    errore = null
+                } else if (dettaglio == null) {
+                    errore = esito.errore
                 }
                 adessoMs = System.currentTimeMillis()
                 delay(60_000)
@@ -148,9 +112,7 @@ fun CorsaSchermo(
     }
 
     val d = dettaglio
-    val rete = Rete.di(lineaId)
-    val nomeLinea = d?.tratto?.linea?.let { if (rete == Rete.COTRAL_TRENI) nomeLineaTreniCotral(it) else it }
-        ?: o?.linea(lineaId)?.nome.orEmpty()
+    val nomeLinea = nomeLineaCorsa(d, lineaId, o)
     val titolo = listOf(nomeLinea, d?.tratto?.numero.orEmpty()).filter { it.isNotBlank() }.joinToString(" ").ifEmpty { "Treno" }
 
     Scaffold(
@@ -229,32 +191,12 @@ fun CorsaSchermo(
 /** Da dove vengono gli orari: tempo reale, ritardo di ASTRAL o solo orario. */
 @Composable
 private fun RigaFonteCorsa(d: DettaglioCorsa) {
-    val qui = d.qui?.let { d.fermate.getOrNull(it) }
-    val ritardo = (qui ?: d.fermate.firstOrNull { it.ritardoMinuti != null })?.ritardoMinuti
-    val testo = when {
-        d.tratto.cancellato -> "Corsa soppressa."
-        d.fonte == FonteCorsa.TEMPO_REALE -> "In tempo reale" + testoRitardo(ritardo, qui?.nome) +
-            ". Le fermate sono solo quelle dove il treno ferma."
-        d.fonte == FonteCorsa.ASTRAL -> "Ritardo da ASTRAL" + testoRitardo(ritardo, qui?.nome) +
-            "; per le stazioni dopo è una stima."
-        else -> "Orario programmato: per questo treno ora non c'è il tempo reale. Le fermate sono solo quelle dove ferma."
-    }
     Text(
-        testo,
+        d.testoFonte(),
         style = MaterialTheme.typography.bodySmall,
         color = if (d.tratto.cancellato) Accento else Secondario,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     )
-}
-
-private fun testoRitardo(minuti: Int?, dove: String?): String {
-    val luogo = dove?.let { " a $it" }.orEmpty()
-    return when {
-        minuti == null -> ""
-        minuti == 0 -> ": in orario$luogo"
-        minuti > 0 -> ": $minuti min di ritardo$luogo"
-        else -> ": ${-minuti} min di anticipo$luogo"
-    }
 }
 
 /** Una fermata della corsa: orario (e quello programmato se cambia), nome, binario. */
@@ -365,23 +307,12 @@ private fun RigaFermataCorsa(
     }
 }
 
-/** Cosa serve per aprire il dettaglio di una corsa dal tabellone (vedi [CorsaSchermo]). */
-data class RichiestaCorsa(
-    val corsaId: String?,
-    val fermataId: String,
-    val lineaId: String,
-    val direzione: Int?,
-    /** Orario programmato alla stazione, in secondi. */
-    val previsto: Long,
-    val corsaAstral: String?,
-    val ritardo: Int?,
-) {
-    fun rotta(): String =
-        "corsa?fermata=" + android.net.Uri.encode(fermataId) +
-            "&linea=" + android.net.Uri.encode(lineaId) +
-            "&dir=" + (direzione ?: -1) +
-            "&previsto=" + previsto +
-            (corsaId?.let { "&trip=" + android.net.Uri.encode(it) } ?: "") +
-            (corsaAstral?.let { "&astral=" + android.net.Uri.encode(it) } ?: "") +
-            (ritardo?.let { "&ritardo=$it" } ?: "")
-}
+/** La rotta del dettaglio della corsa (vedi [CorsaSchermo]). */
+fun RichiestaCorsa.rotta(): String =
+    "corsa?fermata=" + android.net.Uri.encode(fermataId) +
+        "&linea=" + android.net.Uri.encode(lineaId) +
+        "&dir=" + (direzione ?: -1) +
+        "&previsto=" + previsto +
+        (corsaId?.let { "&trip=" + android.net.Uri.encode(it) } ?: "") +
+        (corsaAstral?.let { "&astral=" + android.net.Uri.encode(it) } ?: "") +
+        (ritardo?.let { "&ritardo=$it" } ?: "")

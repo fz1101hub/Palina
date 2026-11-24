@@ -3,17 +3,23 @@ package it.palinaroma.orologio
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import androidx.wear.tiles.TileService
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
+import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
+import it.palinaroma.ponte.CodificaCorsa
 import it.palinaroma.ponte.CodificaOrologio
+import it.palinaroma.ponte.CorsaOrologio
 import it.palinaroma.ponte.Ponte
+import it.palinaroma.ponte.RichiestaOrologio
 import it.palinaroma.ponte.TabelloneOrologio
+import it.palinaroma.ponte.TrenoOrologio
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +51,10 @@ object ArchivioOrologio {
 
     private val _telefono = MutableStateFlow(StatoTelefono.SCONOSCIUTO)
     val telefono: StateFlow<StatoTelefono> = _telefono.asStateFlow()
+
+    /** Le fermate dell'ultimo treno chiesto (vedi [richiediCorsa]). */
+    private val _corsa = MutableStateFlow<CorsaOrologio?>(null)
+    val corsa: StateFlow<CorsaOrologio?> = _corsa.asStateFlow()
 
     @Volatile
     private var caricato = false
@@ -80,13 +90,35 @@ object ArchivioOrologio {
         aggiornaSuperfici(context)
     }
 
-    /** Ridisegna riquadro e complicazione con i dati nuovi. */
+    /** Le fermate di un treno arrivate dal telefono. */
+    fun salvaCorsa(json: String) {
+        val nuova = CodificaCorsa.leggi(json) ?: return
+        val attuale = _corsa.value
+        if (attuale != null && attuale.chiave == nuova.chiave && attuale.creato > nuova.creato) return
+        _corsa.value = nuova
+        _telefono.value = StatoTelefono.RAGGIUNTO
+    }
+
+    /** Ridisegna riquadro, widget e complicazione con i dati nuovi. */
     fun aggiornaSuperfici(context: Context) {
-        runCatching { TileService.getUpdater(context).requestUpdate(Riquadro::class.java) }
+        val app = context.applicationContext
+        runCatching { TileService.getUpdater(app).requestUpdate(Riquadro::class.java) }
         runCatching {
             ComplicationDataSourceUpdateRequester
-                .create(context, ComponentName(context, Complicazione::class.java))
+                .create(app, ComponentName(app, Complicazione::class.java))
                 .requestUpdateAll()
+        }
+        // i widget ci sono da Wear OS 7 (Android 17): prima le loro classi non esistono sull'orologio
+        if (Build.VERSION.SDK_INT >= 37) {
+            sfondo.launch {
+                try {
+                    WidgetPalina().triggerUpdateAll(app)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Throwable) {
+                    // nessun widget aggiunto, o widget non supportati da questo orologio
+                }
+            }
         }
     }
 
@@ -102,17 +134,28 @@ object ArchivioOrologio {
         val adesso = System.currentTimeMillis()
         if (!forza && adesso - ultimaRichiesta < 20_000) return _telefono.value != StatoTelefono.NON_RAGGIUNGIBILE
         ultimaRichiesta = adesso
-        return try {
+        // con le linee seguite: il telefono le tiene nel tabellone anche lontano dalla fermata
+        return manda(context, Ponte.RICHIESTA, RichiestaOrologio.scrivi(listOfNotNull(Seguito.stato.value?.lineaSeguita)))
+    }
+
+    /**
+     * Chiede al telefono le fermate del [treno]: arrivano poi in [corsa]
+     * (vedi [Ricevitore]). Falso se il telefono non e' raggiungibile.
+     */
+    suspend fun richiediCorsa(context: Context, treno: TrenoOrologio): Boolean =
+        manda(context, Ponte.RICHIESTA_CORSA, treno.json().toString().toByteArray(Charsets.UTF_8))
+
+    /** Un messaggio ai telefoni con Palina (o, se non si trovano, a quelli collegati). */
+    private suspend fun manda(context: Context, percorso: String, dati: ByteArray): Boolean =
+        try {
             withTimeout(15_000) {
-                val conPalina = Wearable.getCapabilityClient(context)
-                    .getCapability(Ponte.CAPACITA_TELEFONO, CapabilityClient.FILTER_REACHABLE).await().nodes
-                val nodi = conPalina.ifEmpty { Wearable.getNodeClient(context).connectedNodes.await().toSet() }
+                val nodi = telefoni(context)
                 if (nodi.isEmpty()) {
                     _telefono.value = StatoTelefono.NON_RAGGIUNGIBILE
                     false
                 } else {
                     val messaggi = Wearable.getMessageClient(context)
-                    nodi.forEach { messaggi.sendMessage(it.id, Ponte.RICHIESTA, ByteArray(0)).await() }
+                    nodi.forEach { messaggi.sendMessage(it.id, percorso, dati).await() }
                     true
                 }
             }
@@ -122,6 +165,11 @@ object ArchivioOrologio {
             _telefono.value = StatoTelefono.NON_RAGGIUNGIBILE
             false
         }
+
+    private suspend fun telefoni(context: Context): Set<Node> {
+        val conPalina = Wearable.getCapabilityClient(context)
+            .getCapability(Ponte.CAPACITA_TELEFONO, CapabilityClient.FILTER_REACHABLE).await().nodes
+        return conPalina.ifEmpty { Wearable.getNodeClient(context).connectedNodes.await().toSet() }
     }
 
     /** Come [richiedi], senza aspettare: per riquadro e complicazione. */
@@ -147,14 +195,15 @@ object ArchivioOrologio {
     }
 }
 
-/** Riceve i tabelloni pubblicati dal telefono, anche ad app chiusa. */
+/** Riceve i tabelloni e le fermate dei treni pubblicati dal telefono, anche ad app chiusa. */
 class Ricevitore : WearableListenerService() {
     override fun onDataChanged(eventi: DataEventBuffer) {
         eventi.forEach { e ->
-            if (e.type == DataEvent.TYPE_CHANGED && e.dataItem.uri.path == Ponte.TABELLONE) {
-                DataMapItem.fromDataItem(e.dataItem).dataMap.getString(Ponte.CAMPO_JSON)?.let {
-                    ArchivioOrologio.salva(applicationContext, it)
-                }
+            if (e.type != DataEvent.TYPE_CHANGED) return@forEach
+            val json = DataMapItem.fromDataItem(e.dataItem).dataMap.getString(Ponte.CAMPO_JSON) ?: return@forEach
+            when (e.dataItem.uri.path) {
+                Ponte.TABELLONE -> ArchivioOrologio.salva(applicationContext, json)
+                Ponte.CORSA -> ArchivioOrologio.salvaCorsa(json)
             }
         }
     }

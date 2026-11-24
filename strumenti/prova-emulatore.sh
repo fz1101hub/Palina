@@ -5,7 +5,9 @@
 # Uso: strumenti/prova-emulatore.sh "<immagine di sistema>" <cartella dei risultati>
 #   es. strumenti/prova-emulatore.sh "system-images;android-37.0;google_apis;x86_64" risultati-37
 # Con MODULO=orologio e DISPOSITIVO=wearos_small_round prova l'app per l'orologio
-# (ProvaOrologio.kt) su un orologio Wear OS simulato.
+# (ProvaOrologio.kt) su un orologio Wear OS simulato. Con APK_RILASCIO (l'APK di
+# rilascio, minificato da R8) lo installa anche e controlla che si apra senza
+# errori, con riquadro e (da Wear OS 7) widget.
 #
 # Nella cartella dei risultati: riassunto.txt, prova.log (Gradle), schermate/,
 # logcat-app.txt (righe dell'app e degli errori), crash.txt, risultati JUnit.
@@ -103,17 +105,66 @@ ESITO=${PIPESTATUS[0]}
 passo "fine della prova (codice $ESITO)"
 kill "$POSIZIONE" 2>/dev/null || true
 
+# L'APK di rilascio e' minificato (R8): le prove qui sopra usano quello di debug,
+# quindi si controlla a parte che quello vero si apra e disegni riquadro e widget.
+RILASCIO=""
+if [ -n "${APK_RILASCIO:-}" ] && [ -f "$APK_RILASCIO" ]; then
+    passo "prova dell'APK di rilascio ($(du -h "$APK_RILASCIO" | cut -f1))"
+    API=$("$ADB" shell getprop ro.build.version.sdk | tr -d '\r')
+    PACCHETTO=it.palinaroma
+    "$ADB" uninstall "$PACCHETTO" > /dev/null 2>&1 || true
+    "$ADB" logcat -b crash -c > /dev/null 2>&1 || true
+    if "$ADB" install -r "$APK_RILASCIO" > "$RISULTATI/installa-rilascio.log" 2>&1; then
+        "$ADB" shell mkdir -p /data/local/tmp/schermate
+        "$ADB" shell am start -W -n "$PACCHETTO/$PACCHETTO.orologio.Principale" > /dev/null 2>&1
+        sleep 8
+        "$ADB" shell screencap -p "/data/local/tmp/schermate/rilascio-wear$API-01-app.png"
+        "$ADB" shell input keyevent KEYCODE_HOME
+        sleep 2
+        mostra() {
+            local esito indice
+            esito=$("$ADB" shell am broadcast -a com.google.android.wearable.app.DEBUG_SURFACE --es operation add-tile \
+                --ecn component "$PACCHETTO/$PACCHETTO.orologio.$1" $3 2>&1)
+            echo "rilascio $1: $esito" | tr -d '\r' >> "$RISULTATI/rilascio.txt"
+            indice=$(echo "$esito" | grep -o "Index=\[[0-9]*\]" | grep -o "[0-9]*" | head -1)
+            sleep 3
+            "$ADB" shell am broadcast -a com.google.android.wearable.app.DEBUG_SYSUI --es operation show-tile --ei index "${indice:-0}" > /dev/null 2>&1
+            sleep 5
+            "$ADB" shell screencap -p "/data/local/tmp/schermate/rilascio-wear$API-$2.png"
+            "$ADB" shell input keyevent KEYCODE_HOME
+            sleep 2
+        }
+        mostra Riquadro 02-riquadro ""
+        if [ "${API:-0}" -ge 37 ]; then
+            mostra ServizioWidget 03-widget-grande "--ei type 0"
+        fi
+        "$ADB" logcat -d -b crash > "$RISULTATI/crash-rilascio.txt" 2>&1 || true
+        if grep -q "$PACCHETTO" "$RISULTATI/crash-rilascio.txt"; then
+            RILASCIO="errori (vedi crash-rilascio.txt)"
+            ESITO=1
+        else
+            RILASCIO="si apre senza errori"
+        fi
+    else
+        RILASCIO="installazione non riuscita"
+        ESITO=1
+        cat "$RISULTATI/installa-rilascio.log"
+    fi
+    passo "APK di rilascio: $RILASCIO"
+fi
+
 passo "raccolgo i risultati"
 mkdir -p "$RISULTATI/schermate"
 "$ADB" pull /data/local/tmp/schermate/. "$RISULTATI/schermate/" > /dev/null 2>&1 || true
 "$ADB" logcat -d -v time > "$RISULTATI/logcat.txt" 2>&1 || true
-grep -E "palinaroma|AndroidRuntime|FATAL|ProvaSchermate|ProvaOrologio|TestRunner|osmdroid|System.err|Tile|Complication" "$RISULTATI/logcat.txt" \
+grep -E "palinaroma|AndroidRuntime|FATAL|ProvaSchermate|ProvaOrologio|TestRunner|osmdroid|System.err|Tile|Complication|GlanceWear|WearWidget" "$RISULTATI/logcat.txt" \
     > "$RISULTATI/logcat-app.txt" 2>/dev/null || true
 "$ADB" logcat -d -b crash > "$RISULTATI/crash.txt" 2>&1 || true
 cp -r "$MODULO/build/outputs/androidTest-results" "$RISULTATI/junit" 2>/dev/null || true
 {
     echo "immagine: $IMMAGINE ($MODULO su $DISPOSITIVO)"
     echo "esito: $([ $ESITO -eq 0 ] && echo riuscita || echo fallita)"
+    [ -n "$RILASCIO" ] && echo "APK di rilascio ($(du -h "$APK_RILASCIO" | cut -f1)): $RILASCIO"
     grep -E "Starting [0-9]+ tests|Tests on .* failed|tests completed|FAILED|BUILD (SUCCESSFUL|FAILED)|^e: |error:" "$RISULTATI/prova.log" | head -60
     grep -A15 "What went wrong" "$RISULTATI/prova.log" | head -40
 } > "$RISULTATI/riassunto.txt"

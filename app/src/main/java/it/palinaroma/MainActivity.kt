@@ -39,6 +39,7 @@ import it.palinaroma.ui.StatoTragitto
 import it.palinaroma.ui.TemaPalina
 import it.palinaroma.ui.TragittoSchermo
 import it.palinaroma.ui.comeLuogo
+import it.palinaroma.ui.rotta
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

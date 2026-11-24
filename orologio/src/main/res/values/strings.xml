@@ -4,4 +4,8 @@
     <string name="riquadro">Palina: prossimi passaggi</string>
     <string name="riquadro_descrizione">I prossimi bus e treni della fermata preferita più vicina</string>
     <string name="complicazione">Palina: prossimo passaggio</string>
+    <string name="canale_segui">Linea seguita</string>
+    <string name="canale_segui_descrizione">Il conto alla rovescia del bus o del treno che stai seguendo</string>
+    <string name="canale_arrivo">Arrivo imminente</string>
+    <string name="canale_arrivo_descrizione">Una vibrazione quando il mezzo seguito arriva tra 2 minuti</string>
 </resources>

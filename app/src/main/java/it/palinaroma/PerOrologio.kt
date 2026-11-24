@@ -9,8 +9,11 @@ import com.google.android.gms.wearable.WearableListenerService
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Arrivo
 import it.palinaroma.dati.BusOne
+import it.palinaroma.dati.CercaCorsa
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.Rete
+import it.palinaroma.dati.RichiestaCorsa
+import it.palinaroma.dati.bellaScrittura
 import it.palinaroma.dati.TempoReale
 import it.palinaroma.dati.arriviStazione
 import it.palinaroma.dati.caricaFonti
@@ -18,13 +21,21 @@ import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.dividiArrivi
 import it.palinaroma.dati.haPermessoPosizione
 import it.palinaroma.dati.lineeFissate
+import it.palinaroma.dati.nomeLineaCorsa
 import it.palinaroma.dati.posizioneAttuale
+import it.palinaroma.dati.testoFonte
 import it.palinaroma.dati.ultimaPosizioneNota
+import it.palinaroma.ponte.CodificaCorsa
 import it.palinaroma.ponte.CodificaOrologio
+import it.palinaroma.ponte.CorsaOrologio
 import it.palinaroma.ponte.FermataOrologio
+import it.palinaroma.ponte.FermataTreno
+import it.palinaroma.ponte.LineaSeguita
 import it.palinaroma.ponte.Ponte
+import it.palinaroma.ponte.RichiestaOrologio
 import it.palinaroma.ponte.RigaOrologio
 import it.palinaroma.ponte.TabelloneOrologio
+import it.palinaroma.ponte.TrenoOrologio
 import it.palinaroma.ui.coloreRete
 import it.palinaroma.ui.descrizioneFermata
 import kotlinx.coroutines.CancellationException
@@ -52,25 +63,66 @@ private const val RIGHE_OROLOGIO = 6
  */
 class ServizioOrologio : WearableListenerService() {
     override fun onMessageReceived(evento: MessageEvent) {
-        if (evento.path != Ponte.RICHIESTA) return
         // qui siamo gia' fuori dal thread principale: si puo' aspettare il calcolo
-        runBlocking {
-            val tabellone = withTimeoutOrNull(40_000) { tabelloneOrologio(applicationContext) } ?: return@runBlocking
-            val dato = PutDataMapRequest.create(Ponte.TABELLONE).apply {
-                dataMap.putString(Ponte.CAMPO_JSON, CodificaOrologio.scrivi(tabellone))
-                // il dato cambia sempre, cosi' l'orologio lo riceve anche se il tabellone e' uguale
-                dataMap.putLong("chiesto", System.currentTimeMillis())
-            }.asPutDataRequest().setUrgent()
-            runCatching { withTimeoutOrNull(15_000) { Wearable.getDataClient(applicationContext).putDataItem(dato).await() } }
+        when (evento.path) {
+            Ponte.RICHIESTA -> runBlocking {
+                val seguite = RichiestaOrologio.leggi(evento.data)
+                val tabellone = withTimeoutOrNull(40_000) { tabelloneOrologio(applicationContext, seguite = seguite) } ?: return@runBlocking
+                pubblica(Ponte.TABELLONE, CodificaOrologio.scrivi(tabellone))
+            }
+            Ponte.RICHIESTA_CORSA -> runBlocking {
+                val treno = TrenoOrologio.leggi(evento.data?.let { String(it, Charsets.UTF_8) }) ?: return@runBlocking
+                val corsa = withTimeoutOrNull(40_000) { corsaOrologio(treno) }
+                    ?: CorsaOrologio(treno.chiave, System.currentTimeMillis(), "Treno", null, null, emptyList(), null, "Il telefono non ha trovato il treno in tempo: riprova.")
+                pubblica(Ponte.CORSA, CodificaCorsa.scrivi(corsa))
+            }
         }
     }
+
+    private suspend fun pubblica(percorso: String, json: String) {
+        val dato = PutDataMapRequest.create(percorso).apply {
+            dataMap.putString(Ponte.CAMPO_JSON, json)
+            // il dato cambia sempre, cosi' l'orologio lo riceve anche se il contenuto e' uguale
+            dataMap.putLong("chiesto", System.currentTimeMillis())
+        }.asPutDataRequest().setUrgent()
+        runCatching { withTimeoutOrNull(15_000) { Wearable.getDataClient(applicationContext).putDataItem(dato).await() } }
+    }
+}
+
+/** Le fermate del [treno] chiesto dall'orologio, come nel dettaglio della corsa sul telefono. */
+suspend fun corsaOrologio(treno: TrenoOrologio): CorsaOrologio {
+    val orario = withTimeoutOrNull(20_000) { Archivio.orario.filterNotNull().first() }
+    val richiesta = RichiestaCorsa(treno.corsaId, treno.fermataId, treno.lineaId, treno.direzione, treno.previsto, treno.corsaAstral, treno.ritardo)
+    val esito = CercaCorsa(orario, richiesta).aggiorna()
+    val adesso = System.currentTimeMillis()
+    val d = esito.dettaglio
+        ?: return CorsaOrologio(treno.chiave, adesso, nomeLineaCorsa(null, treno.lineaId, orario).ifEmpty { "Treno" }, null, null, emptyList(), null, esito.errore)
+    val titolo = listOf(nomeLineaCorsa(d, treno.lineaId, orario), d.tratto.numero).filter { it.isNotBlank() }.joinToString(" ").ifEmpty { "Treno" }
+    val verso = d.tratto.direzione.takeIf { it.isNotBlank() }?.let { dir ->
+        "verso $dir" + (d.tratto.gestore.takeIf { it.isNotBlank() }?.let { " · " + bellaScrittura(it) } ?: "")
+    }
+    return CorsaOrologio(
+        chiave = treno.chiave,
+        creato = adesso,
+        titolo = titolo,
+        verso = verso,
+        fonte = d.testoFonte(breve = true),
+        fermate = d.fermate.map { f ->
+            FermataTreno(f.nome, f.orario, f.previsto, f.binario, f.binarioCambiato, f.soppressa, f.stimato)
+        },
+        qui = d.qui,
+    )
 }
 
 /**
  * Il tabellone per l'orologio: le fermate preferite (dalla piu' vicina) e
  * qualche fermata vicina, ognuna con le prossime linee (prima quelle fissate).
  */
-suspend fun tabelloneOrologio(context: Context, adessoMs: Long = System.currentTimeMillis()): TabelloneOrologio? {
+suspend fun tabelloneOrologio(
+    context: Context,
+    adessoMs: Long = System.currentTimeMillis(),
+    seguite: List<LineaSeguita> = emptyList(),
+): TabelloneOrologio? {
     val orario = withTimeoutOrNull(20_000) { Archivio.orario.filterNotNull().first() } ?: return null
     val adesso = adessoMs / 1000
     val posizione = ultimaPosizioneNota()
@@ -91,7 +143,14 @@ suspend fun tabelloneOrologio(context: Context, adessoMs: Long = System.currentT
                 .take(VICINE_OROLOGIO)
                 .map { (f, d) -> Triple(f, d, false) }
         }.orEmpty()
-        preferite + vicine
+        // le fermate delle linee seguite sull'orologio ci sono sempre, anche se ci si e' allontanati
+        val fin = preferite + vicine
+        val presenti = fin.map { it.first.id }.toSet()
+        val seguiteFermate = seguite.map { it.fermataId }.distinct().filter { it !in presenti }
+        val trovateSeguite = orario.fermate(seguiteFermate)
+        val inPiu = seguiteFermate.mapNotNull { id -> trovateSeguite[id]?.let { f -> orario.fermataUnita(id)?.copy(id = id) ?: f } }
+            .map { f -> Triple(f, posizione?.let { distanzaMetri(it.latitude, it.longitude, f.lat, f.lon) }, false) }
+        fin + inPiu
     }
     if (scelte.isEmpty()) {
         return TabelloneOrologio(adessoMs, emptyList(), "Aggiungi una fermata ai preferiti sul telefono, o attiva la posizione.")
@@ -123,13 +182,17 @@ suspend fun tabelloneOrologio(context: Context, adessoMs: Long = System.currentT
         scelte.map { (f, distanza, preferita) ->
             val membri = membriPer.getValue(f.id)
             val arrivi = arriviStazione(membri, orario, corse, mezzi, membri.associateWith { fonti[it] }, adesso)
+            // le linee seguite stanno in cima, come quelle fissate
+            val inCima = lineeFissate(f.id, fissate) + seguite.filter { it.fermataId == f.id }.map { it.lineaId }
             FermataOrologio(
                 id = f.id,
                 nome = f.nome,
                 sotto = descrizioneFermata(f),
                 preferita = preferita,
                 distanza = distanza?.toInt(),
-                righe = righeOrologio(arrivi, lineeFissate(f.id, fissate), adesso),
+                righe = righeOrologio(arrivi, inCima, adesso) { a ->
+                    membri.firstOrNull { Rete.di(it) == Rete.di(a.lineaId) } ?: f.id
+                },
             )
         }
     }
@@ -137,21 +200,48 @@ suspend fun tabelloneOrologio(context: Context, adessoMs: Long = System.currentT
     return TabelloneOrologio(adessoMs, fermate, nota)
 }
 
-/** Le righe per l'orologio: prima le linee fissate, poi le altre; al massimo [quante], tre passaggi l'una. */
-fun righeOrologio(arrivi: List<Arrivo>, fissate: Set<String>, adesso: Long, quante: Int = RIGHE_OROLOGIO): List<RigaOrologio> {
+/**
+ * Le righe per l'orologio: prima le linee fissate, poi le altre; al massimo
+ * [quante], tre passaggi l'una. Per i treni anche come chiederne le fermate,
+ * dalla stazione [stazioneDi] (nelle stazioni unite, quella della rete del treno).
+ */
+fun righeOrologio(
+    arrivi: List<Arrivo>,
+    fissate: Set<String>,
+    adesso: Long,
+    quante: Int = RIGHE_OROLOGIO,
+    stazioneDi: (Arrivo) -> String = { "" },
+): List<RigaOrologio> {
     val divisi = dividiArrivi(arrivi, fissate)
     return (divisi.fissate + divisi.altre)
         .filter { a -> a.passaggi.any { it.orario >= adesso - 30 } }
         .take(quante)
         .map { a ->
-            val prossimi = a.passaggi.filter { it.orario >= adesso - 30 }
+            val prossimi = a.passaggi.filter { it.orario >= adesso - 30 }.take(3)
+            val stazione = if (Rete.di(a.lineaId).treni) stazioneDi(a).ifEmpty { null } else null
             RigaOrologio(
                 linea = a.nomeLinea,
                 colore = coloreRete(a.lineaId).toArgb(),
                 capolinea = a.capolinea,
-                orari = prossimi.take(3).map { it.orario },
+                orari = prossimi.map { it.orario },
                 tempoReale = prossimi.first().tracciato,
                 avviso = prossimi.first().avviso,
+                lineaId = a.lineaId,
+                treni = if (stazione == null) {
+                    emptyList()
+                } else {
+                    prossimi.map { p ->
+                        TrenoOrologio(
+                            corsaId = p.idTransitous,
+                            fermataId = stazione,
+                            lineaId = a.lineaId,
+                            direzione = a.direzione,
+                            previsto = p.orario - (p.ritardo ?: 0),
+                            corsaAstral = p.corsaId.takeIf { it.startsWith("astral:") },
+                            ritardo = p.ritardo,
+                        )
+                    }
+                },
             )
         }
 }

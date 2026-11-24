@@ -67,6 +67,7 @@ import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.FontiFermata
 import it.palinaroma.dati.BusOne
 import it.palinaroma.dati.Rete
+import it.palinaroma.dati.RichiestaCorsa
 import it.palinaroma.dati.caricaFonti
 import it.palinaroma.dati.MezzoRT
 import it.palinaroma.dati.TempoReale
