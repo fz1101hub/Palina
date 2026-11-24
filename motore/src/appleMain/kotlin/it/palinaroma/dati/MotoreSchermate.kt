@@ -1,5 +1,6 @@
 package it.palinaroma.dati
 
+import it.palinaroma.ponte.CorsaOrologio
 import it.palinaroma.ponte.TrenoOrologio
 import it.palinaroma.ponte.calcolaCorsaOrologio
 import kotlinx.coroutines.CancellationException
@@ -292,38 +293,39 @@ class MotoreCorsa(private val orario: Orario, private val treno: String) {
     suspend fun aggiorna(): StatoCorsa = withContext(Dispatchers.Main) {
         val richiesta = TrenoOrologio.leggi(treno)
             ?: return@withContext StatoCorsa("Treno", null, null, emptyList(), -1, "Richiesta non valida.")
-        val corsa = calcolaCorsaOrologio(orario, richiesta)
-        val adesso = adessoMs()
-        StatoCorsa(
-            titolo = corsa.titolo,
-            verso = corsa.verso,
-            fonte = corsa.fonte,
-            righe = corsa.fermate.mapIndexed { i, f ->
-                val ora = f.orario?.let { oraARoma(it) } ?: "–"
-                val prevista = f.previsto?.let { oraARoma(it) }?.takeIf { it != ora && f.orario != null }
-                val ritardo = f.ritardoMinuti?.takeIf { it != 0 }?.let { if (it > 0) "+$it" else "$it" }
-                RigaCorsa(
-                    nome = f.nome,
-                    ora = ora,
-                    oraPrevista = prevista,
-                    ritardo = ritardo,
-                    binario = f.binario?.let { "Binario $it" },
-                    binarioCambiato = f.binarioCambiato,
-                    soppressa = f.soppressa,
-                    stimato = f.stimato,
-                    qui = i == corsa.qui,
-                    passata = (f.orario ?: f.previsto ?: Long.MAX_VALUE) < adesso - 60_000,
-                    perVoce = buildString {
-                        append(f.nome)
-                        if (f.soppressa) append(", fermata soppressa") else append(", alle $ora")
-                        if (ritardo != null) append(", ritardo $ritardo minuti")
-                        f.binario?.let { append(", binario $it") }
-                        if (i == corsa.qui) append(", la tua stazione")
-                    },
-                )
-            },
-            qui = corsa.qui ?: -1,
-            errore = corsa.errore,
-        )
+        statoCorsa(calcolaCorsaOrologio(orario, richiesta), adessoMs())
     }
 }
+
+/** Le fermate di un treno pronte da disegnare (sull'iPhone e sull'Apple Watch). */
+fun statoCorsa(corsa: CorsaOrologio, adesso: Long): StatoCorsa = StatoCorsa(
+    titolo = corsa.titolo,
+    verso = corsa.verso,
+    fonte = corsa.fonte,
+    righe = corsa.fermate.mapIndexed { i, f ->
+        val ora = f.orario?.let { oraARoma(it) } ?: "–"
+        val prevista = f.previsto?.let { oraARoma(it) }?.takeIf { it != ora && f.orario != null }
+        val ritardo = f.ritardoMinuti?.takeIf { it != 0 }?.let { if (it > 0) "+$it" else "$it" }
+        RigaCorsa(
+            nome = f.nome,
+            ora = ora,
+            oraPrevista = prevista,
+            ritardo = ritardo,
+            binario = f.binario?.let { "Binario $it" },
+            binarioCambiato = f.binarioCambiato,
+            soppressa = f.soppressa,
+            stimato = f.stimato,
+            qui = i == corsa.qui,
+            passata = (f.orario ?: f.previsto ?: Long.MAX_VALUE) < adesso - 60_000,
+            perVoce = buildString {
+                append(f.nome)
+                if (f.soppressa) append(", fermata soppressa") else append(", alle $ora")
+                if (ritardo != null) append(", ritardo $ritardo minuti")
+                f.binario?.let { append(", binario $it") }
+                if (i == corsa.qui) append(", la tua stazione")
+            },
+        )
+    },
+    qui = corsa.qui ?: -1,
+    errore = corsa.errore,
+)

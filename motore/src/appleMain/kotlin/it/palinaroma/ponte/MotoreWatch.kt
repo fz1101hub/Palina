@@ -2,6 +2,8 @@ package it.palinaroma.ponte
 
 import it.palinaroma.dati.Orario
 import it.palinaroma.dati.Punto
+import it.palinaroma.dati.StatoCorsa
+import it.palinaroma.dati.statoCorsa
 import it.palinaroma.dati.adessoMs
 import it.palinaroma.dati.testoAggiornato
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +53,8 @@ data class RigaWatch(
     val tempoReale: Boolean,
     val avviso: String?,
     val perVoce: String,
+    /** Per i treni: la richiesta del primo treno (JSON), per vederne le fermate. */
+    val treno: String?,
 )
 
 data class FermataWatch(
@@ -90,6 +94,13 @@ class MotoreWatch {
         tabellone = tabelloneDiEsempio(adessoMs() / 1000)
     }
 
+    /** Le fermate di un treno ricevute dall'iPhone (JSON), pronte da disegnare. */
+    fun corsa(json: String): StatoCorsa? = CodificaCorsa.leggi(json)?.let { statoCorsa(it, adessoMs()) }
+
+    /** Le fermate di un treno di esempio, per le prove sul simulatore. */
+    fun esempioCorsa(treno: String): StatoCorsa? =
+        TrenoOrologio.leggi(treno)?.let { statoCorsa(corsaDiEsempio(it, adessoMs() / 1000), adessoMs()) }
+
     /** La richiesta da mandare all'iPhone (vuota: nessuna linea seguita, per ora). */
     fun richiesta(): String = RichiestaOrologio.scrivi(emptyList()).decodeToString()
 
@@ -114,6 +125,7 @@ class MotoreWatch {
                         avviso = r.avviso,
                         perVoce = "${r.linea} verso ${r.capolinea}: " + passaggi.replace("'", " minuti").replace(" · ", ", ") +
                             (if (r.tempoReale) ", in tempo reale" else ", da orario") + (r.avviso?.let { ", $it" } ?: ""),
+                        treno = r.prossimi(adesso).firstOrNull()?.let { r.treno(it) }?.testoJson(),
                     )
                 },
             )

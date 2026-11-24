@@ -5,13 +5,22 @@ import Motore
 @main
 struct PalinaWatchApp: App {
     @StateObject private var archivio = ArchivioWatch()
+    @State private var percorso: [String] = []
 
     var body: some Scene {
         WindowGroup {
-            NavigationStack {
+            NavigationStack(path: $percorso) {
                 TabelloneWatch()
+                    .navigationDestination(for: String.self) { treno in CorsaWatch(treno: treno) }
             }
             .environmentObject(archivio)
+            .onAppear {
+                // prove sul simulatore: -provaTreno YES apre il primo treno del tabellone di esempio
+                if UserDefaults.standard.bool(forKey: "provaTreno"),
+                   let treno = archivio.stato?.fermate.flatMap({ $0.righe }).compactMap({ $0.treno }).first {
+                    percorso = [treno]
+                }
+            }
         }
     }
 }
@@ -30,7 +39,12 @@ struct TabelloneWatch: View {
                 ForEach(stato.fermate, id: \.id) { fermata in
                     Section {
                         ForEach(Array(fermata.righe.enumerated()), id: \.offset) { _, riga in
-                            RigaWatchVista(riga: riga)
+                            if let treno = riga.treno {
+                                // un treno: si vedono tutte le sue fermate
+                                NavigationLink(value: treno) { RigaWatchVista(riga: riga) }
+                            } else {
+                                RigaWatchVista(riga: riga)
+                            }
                         }
                         if fermata.righe.isEmpty {
                             Text("Nessun passaggio a breve").font(.footnote).foregroundStyle(.secondary)
@@ -99,5 +113,56 @@ enum ColoriWatch {
     static func da(argb: Int64) -> Color {
         let v = UInt32(truncatingIfNeeded: argb)
         return Color(red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255)
+    }
+}
+
+/** Un treno sull'orologio: le fermate con l'ora (e il ritardo), in evidenza la tua stazione. */
+struct CorsaWatch: View {
+    let treno: String
+    @EnvironmentObject private var archivio: ArchivioWatch
+    @State private var stato: StatoCorsa?
+    @State private var errore: String?
+
+    var body: some View {
+        ScrollViewReader { scorri in
+            List {
+                if let stato {
+                    VStack(alignment: .leading) {
+                        Text(stato.titolo).font(.headline)
+                        if let verso = stato.verso { Text(verso).font(.caption2).foregroundStyle(.secondary) }
+                    }
+                    if let e = stato.errore { Text(e).font(.footnote).foregroundStyle(.secondary) }
+                    ForEach(Array(stato.righe.enumerated()), id: \.offset) { i, r in
+                        HStack {
+                            Text(r.nome)
+                                .font(r.qui ? .body.bold() : .footnote)
+                                .foregroundStyle(r.passata ? .secondary : (r.qui ? ColoriWatch.oro : .primary))
+                                .strikethrough(r.soppressa)
+                                .lineLimit(2)
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 0) {
+                                Text(r.ora).font(.footnote.monospacedDigit())
+                                    .foregroundStyle(r.oraPrevista != nil ? ColoriWatch.oro : .primary)
+                                if let ritardo = r.ritardo { Text(ritardo).font(.caption2).foregroundStyle(ColoriWatch.oro) }
+                            }
+                        }
+                        .id(i)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(r.perVoce)
+                    }
+                } else if let errore {
+                    Text(errore).foregroundStyle(.secondary)
+                } else {
+                    HStack { ProgressView(); Text("Chiedo il treno all'iPhone…").font(.footnote) }
+                }
+            }
+            .onChange(of: stato?.qui) { _, qui in
+                if let qui, qui >= 0 { scorri.scrollTo(Int(qui), anchor: .center) }
+            }
+        }
+        .navigationTitle("Treno")
+        .task {
+            if let s = await archivio.corsa(treno: treno) { stato = s } else { errore = "L'iPhone non risponde: riprova." }
+        }
     }
 }

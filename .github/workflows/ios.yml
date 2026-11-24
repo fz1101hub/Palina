@@ -200,6 +200,10 @@ jobs:
           xcrun simctl launch "$orologio" it.palinaroma.watchkitapp -provaEsempio YES
           sleep 10
           xcrun simctl io "$orologio" screenshot /tmp/esito/schermate/watch-01-tabellone.png
+          xcrun simctl terminate "$orologio" it.palinaroma.watchkitapp
+          xcrun simctl launch "$orologio" it.palinaroma.watchkitapp -provaEsempio YES -provaTreno YES
+          sleep 8
+          xcrun simctl io "$orologio" screenshot /tmp/esito/schermate/watch-02-treno.png
           xcrun simctl spawn "$dispositivo" log show --last 3m --predicate 'process == "Palina"' --style compact > /tmp/esito/log-app.txt 2>&1 || true
           ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i palina > /tmp/esito/crash.txt || true
 

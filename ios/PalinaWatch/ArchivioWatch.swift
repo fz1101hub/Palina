@@ -54,6 +54,22 @@ final class ArchivioWatch: NSObject, ObservableObject, WCSessionDelegate {
         })
     }
 
+    /** Le fermate di un treno, chieste all'iPhone (nil se non risponde). */
+    func corsa(treno: String) async -> StatoCorsa? {
+        if UserDefaults.standard.bool(forKey: "provaEsempio") { return motore.esempioCorsa(treno: treno) }
+        let sessione = WCSession.default
+        guard sessione.activationState == .activated, sessione.isReachable else { return nil }
+        let json: String? = await withCheckedContinuation { continua in
+            sessione.sendMessage(["treno": treno], replyHandler: { risposta in
+                continua.resume(returning: risposta["corsa"] as? String)
+            }, errorHandler: { _ in
+                continua.resume(returning: nil)
+            })
+        }
+        guard let json, !json.isEmpty else { return nil }
+        return motore.corsa(json: json)
+    }
+
     private func ricevi(_ json: String?) {
         guard let json, !json.isEmpty, motore.ricevi(json: json) else { return }
         memoria.set(json, forKey: "tabellone")
