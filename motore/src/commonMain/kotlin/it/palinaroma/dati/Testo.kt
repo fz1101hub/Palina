@@ -1,73 +1,17 @@
 package it.palinaroma.dati
 
-import java.io.BufferedReader
-import java.io.Closeable
-import java.text.Normalizer
+import kotlin.math.PI
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** Lettore CSV per i file GTFS: veloce sulle righe senza virgolette. */
-class LettoreCsv(private val lettore: BufferedReader) : Closeable {
-    val intestazione: List<String>
-
-    override fun close() = lettore.close()
-
-    init {
-        val prima = lettore.readLine() ?: ""
-        intestazione = dividi(prima.removePrefix("\uFEFF")).map { it.trim() }
-    }
-
-    fun indice(nome: String): Int = intestazione.indexOf(nome)
-
-    /** La prossima riga non vuota, oppure null alla fine del file. */
-    fun prossima(): List<String>? {
-        while (true) {
-            val riga = lettore.readLine() ?: return null
-            if (riga.isNotBlank()) return dividi(riga)
-        }
-    }
-
-    companion object {
-        fun dividi(riga: String): List<String> {
-            if (riga.indexOf('"') < 0) return riga.split(',')
-            val campi = ArrayList<String>()
-            val campo = StringBuilder()
-            var tra = false
-            var i = 0
-            while (i < riga.length) {
-                val c = riga[i]
-                when {
-                    tra && c == '"' && i + 1 < riga.length && riga[i + 1] == '"' -> {
-                        campo.append('"'); i++
-                    }
-                    c == '"' -> tra = !tra
-                    c == ',' && !tra -> {
-                        campi.add(campo.toString()); campo.setLength(0)
-                    }
-                    else -> campo.append(c)
-                }
-                i++
-            }
-            campi.add(campo.toString())
-            return campi
-        }
-    }
-}
-
-/** Valore della colonna, stringa vuota se manca. */
-fun List<String>.campo(indice: Int): String =
-    if (indice in indices) this[indice].trim() else ""
-
-private val ACCENTI = Regex("\\p{M}+")
 private val NON_ALFANUMERICI = Regex("[^a-z0-9]+")
 private val SPAZI = Regex("\\s+")
 
 /** Testo per la ricerca: minuscolo, senza accenti e punteggiatura. */
 fun normalizza(testo: String): String =
-    Normalizer.normalize(testo, Normalizer.Form.NFD)
-        .replace(ACCENTI, "")
+    senzaAccenti(testo)
         .lowercase()
         .replace(NON_ALFANUMERICI, " ")
         .trim()
@@ -116,10 +60,10 @@ fun bellaScrittura(testo: String): String {
 /** Distanza in metri tra due punti (formula dell'emisenoverso). */
 fun distanzaMetri(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
     val r = 6_371_000.0
-    val dLat = Math.toRadians(lat2 - lat1)
-    val dLon = Math.toRadians(lon2 - lon1)
+    val dLat = radianti(lat2 - lat1)
+    val dLon = radianti(lon2 - lon1)
     val a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2)
+        cos(radianti(lat1)) * cos(radianti(lat2)) * sin(dLon / 2) * sin(dLon / 2)
     return 2 * r * asin(sqrt(a))
 }
 
@@ -138,3 +82,8 @@ val ordineLinee: Comparator<String> = Comparator { a, b ->
         else -> a.compareTo(b, ignoreCase = true)
     }
 }
+
+/** Gradi in radianti, come Math.toRadians (stessa costante, stessi risultati). */
+fun radianti(gradi: Double): Double = gradi * GRADI_IN_RADIANTI
+
+private const val GRADI_IN_RADIANTI = PI / 180.0

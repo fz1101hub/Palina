@@ -34,7 +34,7 @@ class LettoreProto(
             ((buf[pos + 2].toInt() and 0xFF) shl 16) or
             ((buf[pos + 3].toInt() and 0xFF) shl 24)
         pos += 4
-        return java.lang.Float.intBitsToFloat(bit)
+        return Float.fromBits(bit)
     }
 
     /**
@@ -62,7 +62,7 @@ class LettoreProto(
 
     fun leggiStringa(): String {
         val n = lunghezza("stringa")
-        val s = String(buf, pos, n, Charsets.UTF_8)
+        val s = buf.decodeToString(pos, pos + n)
         pos += n
         return s
     }

@@ -1,0 +1,170 @@
+name: App iOS
+
+# L'app per iPhone (SwiftUI) sopra il motore Kotlin condiviso con Android.
+# Gira sui push del ramo "ios" e, quando ci saranno, su quelli di main che
+# toccano il motore o l'app iOS.
+on:
+  push:
+    branches: [ios]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 1. Android con il motore: deve compilare e passare i test come prima
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Compila l'app Android e l'orologio con il motore, test compresi
+        run: |
+          set -o pipefail
+          mkdir -p /tmp/esito
+          ./gradlew --no-daemon --console=plain :app:assembleDebug :app:testDebugUnitTest :orologio:assembleDebug :ponte:testDebugUnitTest \
+            2>&1 | tee /tmp/esito/android.log
+      - name: Riassunto
+        if: always()
+        run: |
+          mkdir -p /tmp/esito
+          grep -E "^e: |^w: .*motore|BUILD|FAILED|tests completed" /tmp/esito/android.log > /tmp/esito/android-errori.txt || true
+          find . -path "*/build/test-results/*" -name "*.xml" -exec cp {} /tmp/esito/ \; 2>/dev/null || true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: android
+          path: /tmp/esito
+
+  # 2. iPhone: motore come XCFramework, progetto XcodeGen, simulatore, IPA
+  iphone:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Motore per iPhone e Apple Watch (XCFramework)
+        run: |
+          set -o pipefail
+          mkdir -p /tmp/esito
+          ./gradlew --no-daemon --console=plain :motore:assembleMotoreDebugXCFramework 2>&1 | tee /tmp/esito/motore.log
+          ls -R motore/build/XCFrameworks/debug | head -40 | tee -a /tmp/esito/motore.log
+
+      - name: Orario incluso (dall'ultimo APK Android)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/apk
+          gh release download ultima -p app-release.apk -D /tmp/apk
+          unzip -o -j /tmp/apk/app-release.apk assets/orario.db assets/reti.db -d ios/Risorse
+          ls -la ios/Risorse | tee /tmp/esito/risorse.txt
+
+      - name: Progetto Xcode
+        run: |
+          brew install xcodegen
+          cd ios && xcodegen generate
+
+      - name: Compila per il simulatore
+        run: |
+          set -o pipefail
+          cd ios
+          xcodebuild -project Palina.xcodeproj -scheme Palina -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build 2>&1 | tee /tmp/esito/xcode-simulatore.log | grep -E "error:|warning: .*swift|BUILD" || true
+          test -d build/dd/Build/Products/Debug-iphonesimulator/Palina.app
+
+      - name: Prova sul simulatore con le schermate
+        run: |
+          set -x
+          mkdir -p /tmp/esito/schermate
+          dispositivo=$(xcrun simctl create prova "iPhone 17" 2>/dev/null || xcrun simctl create prova "iPhone 16")
+          xcrun simctl boot "$dispositivo"
+          xcrun simctl bootstatus "$dispositivo" -b
+          xcrun simctl install "$dispositivo" ios/build/dd/Build/Products/Debug-iphonesimulator/Palina.app
+          # 1. Home vicino a piazza Venezia
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826
+          sleep 12
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-01-home.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 2. Una fermata di Roma (piazza Venezia)
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri fermata:70078
+          sleep 8
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-02-fermata.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 3. La stazione di scambio Basilica San Paolo (Metro B e Metromare)
+          id=$(sqlite3 ios/Risorse/reti.db "SELECT id FROM fermate WHERE id LIKE 'F:%' AND nome LIKE '%San Paolo%' LIMIT 1")
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "fermata:$id"
+          sleep 8
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-03-scambio.png
+          xcrun simctl spawn "$dispositivo" log show --last 3m --predicate 'process == "Palina"' --style compact > /tmp/esito/log-app.txt 2>&1 || true
+          ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i palina > /tmp/esito/crash.txt || true
+
+      - name: IPA non firmato (per AltStore o Sideloadly)
+        run: |
+          set -o pipefail
+          cd ios
+          xcodebuild -project Palina.xcodeproj -scheme Palina -configuration Debug \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee /tmp/esito/xcode-iphone.log | grep -E "error:|BUILD" || true
+          mkdir -p /tmp/ipa/Payload
+          cp -R build/dd/Build/Products/Debug-iphoneos/Palina.app /tmp/ipa/Payload/
+          (cd /tmp/ipa && zip -qr PalinaRoma-iOS.ipa Payload)
+          ls -la /tmp/ipa/PalinaRoma-iOS.ipa | tee /tmp/esito/ipa.txt
+
+      - name: IPA nella release "ios-prova"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view ios-prova > /dev/null 2>&1 || gh release create ios-prova --prerelease --target "$GITHUB_SHA" \
+            --title "App iOS (prova)" --notes "App per iPhone non firmata, da installare con AltStore o Sideloadly. Compilata dal ramo ios."
+          gh release edit ios-prova --notes "App per iPhone non firmata, da installare con AltStore o Sideloadly. Compilata dal commit $GITHUB_SHA del ramo ios."
+          gh release upload ios-prova /tmp/ipa/PalinaRoma-iOS.ipa --clobber
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: iphone
+          path: /tmp/esito
+
+  # 3. Risultati sul ramo ios-esito (si leggono senza scaricare gli artifact)
+  risultati:
+    needs: [android, iphone]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: /tmp/esito
+      - name: Pubblica i risultati
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ESITO_ANDROID: ${{ needs.android.result }}
+          ESITO_IPHONE: ${{ needs.iphone.result }}
+        run: |
+          cd /tmp/esito
+          { echo "commit: $GITHUB_SHA"; echo "android: $ESITO_ANDROID"; echo "iphone: $ESITO_IPHONE"; } > ESITO.txt
+          for f in iphone/motore.log android/android.log; do
+            [ -f "$f" ] && { echo "== $f"; grep -E "^e: |error:|FAILED|BUILD" "$f" | head -60; } >> ESITO.txt
+          done
+          [ -f iphone/xcode-simulatore.log ] && { echo "== xcode"; grep -E "error:" iphone/xcode-simulatore.log | head -40; } >> ESITO.txt
+          find . -name "*.log" -size +2M -delete
+          git init -q -b ios-esito
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "App iOS $GITHUB_SHA: android $ESITO_ANDROID, iphone $ESITO_IPHONE"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ios-esito

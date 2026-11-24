@@ -1,0 +1,2 @@
+Qui la compilazione su GitHub mette orario.db e reti.db, presi dall APK Android
+(non vanno nel repository).

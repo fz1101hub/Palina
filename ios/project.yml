@@ -1,0 +1,46 @@
+# Progetto Xcode dell'app per iPhone, generato con XcodeGen (xcodegen generate).
+# Il motore (dati, fonti, orario, cosa mostrare) e' il modulo Kotlin "motore",
+# compilato come Motore.xcframework; qui ci sono solo le schermate SwiftUI.
+name: Palina
+options:
+  bundleIdPrefix: it.palinaroma
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Palina:
+    type: application
+    platform: iOS
+    sources:
+      - path: Palina
+      - path: Risorse
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - framework: ../motore/build/XCFrameworks/debug/Motore.xcframework
+        embed: false
+      - sdk: libsqlite3.tbd
+    info:
+      path: Palina/Info.plist
+      properties:
+        CFBundleDisplayName: Palina
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSLocationWhenInUseUsageDescription: "Palina usa la tua posizione per mostrarti le fermate vicine."
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.palinaroma
+        TARGETED_DEVICE_FAMILY: "1"
+        OTHER_LDFLAGS: ["-lsqlite3", "-lc++"]
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""

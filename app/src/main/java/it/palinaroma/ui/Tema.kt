@@ -53,9 +53,12 @@ import androidx.compose.ui.unit.sp
 import it.palinaroma.R
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Arrivo
+import it.palinaroma.dati.Colori
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.Rete
+import it.palinaroma.dati.coloreReteArgb
 import it.palinaroma.dati.daLeggere
+import it.palinaroma.dati.descrizioneFermata
 import it.palinaroma.dati.minutiAttesa
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -65,34 +68,21 @@ import kotlin.math.roundToInt
 // Colori fissi: porpora (Pantone 202 C) e oro (Pantone 130 C) di Roma. Valgono
 // uguali con il tema chiaro e con quello scuro (riquadri delle linee, pulsanti
 // principali, segnalini sulle mappe, che restano chiare).
-val Porpora = Color(0xFF862633)
-val Oro = Color(0xFFF2A900)
+val Porpora = Color(Colori.PORPORA)
+val Oro = Color(Colori.ORO)
 
 /** Il testo sopra l'oro. */
-val Inchiostro = Color(0xFF1C1A1A)
+val Inchiostro = Color(Colori.INCHIOSTRO)
 
 /** I riquadri delle linee delle altre reti: blu Cotral, verde dei regionali Trenitalia. */
-val BluCotral = Color(0xFF1D4F91)
-val VerdeTreni = Color(0xFF00703C)
+val BluCotral = Color(Colori.BLU_COTRAL)
+val VerdeTreni = Color(Colori.VERDE_TRENI)
 
 /** Il colore del riquadro di una linea, dalla sua rete. */
-fun coloreRete(id: String): Color = when (Rete.di(id)) {
-    Rete.ROMA -> Porpora
-    Rete.COTRAL, Rete.COTRAL_TRENI -> BluCotral
-    Rete.TRENITALIA -> VerdeTreni
-}
+fun coloreRete(id: String): Color = Color(coloreReteArgb(id))
 
 /** Sotto il nome di una fermata: "Palina 70078", "Cotral · palina 12345", "Stazione · Trenitalia". */
-fun descrizioneFermata(fermata: Fermata): String {
-    // le stazioni di scambio: "Stazione · Metro B/B1 · Metromare"
-    Archivio.orario.value?.lineeStazioneUnita(fermata.id)?.let { return "Stazione · $it" }
-    val rete = Rete.di(fermata.id)
-    return when {
-        rete == Rete.ROMA -> "Palina ${fermata.codice}"
-        rete.treni -> "Stazione · ${rete.etichetta}"
-        else -> "${rete.etichetta} · palina ${fermata.codice}"
-    }
-}
+fun descrizioneFermata(fermata: Fermata): String = descrizioneFermata(fermata, Archivio.orario.value)
 
 /** Il grigio dei disegni sulle mappe (tracciati, vetture dell'altra direzione): le mappe restano chiare. */
 val GrigioMappa = Color(0xFF5F5A57)

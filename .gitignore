@@ -18,3 +18,8 @@
 __pycache__/
 /ponte/build/
 /orologio/build/
+/motore/build/
+/ios/build/
+/ios/Palina.xcodeproj/
+/ios/Risorse/*.db
+.kotlin/

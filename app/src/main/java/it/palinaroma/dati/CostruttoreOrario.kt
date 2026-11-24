@@ -4,7 +4,6 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.zip.ZipFile
 
-data class Punto(val lat: Double, val lon: Double)
 
 /** Dove finisce l'orario letto dal file GTFS (nell'app: il database SQLite). */
 interface DestinazioneOrario {
