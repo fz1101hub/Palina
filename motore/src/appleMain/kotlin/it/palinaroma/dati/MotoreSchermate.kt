@@ -1,5 +1,7 @@
 package it.palinaroma.dati
 
+import it.palinaroma.ponte.TrenoOrologio
+import it.palinaroma.ponte.calcolaCorsaOrologio
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -83,8 +85,13 @@ class MotoreFermata(private val orario: Orario, private val fermataId: String) {
         tabellone()
     }
 
+    /** Nelle stazioni unite i treni si chiedono dalla banchina della loro rete. */
+    private val membri: List<String> by lazy { orario.stazioneUnita(fermataId) }
+
     /** Il tabellone con i tempi gia' letti, per adesso. */
-    fun tabellone(): TabelloneFermata = tabelloneFermata(fermataId, arrivi, adessoMs(), fissate, nomiLinee)
+    fun tabellone(): TabelloneFermata = tabelloneFermata(fermataId, arrivi, adessoMs(), fissate, nomiLinee) { a ->
+        membri.firstOrNull { Rete.di(it) == Rete.di(a.lineaId) } ?: fermataId
+    }
 }
 
 /** Una direzione di una linea: "→ Casaletto". */
@@ -243,6 +250,80 @@ class MotoreLinea(
             fermata = fermataAttesa,
             arrivo = vetture.arrivoAtteso,
             adesso = adessoMs() / 1000,
+        )
+    }
+}
+
+/** Una fermata di un treno, pronta da disegnare. */
+data class RigaCorsa(
+    val nome: String,
+    /** "07:45" (aggiornato), o "–". */
+    val ora: String,
+    /** L'ora programmata se e' diversa (si scrive barrata). */
+    val oraPrevista: String?,
+    /** "+3", "-1", o null. */
+    val ritardo: String?,
+    /** "Binario 4". */
+    val binario: String?,
+    val binarioCambiato: Boolean,
+    val soppressa: Boolean,
+    /** Orario stimato dal ritardo visto a un'altra stazione. */
+    val stimato: Boolean,
+    /** La stazione da cui lo guardi. */
+    val qui: Boolean,
+    /** Gia' passato. */
+    val passata: Boolean,
+    val perVoce: String,
+)
+
+/** Il dettaglio di un treno: tutte le fermate con orari, ritardo e binario. */
+data class StatoCorsa(
+    val titolo: String,
+    val verso: String?,
+    val fonte: String?,
+    val righe: List<RigaCorsa>,
+    /** L'indice della tua stazione, -1 se non c'e'. */
+    val qui: Int,
+    val errore: String?,
+)
+
+/** La schermata di un treno: lo stesso calcolo che il telefono fa per gli orologi. */
+class MotoreCorsa(private val orario: Orario, private val treno: String) {
+    suspend fun aggiorna(): StatoCorsa = withContext(Dispatchers.Main) {
+        val richiesta = TrenoOrologio.leggi(treno)
+            ?: return@withContext StatoCorsa("Treno", null, null, emptyList(), -1, "Richiesta non valida.")
+        val corsa = calcolaCorsaOrologio(orario, richiesta)
+        val adesso = adessoMs()
+        StatoCorsa(
+            titolo = corsa.titolo,
+            verso = corsa.verso,
+            fonte = corsa.fonte,
+            righe = corsa.fermate.mapIndexed { i, f ->
+                val ora = f.orario?.let { oraARoma(it) } ?: "–"
+                val prevista = f.previsto?.let { oraARoma(it) }?.takeIf { it != ora && f.orario != null }
+                val ritardo = f.ritardoMinuti?.takeIf { it != 0 }?.let { if (it > 0) "+$it" else "$it" }
+                RigaCorsa(
+                    nome = f.nome,
+                    ora = ora,
+                    oraPrevista = prevista,
+                    ritardo = ritardo,
+                    binario = f.binario?.let { "Binario $it" },
+                    binarioCambiato = f.binarioCambiato,
+                    soppressa = f.soppressa,
+                    stimato = f.stimato,
+                    qui = i == corsa.qui,
+                    passata = (f.orario ?: f.previsto ?: Long.MAX_VALUE) < adesso - 60_000,
+                    perVoce = buildString {
+                        append(f.nome)
+                        if (f.soppressa) append(", fermata soppressa") else append(", alle $ora")
+                        if (ritardo != null) append(", ritardo $ritardo minuti")
+                        f.binario?.let { append(", binario $it") }
+                        if (i == corsa.qui) append(", la tua stazione")
+                    },
+                )
+            },
+            qui = corsa.qui ?: -1,
+            errore = corsa.errore,
         )
     }
 }

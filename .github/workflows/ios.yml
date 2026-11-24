@@ -184,6 +184,11 @@ jobs:
           xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "linea:$cotral"
           sleep 16
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-06-linea-cotral.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 6b. Un treno della Roma-Lido da Basilica San Paolo: tutte le sue fermate
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "fermata:$id" -apriPrimoTreno YES
+          sleep 20
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-07-treno.png
           ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i palina > /tmp/esito/crash.txt || true
           # 7. Apple Watch con il tabellone di esempio del motore (senza iPhone collegato)
           orologio=$(xcrun simctl create prova-watch "Apple Watch Series 11 (46mm)" 2>/dev/null || xcrun simctl create prova-watch "Apple Watch Series 10 (46mm)")

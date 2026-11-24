@@ -1,5 +1,6 @@
 package it.palinaroma.dati
 
+import it.palinaroma.ponte.TrenoOrologio
 import kotlin.math.roundToInt
 
 /*
@@ -172,6 +173,8 @@ data class RigaArrivo(
     val corsaId: String,
     /** Fissata in cima alla fermata e in Home. */
     val fissata: Boolean,
+    /** Per i treni: come chiederne tutte le fermate (TrenoOrologio in JSON), altrimenti null. */
+    val treno: String?,
     val nome: String,
     val colore: Long,
     /** "Casaletto", o "Direzione non indicata". */
@@ -191,7 +194,7 @@ data class RigaArrivo(
     val perVoce: String,
 )
 
-fun rigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean = false): RigaArrivo {
+fun rigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean = false, stazione: String? = null): RigaArrivo {
     val primo = arrivo.passaggi.first()
     val rete = Rete.di(arrivo.lineaId)
     val minuti = minutiAttesa(primo.orario, adesso)
@@ -201,6 +204,19 @@ fun rigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean = false): RigaArri
         direzione = arrivo.direzione ?: -1,
         corsaId = primo.corsaId,
         fissata = fissata,
+        treno = if (stazione != null && Rete.di(arrivo.lineaId).treni) {
+            TrenoOrologio(
+                corsaId = primo.idTransitous,
+                fermataId = stazione,
+                lineaId = arrivo.lineaId,
+                direzione = arrivo.direzione,
+                previsto = primo.orario - (primo.ritardo ?: 0),
+                corsaAstral = primo.corsaId.takeIf { it.startsWith("astral:") },
+                ritardo = primo.ritardo,
+            ).testoJson()
+        } else {
+            null
+        },
         nome = arrivo.nomeLinea,
         colore = coloreReteArgb(arrivo.lineaId),
         capolinea = arrivo.capolinea.ifEmpty { "Direzione non indicata" },
@@ -247,13 +263,14 @@ fun tabelloneFermata(
     adessoMs: Long,
     fissate: Set<String>,
     nomiLinee: Map<String, String>,
+    stazioneDi: (Arrivo) -> String? = { null },
 ): TabelloneFermata {
     val adesso = adessoMs / 1000
     val diviso = dividiArrivi(ancoraAttesi(arrivi.perFermata[fermataId].orEmpty(), adesso), fissate)
     return TabelloneFermata(
-        fissate = diviso.fissate.map { rigaArrivo(it, adesso, fissata = true) },
+        fissate = diviso.fissate.map { rigaArrivo(it, adesso, fissata = true, stazione = stazioneDi(it)) },
         fissateSenzaPassaggi = diviso.senzaPassaggi.map { nomiLinee[it] ?: it },
-        altre = diviso.altre.map { rigaArrivo(it, adesso) },
+        altre = diviso.altre.map { rigaArrivo(it, adesso, stazione = stazioneDi(it)) },
         conFissate = fissate.isNotEmpty(),
         suggerimento = if (fissate.isEmpty() && diviso.altre.isNotEmpty()) "Tocca la puntina accanto a una linea: resta in cima qui e in Home." else null,
         avviso = avvisoArrivi(arrivi, Rete.di(fermataId) == Rete.ROMA),

@@ -33,6 +33,8 @@ struct PalinaApp: App {
 enum Destinazione: Hashable {
     case fermata(String)
     case linea(RichiestaLinea)
+    /** Un treno con tutte le sue fermate (la richiesta in JSON, dal motore). */
+    case corsa(String)
 }
 
 /** Una linea da aprire: la direzione e, se si arriva da una fermata, la corsa da evidenziare. */
@@ -43,20 +45,28 @@ struct RichiestaLinea: Hashable {
     var fermata: String? = nil
 }
 
-/** La navigazione: la Home e, sopra, fermate e linee aperte. */
+/** Le schermate aperte sopra la Home (per aprirne una da codice, come nelle prove). */
+@MainActor
+final class Navigazione: ObservableObject {
+    @Published var percorso: [Destinazione] = Prova.daAprire
+}
+
+/** La navigazione: la Home e, sopra, fermate, linee e treni aperti. */
 struct Principale: View {
-    @State private var percorso: [Destinazione] = Prova.daAprire
+    @StateObject private var navigazione = Navigazione()
 
     var body: some View {
-        NavigationStack(path: $percorso) {
+        NavigationStack(path: $navigazione.percorso) {
             HomeVista()
                 .navigationDestination(for: Destinazione.self) { destinazione in
                     switch destinazione {
                     case .fermata(let id): FermataVista(fermataId: id)
                     case .linea(let richiesta): LineaVista(richiesta: richiesta)
+                    case .corsa(let treno): CorsaVista(treno: treno)
                     }
                 }
         }
+        .environmentObject(navigazione)
     }
 }
 
@@ -85,6 +95,9 @@ enum Prova {
         let parti = testo.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
         return parti.count == 2 ? (parti[0], parti[1]) : nil
     }
+
+    /** `-apriPrimoTreno YES`: nella fermata aperta, apre il primo treno appena arrivano i tempi. */
+    static var apriPrimoTreno: Bool { UserDefaults.standard.bool(forKey: "apriPrimoTreno") }
 
     static var preferiti: [String]? {
         UserDefaults.standard.string(forKey: "provaPreferiti")?.split(separator: ",").map(String.init)

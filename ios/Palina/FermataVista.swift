@@ -6,6 +6,7 @@ struct FermataVista: View {
     let fermataId: String
     @EnvironmentObject private var archivio: Archivio
     @EnvironmentObject private var preferiti: Preferiti
+    @EnvironmentObject private var navigazione: Navigazione
     @State private var motore: MotoreFermata?
     @State private var voce: VoceFermata?
     @State private var linee: [VoceLinea] = []
@@ -93,9 +94,10 @@ struct FermataVista: View {
         }
     }
 
-    /** Una riga: si apre la linea con la sua vettura; scorrendo si fissa o si toglie. */
+    /** Una riga: si apre la linea con la sua vettura (o il treno); scorrendo si fissa o si toglie. */
     private func riga(for riga: RigaArrivo) -> some View {
-        NavigationLink(value: Destinazione.linea(RichiestaLinea(
+        // un treno apre tutte le sue fermate; un bus la linea con la sua vettura
+        NavigationLink(value: riga.treno.map { Destinazione.corsa($0) } ?? Destinazione.linea(RichiestaLinea(
             lineaId: riga.lineaId,
             direzione: Int(riga.direzione),
             corsa: riga.corsaId.isEmpty ? nil : riga.corsaId,
@@ -129,6 +131,10 @@ struct FermataVista: View {
             if Date().timeIntervalSince(ultimaRichiesta) >= 30 {
                 ultimaRichiesta = Date()
                 if let nuovo = try? await m.aggiorna() { tabellone = nuovo }
+                if caricando, Prova.apriPrimoTreno,
+                   let treno = ((tabellone?.fissate ?? []) + (tabellone?.altre ?? [])).compactMap({ $0.treno }).first {
+                    navigazione.percorso.append(.corsa(treno))
+                }
                 caricando = false
             } else {
                 tabellone = m.tabellone()
