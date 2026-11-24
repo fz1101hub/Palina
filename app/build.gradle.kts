@@ -85,7 +85,6 @@ dependencies {
     // posizione rapida (Wi-Fi e rete) dai servizi di localizzazione di Google
     implementation("com.google.android.gms:play-services-location:21.4.0")
     // l'orologio Wear OS: il telefono gli calcola e gli manda i tabelloni
-    implementation(project(":ponte"))
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
 

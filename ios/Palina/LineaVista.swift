@@ -19,7 +19,12 @@ struct LineaVista: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let motore {
+            if let motore, !motore.haPercorso() {
+                Text("Per questa linea l'orario non ha un percorso.")
+                    .foregroundStyle(.secondary)
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            } else if let motore {
                 intestazione(motore)
                 ZStack(alignment: .bottom) {
                     mappa(motore)
@@ -187,7 +192,11 @@ struct LineaVista: View {
         formaAltra = motore.formaAltra().map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
         stato = motore.stato()
         scelta = nil
-        camera = .automatic
+        // senza tracciato la mappa resta su Roma (non sul mondo intero)
+        camera = forma.count >= 2 ? .automatic : .region(MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 41.8958, longitude: 12.4826),
+            span: MKCoordinateSpan(latitudeDelta: 0.2, longitudeDelta: 0.2)
+        ))
         giro += 1
     }
 

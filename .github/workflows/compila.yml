@@ -119,7 +119,7 @@ jobs:
           grep -E -A3 "^w: |warning:|Problem found" compilazione.log | grep -E "^w: |warning:|Problem found|^ +Location:|^ {4}[^ ]" | head -300 > /tmp/esito/avvisi.txt || true
           tail -400 compilazione.log > /tmp/esito/coda.log || true
           tail -200 orario.log > /tmp/esito/orario.log 2>/dev/null || true
-          find app/build/test-results ponte/build/test-results orologio/build/test-results -name "*.xml" -exec cp {} /tmp/esito/ \; 2>/dev/null || true
+          find app/build/test-results orologio/build/test-results -name "*.xml" -exec cp {} /tmp/esito/ \; 2>/dev/null || true
           cd /tmp/esito
           git init -q -b esito
           git config user.name "github-actions"

@@ -4,6 +4,7 @@ import it.palinaroma.dati.Arrivo
 import it.palinaroma.dati.Passaggio
 import it.palinaroma.ponte.CodificaOrologio
 import it.palinaroma.ponte.TabelloneOrologio
+import it.palinaroma.ponte.righeOrologio
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

@@ -1,7 +1,13 @@
 package it.palinaroma.ponte
 
-import org.json.JSONArray
-import org.json.JSONObject
+import it.palinaroma.dati.Json
+import it.palinaroma.dati.ScriviJson
+import it.palinaroma.dati.decimali
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.math.roundToInt
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 /**
  * Cosa si scambiano telefono e orologio. L'orologio non scarica i dati di Roma
@@ -49,7 +55,7 @@ data class TrenoOrologio(
     /** Per riconoscere la risposta a questa richiesta. */
     val chiave: String get() = "$fermataId|$lineaId|$previsto"
 
-    fun json(): JSONObject = JSONObject().apply {
+    fun json(): Map<String, Any?> = buildMap {
         corsaId?.let { put("corsa", it) }
         put("fermata", fermataId)
         put("linea", lineaId)
@@ -59,15 +65,18 @@ data class TrenoOrologio(
         ritardo?.let { put("ritardo", it) }
     }
 
+    /** Il JSON da mandare al telefono. */
+    fun testoJson(): String = ScriviJson.testo(json())
+
     companion object {
-        fun da(o: JSONObject): TrenoOrologio = TrenoOrologio(
-            corsaId = o.optString("corsa").ifEmpty { null },
-            fermataId = o.optString("fermata"),
-            lineaId = o.optString("linea"),
-            direzione = if (o.has("direzione")) o.optInt("direzione") else null,
-            previsto = o.optLong("previsto"),
-            corsaAstral = o.optString("astral").ifEmpty { null },
-            ritardo = if (o.has("ritardo")) o.optInt("ritardo") else null,
+        fun da(o: Map<String, Any?>): TrenoOrologio = TrenoOrologio(
+            corsaId = o.testoO("corsa").ifEmpty { null },
+            fermataId = o.testoO("fermata"),
+            lineaId = o.testoO("linea"),
+            direzione = o.intero("direzione"),
+            previsto = o.lungo("previsto") ?: 0L,
+            corsaAstral = o.testoO("astral").ifEmpty { null },
+            ritardo = o.intero("ritardo"),
         )
 
         /** Null se il testo non e' una richiesta valida. */
@@ -76,7 +85,7 @@ data class TrenoOrologio(
                 null
             } else {
                 try {
-                    da(JSONObject(testo)).takeIf { it.fermataId.isNotEmpty() && it.lineaId.isNotEmpty() }
+                    da(oggetto(Json.leggi(testo))).takeIf { it.fermataId.isNotEmpty() && it.lineaId.isNotEmpty() }
                 } catch (_: Exception) {
                     null
                 }
@@ -93,20 +102,16 @@ object RichiestaOrologio {
         if (seguite.isEmpty()) {
             ByteArray(0)
         } else {
-            JSONObject().put(
-                "seguite",
-                JSONArray().apply {
-                    seguite.forEach { put(JSONObject().put("fermata", it.fermataId).put("linea", it.lineaId)) }
-                },
-            ).toString().toByteArray(Charsets.UTF_8)
+            ScriviJson.testo(
+                mapOf("seguite" to seguite.map { mapOf("fermata" to it.fermataId, "linea" to it.lineaId) }),
+            ).encodeToByteArray()
         }
 
     fun leggi(dati: ByteArray?): List<LineaSeguita> {
         if (dati == null || dati.isEmpty()) return emptyList()
         return try {
-            val a = JSONObject(String(dati, Charsets.UTF_8)).optJSONArray("seguite") ?: return emptyList()
-            (0 until a.length()).map { a.getJSONObject(it) }
-                .map { LineaSeguita(it.optString("fermata"), it.optString("linea")) }
+            oggetti(oggetto(Json.leggi(dati.decodeToString()))["seguite"])
+                .map { LineaSeguita(it.testoO("fermata"), it.testoO("linea")) }
                 .filter { it.fermataId.isNotEmpty() && it.lineaId.isNotEmpty() }
         } catch (_: Exception) {
             emptyList()
@@ -127,7 +132,7 @@ data class FermataTreno(
 ) {
     /** Minuti di ritardo (negativi se in anticipo), se l'orario e' aggiornato. */
     val ritardoMinuti: Int?
-        get() = if (orario != null && previsto != null) Math.round((orario - previsto) / 60_000.0).toInt() else null
+        get() = if (orario != null && previsto != null) ((orario - previsto) / 60_000.0).roundToInt() else null
 }
 
 /** Le fermate di un treno, calcolate dal telefono. */
@@ -150,53 +155,54 @@ data class CorsaOrologio(
 )
 
 object CodificaCorsa {
-    fun scrivi(c: CorsaOrologio): String = JSONObject().apply {
-        put("v", 1)
-        put("chiave", c.chiave)
-        put("creato", c.creato)
-        put("titolo", c.titolo)
-        c.verso?.let { put("verso", it) }
-        c.fonte?.let { put("fonte", it) }
-        c.qui?.let { put("qui", it) }
-        c.errore?.let { put("errore", it) }
-        put("fermate", JSONArray().apply {
-            c.fermate.forEach { f ->
-                put(JSONObject().apply {
-                    put("nome", f.nome)
-                    f.orario?.let { put("orario", it) }
-                    f.previsto?.let { put("previsto", it) }
-                    f.binario?.let { put("binario", it) }
-                    if (f.binarioCambiato) put("binarioCambiato", true)
-                    if (f.soppressa) put("soppressa", true)
-                    if (f.stimato) put("stimato", true)
-                })
-            }
-        })
-    }.toString()
+    fun scrivi(c: CorsaOrologio): String = ScriviJson.testo(
+        buildMap {
+            put("v", 1)
+            put("chiave", c.chiave)
+            put("creato", c.creato)
+            put("titolo", c.titolo)
+            c.verso?.let { put("verso", it) }
+            c.fonte?.let { put("fonte", it) }
+            c.qui?.let { put("qui", it) }
+            c.errore?.let { put("errore", it) }
+            put(
+                "fermate",
+                c.fermate.map { f ->
+                    buildMap {
+                        put("nome", f.nome)
+                        f.orario?.let { put("orario", it) }
+                        f.previsto?.let { put("previsto", it) }
+                        f.binario?.let { put("binario", it) }
+                        if (f.binarioCambiato) put("binarioCambiato", true)
+                        if (f.soppressa) put("soppressa", true)
+                        if (f.stimato) put("stimato", true)
+                    }
+                },
+            )
+        },
+    )
 
     fun leggi(json: String?): CorsaOrologio? {
         if (json.isNullOrBlank()) return null
         return try {
-            val o = JSONObject(json)
-            val fermate = o.optJSONArray("fermate") ?: JSONArray()
+            val o = oggetto(Json.leggi(json))
             CorsaOrologio(
-                chiave = o.optString("chiave"),
-                creato = o.optLong("creato"),
-                titolo = o.optString("titolo"),
-                verso = o.optString("verso").ifEmpty { null },
-                fonte = o.optString("fonte").ifEmpty { null },
-                qui = if (o.has("qui")) o.optInt("qui") else null,
-                errore = o.optString("errore").ifEmpty { null },
-                fermate = (0 until fermate.length()).map { i ->
-                    val f = fermate.getJSONObject(i)
+                chiave = o.testoO("chiave"),
+                creato = o.lungo("creato") ?: 0L,
+                titolo = o.testoO("titolo"),
+                verso = o.testoO("verso").ifEmpty { null },
+                fonte = o.testoO("fonte").ifEmpty { null },
+                qui = o.intero("qui"),
+                errore = o.testoO("errore").ifEmpty { null },
+                fermate = oggetti(o["fermate"]).map { f ->
                     FermataTreno(
-                        nome = f.optString("nome"),
-                        orario = if (f.has("orario")) f.optLong("orario") else null,
-                        previsto = if (f.has("previsto")) f.optLong("previsto") else null,
-                        binario = f.optString("binario").ifEmpty { null },
-                        binarioCambiato = f.optBoolean("binarioCambiato"),
-                        soppressa = f.optBoolean("soppressa"),
-                        stimato = f.optBoolean("stimato"),
+                        nome = f.testoO("nome"),
+                        orario = f.lungo("orario"),
+                        previsto = f.lungo("previsto"),
+                        binario = f.testoO("binario").ifEmpty { null },
+                        binarioCambiato = f["binarioCambiato"] == true,
+                        soppressa = f["soppressa"] == true,
+                        stimato = f["stimato"] == true,
                     )
                 },
             )
@@ -251,68 +257,66 @@ data class TabelloneOrologio(
 
 /** Il tabellone in JSON e ritorno. */
 object CodificaOrologio {
-    fun scrivi(t: TabelloneOrologio): String = JSONObject().apply {
-        put("v", 1)
-        put("creato", t.creato)
-        t.nota?.let { put("nota", it) }
-        put("fermate", JSONArray().apply {
-            t.fermate.forEach { f ->
-                put(JSONObject().apply {
-                    put("id", f.id)
-                    put("nome", f.nome)
-                    put("sotto", f.sotto)
-                    put("preferita", f.preferita)
-                    f.distanza?.let { put("distanza", it) }
-                    put("righe", JSONArray().apply {
-                        f.righe.forEach { r ->
-                            put(JSONObject().apply {
-                                put("linea", r.linea)
-                                put("colore", r.colore)
-                                put("capolinea", r.capolinea)
-                                put("orari", JSONArray().apply { r.orari.forEach { put(it) } })
-                                put("tempoReale", r.tempoReale)
-                                r.avviso?.let { put("avviso", it) }
-                                if (r.lineaId.isNotEmpty()) put("lineaId", r.lineaId)
-                                if (r.treni.isNotEmpty()) put("treni", JSONArray().apply { r.treni.forEach { put(it.json()) } })
-                            })
-                        }
-                    })
-                })
-            }
-        })
-    }.toString()
+    fun scrivi(t: TabelloneOrologio): String = ScriviJson.testo(
+        buildMap {
+            put("v", 1)
+            put("creato", t.creato)
+            t.nota?.let { put("nota", it) }
+            put(
+                "fermate",
+                t.fermate.map { f ->
+                    buildMap {
+                        put("id", f.id)
+                        put("nome", f.nome)
+                        put("sotto", f.sotto)
+                        put("preferita", f.preferita)
+                        f.distanza?.let { put("distanza", it) }
+                        put(
+                            "righe",
+                            f.righe.map { r ->
+                                buildMap {
+                                    put("linea", r.linea)
+                                    put("colore", r.colore)
+                                    put("capolinea", r.capolinea)
+                                    put("orari", r.orari)
+                                    put("tempoReale", r.tempoReale)
+                                    r.avviso?.let { put("avviso", it) }
+                                    if (r.lineaId.isNotEmpty()) put("lineaId", r.lineaId)
+                                    if (r.treni.isNotEmpty()) put("treni", r.treni.map { it.json() })
+                                }
+                            },
+                        )
+                    }
+                },
+            )
+        },
+    )
 
     /** Null se il testo non e' un tabellone (o e' rovinato). */
     fun leggi(json: String?): TabelloneOrologio? {
         if (json.isNullOrBlank()) return null
         return try {
-            val o = JSONObject(json)
-            val fermate = o.optJSONArray("fermate") ?: JSONArray()
+            val o = oggetto(Json.leggi(json))
             TabelloneOrologio(
-                creato = o.optLong("creato"),
-                nota = o.optString("nota").ifEmpty { null },
-                fermate = (0 until fermate.length()).map { i ->
-                    val f = fermate.getJSONObject(i)
-                    val righe = f.optJSONArray("righe") ?: JSONArray()
+                creato = o.lungo("creato") ?: 0L,
+                nota = o.testoO("nota").ifEmpty { null },
+                fermate = oggetti(o["fermate"]).map { f ->
                     FermataOrologio(
-                        id = f.optString("id"),
-                        nome = f.optString("nome"),
-                        sotto = f.optString("sotto"),
-                        preferita = f.optBoolean("preferita"),
-                        distanza = if (f.has("distanza")) f.optInt("distanza") else null,
-                        righe = (0 until righe.length()).map { j ->
-                            val r = righe.getJSONObject(j)
-                            val orari = r.optJSONArray("orari") ?: JSONArray()
-                            val treni = r.optJSONArray("treni") ?: JSONArray()
+                        id = f.testoO("id"),
+                        nome = f.testoO("nome"),
+                        sotto = f.testoO("sotto"),
+                        preferita = f["preferita"] == true,
+                        distanza = f.intero("distanza"),
+                        righe = oggetti(f["righe"]).map { r ->
                             RigaOrologio(
-                                linea = r.optString("linea"),
-                                colore = r.optInt("colore"),
-                                capolinea = r.optString("capolinea"),
-                                orari = (0 until orari.length()).map { k -> orari.getLong(k) },
-                                tempoReale = r.optBoolean("tempoReale"),
-                                avviso = r.optString("avviso").ifEmpty { null },
-                                lineaId = r.optString("lineaId"),
-                                treni = (0 until treni.length()).map { k -> TrenoOrologio.da(treni.getJSONObject(k)) },
+                                linea = r.testoO("linea"),
+                                colore = r.intero("colore") ?: 0,
+                                capolinea = r.testoO("capolinea"),
+                                orari = (r["orari"] as? List<*>).orEmpty().mapNotNull { (it as? Number)?.toLong() },
+                                tempoReale = r["tempoReale"] == true,
+                                avviso = r.testoO("avviso").ifEmpty { null },
+                                lineaId = r.testoO("lineaId"),
+                                treni = oggetti(r["treni"]).map { TrenoOrologio.da(it) },
                             )
                         },
                     )
@@ -345,9 +349,12 @@ fun testoPassaggi(riga: RigaOrologio, adesso: Long, quanti: Int = 3): String =
 fun FermataOrologio.primoPassaggio(adesso: Long): Pair<RigaOrologio, Long>? =
     righe.mapNotNull { r -> r.prossimi(adesso).firstOrNull()?.let { r to it } }.minByOrNull { it.second }
 
-/** L'ora di un orario in millisecondi: "14:05". */
-fun oraBreve(ms: Long): String =
-    java.text.SimpleDateFormat("HH:mm", java.util.Locale.ITALY).format(java.util.Date(ms))
+/** L'ora di un orario in millisecondi, nel fuso del dispositivo: "14:05". */
+@OptIn(ExperimentalTime::class)
+fun oraBreve(ms: Long): String {
+    val t = Instant.fromEpochMilliseconds(ms).toLocalDateTime(TimeZone.currentSystemDefault())
+    return t.hour.toString().padStart(2, '0') + ":" + t.minute.toString().padStart(2, '0')
+}
 
 /** Come si riconosce una riga tra un tabellone e il successivo: la linea (o il suo nome, nei tabelloni vecchi). */
 val RigaOrologio.chiaveLinea: String get() = lineaId.ifEmpty { linea }
@@ -361,7 +368,7 @@ fun TabelloneOrologio.riga(fermataId: String, chiaveLinea: String, capolinea: St
 
 /** "120 m", "1,2 km". */
 fun testoDistanza(metri: Int): String =
-    if (metri < 1000) "$metri m" else String.format(java.util.Locale.ITALY, "%.1f km", metri / 1000.0)
+    if (metri < 1000) "$metri m" else decimali(metri / 1000.0, 1, ',') + " km"
 
 /** Un tabellone di esempio, per le prove e le anteprime. [adesso] in secondi. */
 fun tabelloneDiEsempio(adesso: Long): TabelloneOrologio = TabelloneOrologio(
@@ -431,3 +438,22 @@ fun corsaDiEsempio(treno: TrenoOrologio, adesso: Long): CorsaOrologio {
         qui = 1,
     )
 }
+
+// --- lettura del JSON (oggetti come Map, numeri come Double), come gli opt* di org.json
+
+@Suppress("UNCHECKED_CAST")
+private fun oggetto(v: Any?): Map<String, Any?> = v as? Map<String, Any?> ?: throw IllegalArgumentException("non e' un oggetto")
+
+@Suppress("UNCHECKED_CAST")
+private fun oggetti(v: Any?): List<Map<String, Any?>> = (v as? List<*>).orEmpty().mapNotNull { it as? Map<String, Any?> }
+
+private fun Map<String, Any?>.testoO(chiave: String): String = when (val v = this[chiave]) {
+    null -> ""
+    is String -> v
+    is Double -> if (v == kotlin.math.floor(v)) v.toLong().toString() else v.toString()
+    else -> v.toString()
+}
+
+private fun Map<String, Any?>.lungo(chiave: String): Long? = (this[chiave] as? Number)?.toLong()
+
+private fun Map<String, Any?>.intero(chiave: String): Int? = (this[chiave] as? Number)?.toLong()?.toInt()

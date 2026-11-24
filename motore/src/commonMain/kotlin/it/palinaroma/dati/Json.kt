@@ -153,3 +153,60 @@ fun Map<String, Any?>.oggetto(chiave: String): Map<String, Any?>? = (this[chiave
 
 fun Map<String, Any?>.oggetti(chiave: String): List<Map<String, Any?>> =
     (this[chiave] as? List<*>)?.mapNotNull { (it as? Map<*, *>)?.comeOggetto() } ?: emptyList()
+
+/**
+ * Scrittore JSON minimo: Map (in ordine) -> oggetto, List -> array, String,
+ * numeri interi (Int, Long) e decimali, Boolean e null.
+ */
+object ScriviJson {
+    fun testo(valore: Any?): String = StringBuilder().also { scrivi(it, valore) }.toString()
+
+    private fun scrivi(sb: StringBuilder, v: Any?) {
+        when (v) {
+            null -> sb.append("null")
+            is String -> stringa(sb, v)
+            is Boolean -> sb.append(if (v) "true" else "false")
+            is Int, is Long, is Short, is Byte -> sb.append(v.toString())
+            is Double -> sb.append(if (v == kotlin.math.floor(v) && !v.isInfinite() && kotlin.math.abs(v) < 1e15) v.toLong().toString() else v.toString())
+            is Float -> scrivi(sb, v.toDouble())
+            is Map<*, *> -> {
+                sb.append('{')
+                var primo = true
+                for ((k, x) in v) {
+                    if (!primo) sb.append(',')
+                    primo = false
+                    stringa(sb, k.toString())
+                    sb.append(':')
+                    scrivi(sb, x)
+                }
+                sb.append('}')
+            }
+            is Iterable<*> -> {
+                sb.append('[')
+                var primo = true
+                for (x in v) {
+                    if (!primo) sb.append(',')
+                    primo = false
+                    scrivi(sb, x)
+                }
+                sb.append(']')
+            }
+            else -> stringa(sb, v.toString())
+        }
+    }
+
+    private fun stringa(sb: StringBuilder, s: String) {
+        sb.append('"')
+        for (c in s) {
+            when (c) {
+                '"' -> sb.append("\\\"")
+                '\\' -> sb.append("\\\\")
+                '\n' -> sb.append("\\n")
+                '\r' -> sb.append("\\r")
+                '\t' -> sb.append("\\t")
+                else -> if (c.code < 0x20) sb.append("\\u" + c.code.toString(16).padStart(4, '0')) else sb.append(c)
+            }
+        }
+        sb.append('"')
+    }
+}

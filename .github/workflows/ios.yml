@@ -31,7 +31,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p /tmp/esito
-          ./gradlew --no-daemon --console=plain :app:assembleDebug :app:testDebugUnitTest :orologio:assembleDebug :ponte:testDebugUnitTest \
+          ./gradlew --no-daemon --console=plain :app:assembleDebug :app:testDebugUnitTest :orologio:assembleDebug :orologio:testDebugUnitTest \
             2>&1 | tee /tmp/esito/android.log
       - name: Riassunto
         if: always()
@@ -57,6 +57,15 @@ jobs:
             immagine: "system-images;android-26;google_apis;x86_64"
           - api: 37
             immagine: "system-images;android-37.0;google_apis;x86_64"
+          # l'app Wear OS usa il ponte del motore: anche gli orologi
+          - api: wear34
+            immagine: "system-images;android-34;android-wear;x86_64"
+            modulo: orologio
+            dispositivo: wearos_small_round
+          - api: wear37
+            immagine: "system-images;android-37.0;android-wear-signed;x86_64"
+            modulo: orologio
+            dispositivo: wearos_large_round
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -78,8 +87,8 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Prova sull'emulatore (${{ matrix.api }})
         env:
-          MODULO: app
-          DISPOSITIVO: pixel_7
+          MODULO: ${{ matrix.modulo || 'app' }}
+          DISPOSITIVO: ${{ matrix.dispositivo || 'pixel_7' }}
         run: bash strumenti/prova-emulatore.sh "${{ matrix.immagine }}" risultati
       - uses: actions/upload-artifact@v7
         if: always()
@@ -126,7 +135,7 @@ jobs:
           set -o pipefail
           cd ios
           xcodebuild -project Palina.xcodeproj -scheme Palina -configuration Debug \
-            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build 2>&1 | tee /tmp/esito/xcode-simulatore.log | grep -E "error:|warning: .*swift|BUILD" || true
           test -f build/dd/Build/Products/Debug-iphonesimulator/Palina.app/Palina
 
@@ -165,12 +174,27 @@ jobs:
           xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "linea:$l64:0"
           sleep 16
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-05-linea.png
+          # la prima mappa sul simulatore appena creato puo' metterci di piu'
+          sleep 20
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-05b-linea-dopo.png
+          xcrun simctl spawn "$dispositivo" log show --last 1m --predicate 'process == "Palina"' --style compact > /tmp/esito/log-linea.txt 2>&1 || true
           xcrun simctl terminate "$dispositivo" it.palinaroma
           # 6. Una linea Cotral (bus col GPS di BusOne): la prima dell'orario delle reti
-          cotral=$(sqlite3 ios/Risorse/reti.db "SELECT id FROM linee WHERE id LIKE 'C:%' ORDER BY id LIMIT 1")
+          cotral=$(sqlite3 ios/Risorse/reti.db "SELECT linea FROM percorsi WHERE linea LIKE 'C:%' ORDER BY linea LIMIT 1")
           xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "linea:$cotral"
           sleep 16
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-06-linea-cotral.png
+          ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i palina > /tmp/esito/crash.txt || true
+          # 7. Apple Watch con il tabellone di esempio del motore (senza iPhone collegato)
+          orologio=$(xcrun simctl create prova-watch "Apple Watch Series 11 (46mm)" 2>/dev/null || xcrun simctl create prova-watch "Apple Watch Series 10 (46mm)")
+          xcrun simctl boot "$orologio"
+          xcrun simctl bootstatus "$orologio" -b
+          ls ios/build/dd/Build/Products/ | tee -a /tmp/esito/prodotti.txt
+          app_watch=$(find ios/build/dd/Build/Products/Debug-watchsimulator -maxdepth 1 -name "PalinaWatch.app" | head -1)
+          xcrun simctl install "$orologio" "$app_watch"
+          xcrun simctl launch "$orologio" it.palinaroma.watchkitapp -provaEsempio YES
+          sleep 10
+          xcrun simctl io "$orologio" screenshot /tmp/esito/schermate/watch-01-tabellone.png
           xcrun simctl spawn "$dispositivo" log show --last 3m --predicate 'process == "Palina"' --style compact > /tmp/esito/log-app.txt 2>&1 || true
           ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i palina > /tmp/esito/crash.txt || true
 
@@ -179,7 +203,7 @@ jobs:
           set -o pipefail
           cd ios
           xcodebuild -project Palina.xcodeproj -scheme Palina -configuration Debug \
-            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build/dd \
+            -destination 'generic/platform=iOS' -derivedDataPath build/dd \
             CODE_SIGNING_ALLOWED=NO build 2>&1 | tee /tmp/esito/xcode-iphone.log | grep -E "error:|BUILD" || true
           mkdir -p /tmp/ipa/Payload
           cp -R build/dd/Build/Products/Debug-iphoneos/Palina.app /tmp/ipa/Payload/

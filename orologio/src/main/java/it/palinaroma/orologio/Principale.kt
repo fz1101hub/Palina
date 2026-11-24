@@ -131,7 +131,7 @@ class Principale : ComponentActivity() {
 private fun rottaRiga(fermataId: String, chiaveLinea: String, capolinea: String): String =
     "riga?f=" + Uri.encode(fermataId) + "&l=" + Uri.encode(chiaveLinea) + "&c=" + Uri.encode(capolinea)
 
-private fun rottaTreno(treno: TrenoOrologio): String = "treno?t=" + Uri.encode(treno.json().toString())
+private fun rottaTreno(treno: TrenoOrologio): String = "treno?t=" + Uri.encode(treno.testoJson())
 
 @Composable
 fun AppPalina(apertura: MutableStateFlow<String?>) {

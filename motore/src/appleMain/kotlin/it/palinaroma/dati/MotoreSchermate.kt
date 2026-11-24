@@ -135,6 +135,9 @@ class MotoreLinea(
 
     private val percorso: Percorso? get() = percorsi.firstOrNull { it.direzione == direzione }
 
+    /** L'orario ha almeno un percorso per questa linea. */
+    fun haPercorso(): Boolean = percorsi.isNotEmpty()
+
     /** "verso Casaletto", o la descrizione della linea. */
     fun sottotitolo(): String =
         percorso?.capolinea?.takeIf { it.isNotEmpty() }?.let { "verso $it" } ?: linea?.descrizione.orEmpty()

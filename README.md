@@ -131,7 +131,10 @@ app/src/test/   test del decodificatore, dell'orario, dei testi e del client Tra
                 GeneraOrarioIncluso prepara l'orario da includere nell'APK
 app/src/androidTest/   ProvaSchermate: prova dell'app intera sull'emulatore
 app/src/main/java/it/palinaroma/PerOrologio.kt   i tabelloni per l'orologio (ServizioOrologio)
-ponte/          cosa si scambiano telefono e orologio (TabelloneOrologio, in JSON)
+motore/         il motore condiviso (Kotlin Multiplatform) per Android, iPhone e Apple Watch:
+                dati, fonti, orario, tempo reale e cosa mostrano le schermate; in
+                ponte/ cosa si scambiano telefono e orologio (TabelloneOrologio, in JSON)
+ios/            le app per iPhone e Apple Watch (SwiftUI) sopra il motore
 orologio/       l'app Wear OS: Principale (fermate, linea, treno), Riquadro (tile e
                 complicazione), Widget (widget di Wear OS 7), Segui (linea seguita e
                 Live Update), ArchivioOrologio (dati ricevuti e richieste al telefono)

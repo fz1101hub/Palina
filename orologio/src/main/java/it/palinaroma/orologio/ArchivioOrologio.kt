@@ -143,7 +143,7 @@ object ArchivioOrologio {
      * (vedi [Ricevitore]). Falso se il telefono non e' raggiungibile.
      */
     suspend fun richiediCorsa(context: Context, treno: TrenoOrologio): Boolean =
-        manda(context, Ponte.RICHIESTA_CORSA, treno.json().toString().toByteArray(Charsets.UTF_8))
+        manda(context, Ponte.RICHIESTA_CORSA, treno.testoJson().toByteArray(Charsets.UTF_8))
 
     /** Un messaggio ai telefoni con Palina (o, se non si trovano, a quelli collegati). */
     private suspend fun manda(context: Context, percorso: String, dati: ByteArray): Boolean =

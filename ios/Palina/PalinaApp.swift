@@ -20,6 +20,11 @@ struct PalinaApp: App {
                 .environmentObject(posizione)
                 .environmentObject(preferiti)
                 .tint(Tavolozza.oro)
+                .onAppear {
+                    // l'Apple Watch chiede il tabellone all'iPhone
+                    PonteWatch.condiviso.avvia(archivio: archivio, preferiti: preferiti, posizione: posizione)
+                    posizione.avvia()
+                }
         }
     }
 }

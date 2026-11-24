@@ -6,6 +6,7 @@ options:
   bundleIdPrefix: it.palinaroma
   deploymentTarget:
     iOS: "17.0"
+    watchOS: "10.0"
   createIntermediateGroups: true
 settings:
   base:
@@ -25,6 +26,8 @@ targets:
       - framework: ../motore/build/XCFrameworks/debug/Motore.xcframework
         embed: false
       - sdk: libsqlite3.tbd
+      # l'app per Apple Watch va dentro quella per iPhone
+      - target: PalinaWatch
     info:
       path: Palina/Info.plist
       properties:
@@ -42,6 +45,33 @@ targets:
         OTHER_LDFLAGS: ["-lsqlite3", "-lc++"]
         # il motore per il simulatore c'e' solo per i Mac Apple Silicon (arm64)
         EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
+
+  # L'app per Apple Watch: mostra il tabellone che le calcola l'iPhone (come per Wear OS)
+  PalinaWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: PalinaWatch
+    dependencies:
+      - framework: ../motore/build/XCFrameworks/debug/Motore.xcframework
+        embed: false
+    info:
+      path: PalinaWatch/Info.plist
+      properties:
+        CFBundleDisplayName: Palina
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: it.palinaroma
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.palinaroma.watchkitapp
+        OTHER_LDFLAGS: ["-lc++"]
+        EXCLUDED_ARCHS[sdk=watchsimulator*]: x86_64
         CODE_SIGN_STYLE: Manual
         CODE_SIGNING_ALLOWED: "NO"
         CODE_SIGNING_REQUIRED: "NO"

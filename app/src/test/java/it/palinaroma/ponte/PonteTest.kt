@@ -74,7 +74,7 @@ class PonteTest {
         // il treno del secondo passaggio, con la sua chiave
         val treno = metromare.treno(adesso + 1200)!!
         assertEquals("F:RL_SANPAOLO|F:ROMALIDO|${adesso + 1200}", treno.chiave)
-        assertEquals(treno, TrenoOrologio.leggi(treno.json().toString()))
+        assertEquals(treno, TrenoOrologio.leggi(treno.testoJson()))
         assertNull(TrenoOrologio.leggi("{}"))
         assertNull(metromare.treno(adesso + 5))
         // i bus non hanno treni; se il capolinea cambia la riga si ritrova lo stesso
