@@ -3,6 +3,7 @@ package it.palinaroma.dati
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.convert
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -71,7 +72,7 @@ object HttpApple : Http {
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 private fun ByteArray.comeNSData(): NSData =
-    if (isEmpty()) NSData() else usePinned { NSData.create(bytes = it.addressOf(0), length = size.toULong()) }
+    if (isEmpty()) NSData() else usePinned { NSData.create(bytes = it.addressOf(0), length = size.convert()) }
 
 @OptIn(ExperimentalForeignApi::class)
 private fun NSData.comeByteArray(): ByteArray {

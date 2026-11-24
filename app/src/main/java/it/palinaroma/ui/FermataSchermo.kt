@@ -573,8 +573,9 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (()
                         Text(ora(primo.orario * 1000), style = MaterialTheme.typography.labelSmall, color = Secondario)
                     } else {
                         CifreAttesa(minutiAttesa(primo.orario, adesso), primo.tracciato)
-                        if (primo.avviso != null) {
-                            Text(primo.avviso, style = MaterialTheme.typography.labelSmall, color = Accento, fontWeight = FontWeight.Bold)
+                        val avviso = primo.avviso
+                        if (avviso != null) {
+                            Text(avviso, style = MaterialTheme.typography.labelSmall, color = Accento, fontWeight = FontWeight.Bold)
                         } else {
                             FonteTempo(primo.tracciato, etichetta = if (reteLinea == Rete.ROMA || primo.gps) "GPS" else "tempo reale")
                         }

@@ -213,7 +213,9 @@ private fun RigaFermataCorsa(
     val tenue = passata && !qui
     val coloreTesto = if (tenue) Secondario else Testo
     val orarioTesto = fermata.orario?.let { ora(it) } ?: "–"
-    val cambiato = fermata.orario != null && fermata.previsto != null && ora(fermata.orario) != ora(fermata.previsto)
+    val aggiornato = fermata.orario
+    val programmato = fermata.previsto
+    val cambiato = aggiornato != null && programmato != null && ora(aggiornato) != ora(programmato)
     val descrizione = buildString {
         append(fermata.nome)
         if (fermata.soppressa) append(", fermata soppressa") else append(", ").append(orarioTesto)
