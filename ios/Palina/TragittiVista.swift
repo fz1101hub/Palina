@@ -528,12 +528,15 @@ struct SceltaLuogoVista: View {
                 }
                 .frame(width: 28)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(luogo.nome).font(.body.weight(.semibold)).lineLimit(2).foregroundStyle(.primary)
+                    Text(luogo.nome).font(.body.weight(.semibold)).lineLimit(2).foregroundStyle(Color.primary)
                     let sotto = dettaglio ?? luogo.dettaglio
-                    if !sotto.isEmpty { Text(sotto).font(.footnote).foregroundStyle(.secondary).lineLimit(1) }
+                    if !sotto.isEmpty { Text(sotto).font(.footnote).foregroundStyle(Color.secondary).lineLimit(1) }
                 }
+                Spacer(minLength: 0)
             }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .accessibilityIdentifier("luogo")
     }
 }
