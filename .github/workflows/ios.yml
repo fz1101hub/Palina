@@ -45,6 +45,49 @@ jobs:
           name: android
           path: /tmp/esito
 
+  # 1b. L'app Android con il motore sui telefoni simulati (le stesse prove di main)
+  android-emulatore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 26
+            immagine: "system-images;android-26;google_apis;x86_64"
+          - api: 37
+            immagine: "system-images;android-37.0;google_apis;x86_64"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Orario incluso (dall'ultimo APK Android)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/apk app/src/main/assets
+          gh release download ultima -p app-release.apk -D /tmp/apk
+          unzip -o -j /tmp/apk/app-release.apk assets/orario.db assets/orario-incluso.txt assets/reti.db assets/reti-incluse.txt -d app/src/main/assets
+      - name: Accelerazione dell'emulatore (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Prova sull'emulatore (${{ matrix.api }})
+        env:
+          MODULO: app
+          DISPOSITIVO: pixel_7
+        run: bash strumenti/prova-emulatore.sh "${{ matrix.immagine }}" risultati
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: emulatore-${{ matrix.api }}
+          path: risultati
+          if-no-files-found: ignore
+
   # 2. iPhone: motore come XCFramework, progetto XcodeGen, simulatore, IPA
   iphone:
     runs-on: macos-latest
@@ -143,7 +186,7 @@ jobs:
 
   # 3. Risultati sul ramo ios-esito (si leggono senza scaricare gli artifact)
   risultati:
-    needs: [android, iphone]
+    needs: [android, android-emulatore, iphone]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -155,9 +198,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ESITO_ANDROID: ${{ needs.android.result }}
           ESITO_IPHONE: ${{ needs.iphone.result }}
+          ESITO_EMULATORE: ${{ needs.android-emulatore.result }}
         run: |
           cd /tmp/esito
-          { echo "commit: $GITHUB_SHA"; echo "android: $ESITO_ANDROID"; echo "iphone: $ESITO_IPHONE"; } > ESITO.txt
+          { echo "commit: $GITHUB_SHA"; echo "android: $ESITO_ANDROID"; echo "android sugli emulatori: $ESITO_EMULATORE"; echo "iphone: $ESITO_IPHONE"; } > ESITO.txt
+          for r in emulatore-*/riassunto.txt; do [ -f "$r" ] && { echo "== $r"; cat "$r"; } >> ESITO.txt; done
           for f in iphone/motore.log android/android.log; do
             [ -f "$f" ] && { echo "== $f"; grep -E "^e: |error:|FAILED|BUILD" "$f" | head -60; } >> ESITO.txt
           done
