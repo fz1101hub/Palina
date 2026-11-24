@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import it.palinaroma.dati.POSIZIONE_VECCHIA_SECONDI
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -26,7 +27,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /** Una posizione GPS piu' vecchia di cosi' viene disegnata sbiadita. */
-const val SECONDI_POSIZIONE_VECCHIA = 180L
+const val SECONDI_POSIZIONE_VECCHIA = POSIZIONE_VECCHIA_SECONDI
 
 private val cacheIcone = HashMap<String, Drawable>()
 

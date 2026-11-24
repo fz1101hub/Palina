@@ -87,7 +87,9 @@ import it.palinaroma.dati.lineeFissate
 import it.palinaroma.dati.minutiAttesa
 import it.palinaroma.dati.posizioni
 import it.palinaroma.dati.precisione
-import it.palinaroma.dati.preferitaVicina
+import it.palinaroma.dati.fermatePreferite
+import it.palinaroma.dati.ordinaPreferite
+import it.palinaroma.dati.schedaPreferita
 import it.palinaroma.dati.testoAggiornato
 import it.palinaroma.dati.testoMetri
 import it.palinaroma.dati.testoPoi
@@ -275,20 +277,14 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
     val adesso = adessoMs / 1000
 
     val fermatePreferite by produceState(initialValue = emptyList<Fermata>(), preferiti, orario) {
-        value = withContext(Dispatchers.IO) {
-            val trovate = orario.fermate(preferiti)
-            // una stazione di scambio salvata da una sua banchina ha il nome della stazione unita
-            preferiti.mapNotNull { id -> trovate[id]?.let { f -> orario.fermataUnita(id)?.copy(id = id) ?: f } }.sortedBy { it.nome }
-        }
+        value = withContext(Dispatchers.IO) { fermatePreferite(orario, preferiti) }
     }
     val lat = vicino.lat
     val lon = vicino.lon
-    val inEvidenza = remember(fermatePreferite, lat, lon) { preferitaVicina(fermatePreferite, lat, lon) }
-    // le preferite dalla piu' vicina; senza posizione in ordine di nome
-    val preferiteOrdinate: List<Pair<Fermata, Double?>> = remember(fermatePreferite, lat, lon) {
-        if (lat == null || lon == null) fermatePreferite.map { it to null }
-        else fermatePreferite.map { it to distanzaMetri(lat, lon, it.lat, it.lon) }.sortedBy { it.second }
-    }
+    // la preferita a cui sei vicino in cima, le altre dalla piu' vicina; senza posizione in ordine di nome
+    val ordine = remember(fermatePreferite, lat, lon) { ordinaPreferite(fermatePreferite, lat, lon) }
+    val inEvidenza = ordine.evidenza
+    val preferiteOrdinate: List<Pair<Fermata, Double?>> = ordine.ordinate
     val idVicine = vicino.fermate.map { it.fermata.id }
     val vicineAltreReti = vicino.fermate.map { it.fermata }.filter { Rete.di(it.id) != Rete.ROMA }.take(VICINE_ALTRE_RETI)
     val arrivi = rememberArriviHome(
@@ -476,7 +472,7 @@ private fun SchedaPreferita(
     adesso: Long,
     apri: () -> Unit,
 ) {
-    val elenco = arrivi?.let { ancoraAttesi(it, adesso) }
+    val scheda = schedaPreferita(Archivio.orario.value, fermata, distanza, arrivi, fissate, adesso)
     Column(
         Modifier
             .padding(horizontal = 16.dp, vertical = 5.dp)
@@ -496,28 +492,25 @@ private fun SchedaPreferita(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                (if (Rete.di(fermata.id) == Rete.ROMA && Archivio.orario.value?.lineeStazioneUnita(fermata.id) == null) "palina ${fermata.codice}" else descrizioneFermata(fermata)) +
-                    (distanza?.let { " · " + testoMetri(it) } ?: ""),
+                scheda.sotto,
                 style = MaterialTheme.typography.bodySmall,
                 color = Secondario,
             )
         }
         HorizontalDivider(color = Bordo)
         when {
-            elenco == null -> Text("Carico i tempi…", color = Secondario, modifier = Modifier.padding(vertical = 10.dp))
-            elenco.isEmpty() -> Text(
-                "Nessun passaggio nei prossimi 90 minuti.",
+            scheda.principali.isEmpty() && scheda.altre.isEmpty() -> Text(
+                scheda.messaggio.orEmpty(),
                 color = Secondario,
                 modifier = Modifier.padding(vertical = 10.dp),
             )
             else -> {
-                val diviso = dividiArrivi(elenco, fissate)
-                val principali = if (fissate.isNotEmpty()) diviso.fissate else elenco.take(3)
-                val resto = if (fissate.isNotEmpty()) diviso.altre else elenco.drop(3)
+                val principali = scheda.principali
+                val resto = scheda.altre
                 principali.forEach { RigaCompatta(it, adesso) }
                 if (principali.isEmpty()) {
                     Text(
-                        "Le linee che hai fissato non passano nei prossimi 90 minuti.",
+                        scheda.messaggio.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
                         color = Secondario,
                         modifier = Modifier.padding(vertical = 8.dp),

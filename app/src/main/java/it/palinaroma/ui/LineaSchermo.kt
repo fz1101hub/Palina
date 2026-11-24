@@ -69,6 +69,17 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.METRI_FUORI_PERCORSO
+import it.palinaroma.dati.VettureLette
+import it.palinaroma.dati.chiaveMezzo
+import it.palinaroma.dati.fermatePerDirezione
+import it.palinaroma.dati.leggiVettureLinea
+import it.palinaroma.dati.lineaConVetture
+import it.palinaroma.dati.lontananzeVetture
+import it.palinaroma.dati.schedaVettura
+import it.palinaroma.dati.testoFermataVicinaLinea
+import it.palinaroma.dati.testoSenzaGps
+import it.palinaroma.dati.testoVetture
 import it.palinaroma.dati.BusOne
 import it.palinaroma.dati.conDirezione
 import it.palinaroma.dati.Rete
@@ -145,28 +156,25 @@ fun LineaSchermo(
         }
     }
 
-    var mezzi by remember { mutableStateOf<List<MezzoRT>>(emptyList()) }
-    var altre by remember { mutableStateOf<List<MezzoRT>>(emptyList()) }
-    var evidenziato by remember { mutableStateOf<MezzoRT?>(null) }
-    var arrivoAtteso by remember { mutableStateOf<Long?>(null) }
+    // le vetture lette (il calcolo e' nel motore condiviso con l'iPhone)
+    var vetture by remember { mutableStateOf(VettureLette()) }
+    val mezzi = vetture.inDirezione
+    val altre = vetture.altre
+    val evidenziato = vetture.evidenziato
+    val arrivoAtteso = vetture.arrivoAtteso
+    val aggiornatoAlle = vetture.aggiornatoAlle
+    // Roma: il feed di Roma Mobilita' si legge ma non ha nessuna corsa (o e' fermo)
+    val romaFerma = vetture.romaFerma
     var caricato by remember { mutableStateOf(false) }
-    var aggiornatoAlle by remember { mutableLongStateOf(0L) }
     var adesso by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
     var selezionato by remember { mutableStateOf<String?>(null) }
-    // Roma: il feed di Roma Mobilita' si legge ma non ha nessuna corsa (o e' fermo)
-    var romaFerma by remember { mutableStateOf(false) }
 
     val ciclo = LocalLifecycleOwner.current
     // le vetture con il GPS: Roma da Roma Mobilita', i bus Cotral da BusOne; per i treni solo il percorso
-    val rete = Rete.di(lineaId)
-    val conVetture = rete == Rete.ROMA || rete == Rete.COTRAL
+    val conVetture = lineaConVetture(lineaId)
     // Cotral non ha le corse nell'orario dell'app: la direzione dei bus si ricava dalle fermate
-    val fermatePerDirezione = remember(o, lineaId, percorsi) {
-        if (o == null || rete != Rete.COTRAL) {
-            emptyMap()
-        } else {
-            percorsi.associate { p -> p.direzione to o.fermateDelPercorso(lineaId, p.direzione).map { it.id }.toSet() }
-        }
+    val perDirezione = remember(o, lineaId, percorsi) {
+        if (o == null) emptyMap() else fermatePerDirezione(o, lineaId, percorsi)
     }
     LaunchedEffect(lineaId, percorso?.direzione, o) {
         if (!conVetture) {
@@ -176,33 +184,10 @@ fun LineaSchermo(
         ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 try {
-                    val corseLette = try {
-                        if (rete == Rete.COTRAL) BusOne.corse() else TempoReale.corse()
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        null
-                    }
-                    val corse = corseLette.orEmpty()
-                    if (rete == Rete.ROMA) romaFerma = TempoReale.fermo(corseLette)
-                    // le vetture senza corsa o linea si completano con le corse in tempo reale
-                    val grezzi = if (rete == Rete.COTRAL) BusOne.mezzi() else TempoReale.mezzi()
-                    val (tutti, vetture) = withContext(Dispatchers.IO) {
-                        val completi = completaMezzi(grezzi, corse).let {
-                            if (rete == Rete.COTRAL) conDirezione(it, corse, fermatePerDirezione) else it
-                        }
-                        completi to vettureDellaLinea(completi, lineaId, linea?.nome, percorso?.direzione, o)
-                    }
-                    mezzi = vetture.inDirezione
-                    altre = vetture.altre
-                    if (corsaEvidenziata != null) {
-                        evidenziato = mezzoDellaCorsa(tutti, corsaEvidenziata)
-                        if (fermataEvidenziata != null) {
-                            val corsa = corse.firstOrNull { it.corsaId == corsaEvidenziata }
-                            arrivoAtteso = corsa?.fermate?.firstOrNull { stessoCodice(it.fermataId, fermataEvidenziata) }?.orario
-                        }
-                    }
-                    aggiornatoAlle = System.currentTimeMillis()
+                    vetture = leggiVettureLinea(
+                        o, lineaId, linea?.nome, percorso?.direzione, perDirezione,
+                        corsaEvidenziata, fermataEvidenziata, vetture,
+                    )
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
@@ -232,15 +217,7 @@ fun LineaSchermo(
     // Non per Cotral: i bus non hanno il tracciato stradale e la linea unisce le
     // fermate in linea retta, da cui un bus extraurbano si allontana di continuo
     val lontananze: Map<String, Double> = remember(mezzi, altre, evidenziato, forma, formaAltra) {
-        if (rete == Rete.COTRAL) {
-            emptyMap()
-        } else {
-            (mezzi + altre + listOfNotNull(evidenziato)).associate { v ->
-                val qui = if (forma.size >= 2) distanzaDalTracciato(v.lat, v.lon, forma) else Double.POSITIVE_INFINITY
-                val la = if (formaAltra.size >= 2) distanzaDalTracciato(v.lat, v.lon, formaAltra) else Double.POSITIVE_INFINITY
-                v.chiave() to minOf(qui, la)
-            }.filterValues { it.isFinite() }
-        }
+        lontananzeVetture(lineaId, mezzi + altre + listOfNotNull(evidenziato), forma, formaAltra)
     }
     val fuoriPercorso: Set<String> = lontananze.filterValues { it > METRI_FUORI_PERCORSO }.keys
 
@@ -410,26 +387,7 @@ fun LineaSchermo(
                         .background(Oro, CircleShape),
                 )
                 Text(
-                    (if (!conVetture) {
-                        "${rete.etichetta}: la posizione dei mezzi non è disponibile, solo il percorso"
-                    } else if (romaFerma && mezzi.isEmpty() && altre.isEmpty()) {
-                        "Roma Mobilità ora non pubblica le posizioni delle vetture"
-                    } else if (rete == Rete.COTRAL) {
-                        when (mezzi.size) {
-                            0 -> if (caricato) "Nessun bus GPS in questa direzione" else "Cerco i bus…"
-                            else -> "${mezzi.size} bus GPS in questa direzione"
-                        } + if (caricato) " (BusOne)" else ""
-                    } else {
-                        when (mezzi.size) {
-                            0 -> if (caricato) "Nessuna vettura GPS in questa direzione" else "Cerco le vetture…"
-                            1 -> "1 vettura GPS in questa direzione"
-                            else -> "${mezzi.size} vetture GPS in questa direzione"
-                        }
-                    }) + when (altre.size) {
-                        0 -> ""
-                        1 -> " · 1 nell'altra (in grigio)"
-                        else -> " · ${altre.size} nell'altra (in grigio)"
-                    } + if (aggiornatoAlle > 0) " · ${ora(aggiornatoAlle)}" else "",
+                    testoVetture(lineaId, mezzi.size, altre.size, caricato, romaFerma, aggiornatoAlle),
                     style = MaterialTheme.typography.bodySmall,
                     color = Secondario,
                     modifier = Modifier.padding(start = 8.dp),
@@ -449,8 +407,7 @@ fun LineaSchermo(
                             .background(BluPosizione, CircleShape),
                     )
                     Text(
-                        if (metri > 3_000) "Sei a ${testoMetri(metri)} da questa linea"
-                        else "Sei a ${testoMetri(metri)} da ${f.nome}, la sua fermata più vicina ›",
+                        testoFermataVicinaLinea(f.nome, metri),
                         style = MaterialTheme.typography.bodySmall,
                         color = BluPosizioneTesto,
                         maxLines = 1,
@@ -491,8 +448,7 @@ private fun SchedaVettura(
     adesso: Long,
     modifier: Modifier,
 ) {
-    val eta = etaRilevamento(mezzo.rilevato, adesso)
-    val vecchia = mezzo.rilevato > 0 && adesso - mezzo.rilevato > SECONDI_POSIZIONE_VECCHIA
+    val scheda = schedaVettura(mezzo, attesa, altraDirezione, distanzaPercorso, fermata, arrivo, adesso)
     Card(
         colors = CardDefaults.cardColors(containerColor = Superficie),
         shape = RoundedCornerShape(14.dp),
@@ -515,48 +471,30 @@ private fun SchedaVettura(
                 )
             }
             Column(Modifier.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    (if (attesa) "La tua vettura" else "Vettura") +
-                        (if (mezzo.etichetta.isNotBlank()) " ${mezzo.etichetta}" else ""),
-                    fontWeight = FontWeight.Bold,
-                )
+                Text(scheda.titolo, fontWeight = FontWeight.Bold)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     FonteTempo(tracciato = true)
                     Text(
-                        if (eta != null) " posizione rilevata $eta" else " posizione in tempo reale",
+                        " " + scheda.rilevata,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (vecchia) Accento else Secondario,
+                        color = if (scheda.vecchia) Accento else Secondario,
                     )
                 }
-                if (vecchia) {
-                    Text(
-                        "Il segnale è vecchio: la vettura potrebbe essere più avanti.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Accento,
-                    )
+                scheda.avvisi.forEach { avviso ->
+                    Text(avviso, style = MaterialTheme.typography.bodySmall, color = Accento)
                 }
-                if (distanzaPercorso != null) {
+                scheda.altraDirezione?.let { testo ->
                     Text(
-                        "È a ${testoMetri(distanzaPercorso)} dal percorso della linea: forse è in deviazione, " +
-                            "in rimessa o sta andando al capolinea.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Accento,
-                    )
-                }
-                if (altraDirezione) {
-                    Text(
-                        "Va nell'altra direzione · mostra quella direzione ›",
+                        testo,
                         style = MaterialTheme.typography.bodySmall,
                         color = Accento,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.clickable(onClick = mostraQuellaDirezione),
                     )
                 }
-                if (attesa && fermata != null) {
-                    val metri = distanzaMetri(mezzo.lat, mezzo.lon, fermata.lat, fermata.lon)
-                    val quando = arrivo?.let { " " + testoMinuti(it, adesso).let { t -> if (t == "in arrivo") t else "tra $t" } } ?: ""
+                scheda.arrivo?.let { testo ->
                     Text(
-                        "Arriva a ${fermata.nome}$quando · a ${testoMetri(metri)} in linea d'aria",
+                        testo,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -585,9 +523,7 @@ private fun SchedaSenzaGps(fermata: Fermata?, arrivo: Long?, adesso: Long, modif
                 )
             }
             Text(
-                "Il tempo d'attesa" + (fermata?.let { " a ${it.nome}" } ?: "") +
-                    (arrivo?.let { " (" + testoMinuti(it, adesso) + ")" } ?: "") +
-                    " è calcolato sull'orario programmato: la vettura potrebbe non essere ancora partita.",
+                testoSenzaGps(fermata, arrivo, adesso),
                 style = MaterialTheme.typography.bodySmall,
                 color = Secondario,
             )
@@ -825,7 +761,6 @@ private fun MappaLinea(
 }
 
 /** Oltre questa distanza dal tracciato una vettura si segnala come fuori percorso. */
-private const val METRI_FUORI_PERCORSO = 250.0
 
 /** Per riconoscere una vettura anche quando il feed non ne indica la corsa. */
-private fun MezzoRT.chiave(): String = corsaId.ifEmpty { "vettura:$etichetta" }
+private fun MezzoRT.chiave(): String = chiaveMezzo(this)

@@ -153,6 +153,24 @@ jobs:
           xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "fermata:$id"
           sleep 8
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-03-scambio.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 4. Home con due preferite (una vicina a piazza Venezia, una a Termini)
+          termini=$(sqlite3 ios/Risorse/orario.db "SELECT id FROM fermate WHERE nome LIKE '%Termini%' LIMIT 1")
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -provaPreferiti "70078,$termini"
+          sleep 14
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-04-preferite.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 5. La linea 64 con la mappa e le vetture
+          l64=$(sqlite3 ios/Risorse/orario.db "SELECT id FROM linee WHERE nome = '64' LIMIT 1")
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "linea:$l64:0"
+          sleep 16
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-05-linea.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 6. Una linea Cotral (bus col GPS di BusOne): la prima dell'orario delle reti
+          cotral=$(sqlite3 ios/Risorse/reti.db "SELECT id FROM linee WHERE id LIKE 'C:%' ORDER BY id LIMIT 1")
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "linea:$cotral"
+          sleep 16
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-06-linea-cotral.png
           xcrun simctl spawn "$dispositivo" log show --last 3m --predicate 'process == "Palina"' --style compact > /tmp/esito/log-app.txt 2>&1 || true
           ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i palina > /tmp/esito/crash.txt || true
 

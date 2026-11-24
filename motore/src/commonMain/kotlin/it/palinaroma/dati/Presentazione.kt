@@ -166,6 +166,12 @@ fun avvisoArrivi(arrivi: ArriviFermate, conRoma: Boolean): String? = when {
 /** Una riga del tabellone di una fermata: linea, direzione, minuti e da dove vengono. */
 data class RigaArrivo(
     val lineaId: String,
+    /** La direzione nell'orario, -1 se non si sa. */
+    val direzione: Int,
+    /** La corsa del primo passaggio (per evidenziare la vettura sulla linea). */
+    val corsaId: String,
+    /** Fissata in cima alla fermata e in Home. */
+    val fissata: Boolean,
     val nome: String,
     val colore: Long,
     /** "Casaletto", o "Direzione non indicata". */
@@ -185,13 +191,16 @@ data class RigaArrivo(
     val perVoce: String,
 )
 
-fun rigaArrivo(arrivo: Arrivo, adesso: Long): RigaArrivo {
+fun rigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean = false): RigaArrivo {
     val primo = arrivo.passaggi.first()
     val rete = Rete.di(arrivo.lineaId)
     val minuti = minutiAttesa(primo.orario, adesso)
     val soppresso = primo.avviso == "soppresso"
     return RigaArrivo(
         lineaId = arrivo.lineaId,
+        direzione = arrivo.direzione ?: -1,
+        corsaId = primo.corsaId,
+        fissata = fissata,
         nome = arrivo.nomeLinea,
         colore = coloreReteArgb(arrivo.lineaId),
         capolinea = arrivo.capolinea.ifEmpty { "Direzione non indicata" },
@@ -216,15 +225,103 @@ fun rigaArrivo(arrivo: Arrivo, adesso: Long): RigaArrivo {
     )
 }
 
-/** Il tabellone di una fermata: le righe in ordine e l'avviso, se c'e'. */
-data class TabelloneFermata(val righe: List<RigaArrivo>, val avviso: String?, val aggiornato: String?)
+/**
+ * Il tabellone di una fermata: in cima le linee fissate (anche quelle che ora
+ * non passano), sotto le altre; l'avviso e l'ora dell'aggiornamento.
+ */
+data class TabelloneFermata(
+    val fissate: List<RigaArrivo>,
+    /** I nomi delle linee fissate che nei prossimi 90 minuti non passano. */
+    val fissateSenzaPassaggi: List<String>,
+    val altre: List<RigaArrivo>,
+    val conFissate: Boolean,
+    /** "Tocca la puntina…" quando non c'e' nessuna linea fissata. */
+    val suggerimento: String?,
+    val avviso: String?,
+    val aggiornato: String?,
+)
 
-fun tabelloneFermata(fermataId: String, arrivi: ArriviFermate, adessoMs: Long): TabelloneFermata {
+fun tabelloneFermata(
+    fermataId: String,
+    arrivi: ArriviFermate,
+    adessoMs: Long,
+    fissate: Set<String>,
+    nomiLinee: Map<String, String>,
+): TabelloneFermata {
     val adesso = adessoMs / 1000
-    val righe = ancoraAttesi(arrivi.perFermata[fermataId].orEmpty(), adesso).map { rigaArrivo(it, adesso) }
+    val diviso = dividiArrivi(ancoraAttesi(arrivi.perFermata[fermataId].orEmpty(), adesso), fissate)
     return TabelloneFermata(
-        righe = righe,
+        fissate = diviso.fissate.map { rigaArrivo(it, adesso, fissata = true) },
+        fissateSenzaPassaggi = diviso.senzaPassaggi.map { nomiLinee[it] ?: it },
+        altre = diviso.altre.map { rigaArrivo(it, adesso) },
+        conFissate = fissate.isNotEmpty(),
+        suggerimento = if (fissate.isEmpty() && diviso.altre.isNotEmpty()) "Tocca la puntina accanto a una linea: resta in cima qui e in Home." else null,
         avviso = avvisoArrivi(arrivi, Rete.di(fermataId) == Rete.ROMA),
         aggiornato = if (arrivi.aggiornatoAlle > 0) "Aggiornato " + testoAggiornato(arrivi.aggiornatoAlle, adessoMs) else null,
+    )
+}
+
+/** Una preferita in Home pronta da disegnare: righe grandi, altre linee in breve. */
+data class SchedaPreferitaVista(
+    val id: String,
+    val nome: String,
+    val sotto: String,
+    val messaggio: String?,
+    val righe: List<RigaArrivo>,
+    val pillole: List<PillolaPassaggio>,
+    /** Quante altre linee oltre le 4 pillole. */
+    val inPiu: Int,
+)
+
+fun SchedaPreferita.vista(adesso: Long): SchedaPreferitaVista = SchedaPreferitaVista(
+    id = fermata.id,
+    nome = fermata.nome,
+    sotto = sotto,
+    messaggio = messaggio,
+    righe = principali.map { rigaArrivo(it, adesso, fissata = false) },
+    pillole = altre.take(4).map { pillolaPassaggio(it, adesso) },
+    inPiu = (altre.size - 4).coerceAtLeast(0),
+)
+
+/** La Home: la preferita a cui sei vicino, le altre preferite, le fermate vicine e gli avvisi. */
+data class StatoHome(
+    val evidenza: SchedaPreferitaVista?,
+    /** "Preferiti", "Altri preferiti" o null se non ce ne sono (oltre a quella in evidenza). */
+    val titoloPreferite: String?,
+    val preferite: List<SchedaPreferitaVista>,
+    val vicine: List<FermataConTempi>,
+    val avviso: String?,
+    /** "aggiornato 20 s fa". */
+    val aggiornato: String?,
+    /** Il suggerimento quando non ci sono preferite. */
+    val suggerimento: String?,
+)
+
+fun statoHome(
+    orario: Orario?,
+    ordine: PreferiteOrdinate,
+    fissate: Set<String>,
+    vicine: List<VoceFermata>,
+    arrivi: ArriviFermate,
+    adessoMs: Long,
+): StatoHome {
+    val adesso = adessoMs / 1000
+    val evidenza = ordine.evidenza
+    val resto = ordine.ordinate.filter { it.first.id != evidenza?.first?.id }
+    fun scheda(f: Fermata, d: Double?) =
+        schedaPreferita(orario, f, d, arrivi.perFermata[f.id], lineeFissate(f.id, fissate), adesso).vista(adesso)
+    val conRoma = ordine.ordinate.any { Rete.di(it.first.id) == Rete.ROMA } || vicine.any { Rete.di(it.id) == Rete.ROMA }
+    return StatoHome(
+        evidenza = evidenza?.let { scheda(it.first, it.second) },
+        titoloPreferite = when {
+            resto.isEmpty() -> null
+            evidenza == null -> "Preferiti"
+            else -> "Altri preferiti"
+        },
+        preferite = resto.map { scheda(it.first, it.second) },
+        vicine = fermateConTempi(vicine, arrivi, adesso),
+        avviso = avvisoArrivi(arrivi, conRoma),
+        aggiornato = if (arrivi.aggiornatoAlle > 0) "aggiornato " + testoAggiornato(arrivi.aggiornatoAlle, adessoMs) else null,
+        suggerimento = if (ordine.ordinate.isEmpty()) "Tocca il cuore in una fermata: la ritrovi qui in cima, con i suoi tempi." else null,
     )
 }

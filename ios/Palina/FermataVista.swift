@@ -1,10 +1,11 @@
 import SwiftUI
 import Motore
 
-/** Una fermata: il tabellone con i prossimi passaggi e le linee che ci passano. */
+/** Una fermata: il tabellone (in cima le linee fissate) e le linee che ci passano. */
 struct FermataVista: View {
     let fermataId: String
     @EnvironmentObject private var archivio: Archivio
+    @EnvironmentObject private var preferiti: Preferiti
     @State private var motore: MotoreFermata?
     @State private var voce: VoceFermata?
     @State private var linee: [VoceLinea] = []
@@ -24,24 +25,14 @@ struct FermataVista: View {
                 if let avviso = tabellone?.avviso {
                     Text(avviso).font(.footnote).foregroundStyle(Tavolozza.oro)
                 }
-                Section {
-                    if let righe = tabellone?.righe, !righe.isEmpty {
-                        ForEach(righe, id: \.self) { RigaTabellone(riga: $0) }
-                    } else if caricando {
-                        HStack { ProgressView(); Text("Leggo i tempi…").foregroundStyle(.secondary) }
-                    } else {
-                        Text("Nessun passaggio nei prossimi 90 minuti.").foregroundStyle(.secondary)
-                    }
-                } header: {
-                    Text("Prossimi passaggi")
-                } footer: {
-                    if let aggiornato = tabellone?.aggiornato { Text(aggiornato) }
-                }
+                tempi
                 Section("Linee") {
                     ForEach(linee, id: \.self) { l in
-                        HStack(spacing: 10) {
-                            BadgeLinea(nome: l.nome, colore: l.colore, grande: true)
-                            Text("→ \(l.capolinea)").lineLimit(2)
+                        NavigationLink(value: Destinazione.linea(RichiestaLinea(lineaId: l.lineaId, direzione: Int(l.direzione), fermata: fermataId))) {
+                            HStack(spacing: 10) {
+                                BadgeLinea(nome: l.nome, colore: l.colore, grande: true)
+                                Text("→ \(l.capolinea)").lineLimit(2)
+                            }
                         }
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("Linea \(l.nome) verso \(l.capolinea)")
@@ -56,7 +47,73 @@ struct FermataVista: View {
         .listStyle(.insetGrouped)
         .navigationTitle(voce?.nome ?? "Fermata")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    preferiti.alternaPreferita(fermataId)
+                } label: {
+                    Image(systemName: preferiti.eUnaPreferita(fermataId) ? "heart.fill" : "heart")
+                }
+                .accessibilityLabel(preferiti.eUnaPreferita(fermataId) ? "Togli dai preferiti" : "Aggiungi ai preferiti")
+            }
+        }
         .task(id: archivio.orario != nil) { await segui() }
+        .onChange(of: preferiti.fissate) { _, nuove in
+            motore?.impostaFissate(chiavi: nuove)
+            tabellone = motore?.tabellone()
+        }
+    }
+
+    @ViewBuilder
+    private var tempi: some View {
+        let t = tabellone
+        if let t, t.conFissate {
+            Section("Le tue linee") {
+                ForEach(t.fissate, id: \.self) { riga(for: $0) }
+                ForEach(t.fissateSenzaPassaggi, id: \.self) { nome in
+                    Text("\(nome) · non passa nei prossimi 90 minuti").foregroundStyle(.secondary)
+                }
+            }
+        }
+        Section {
+            if let t, !t.altre.isEmpty {
+                ForEach(t.altre, id: \.self) { riga(for: $0) }
+            } else if caricando {
+                HStack { ProgressView(); Text("Leggo i tempi…").foregroundStyle(.secondary) }
+            } else if t?.fissate.isEmpty ?? true {
+                Text("Nessun passaggio nei prossimi 90 minuti.").foregroundStyle(.secondary)
+            }
+        } header: {
+            Text(t?.conFissate == true ? "Altre linee" : "Prossimi passaggi")
+        } footer: {
+            VStack(alignment: .leading, spacing: 4) {
+                if let suggerimento = t?.suggerimento { Text(suggerimento) }
+                if let aggiornato = t?.aggiornato { Text(aggiornato) }
+            }
+        }
+    }
+
+    /** Una riga: si apre la linea con la sua vettura; scorrendo si fissa o si toglie. */
+    private func riga(for riga: RigaArrivo) -> some View {
+        NavigationLink(value: Destinazione.linea(RichiestaLinea(
+            lineaId: riga.lineaId,
+            direzione: Int(riga.direzione),
+            corsa: riga.corsaId.isEmpty ? nil : riga.corsaId,
+            fermata: fermataId
+        ))) {
+            RigaTabellone(riga: riga)
+        }
+        .swipeActions(edge: .trailing) {
+            Button {
+                if let chiave = motore?.chiaveDaFissare(lineaId: riga.lineaId) { preferiti.alternaFissata(chiave) }
+            } label: {
+                Label(riga.fissata ? "Togli" : "Fissa", systemImage: riga.fissata ? "pin.slash" : "pin")
+            }
+            .tint(Tavolozza.oro)
+        }
+        .accessibilityAction(named: riga.fissata ? "Togli il \(riga.nome) dalle tue linee" : "Fissa il \(riga.nome) in cima") {
+            if let chiave = motore?.chiaveDaFissare(lineaId: riga.lineaId) { preferiti.alternaFissata(chiave) }
+        }
     }
 
     /** I tempi si chiedono ogni 30 secondi; in mezzo i minuti si ricalcolano ogni 5. */
@@ -64,6 +121,7 @@ struct FermataVista: View {
         guard let orario = archivio.orario else { return }
         let m = motore ?? MotoreFermata(orario: orario, fermataId: fermataId)
         motore = m
+        m.impostaFissate(chiavi: preferiti.fissate)
         voce = m.intestazione()
         linee = m.linee()
         var ultimaRichiesta = Date.distantPast
@@ -97,6 +155,9 @@ struct RigaTabellone: View {
                 }
             }
             Spacer(minLength: 4)
+            if riga.fissata {
+                Image(systemName: "pin.fill").font(.caption).foregroundStyle(Tavolozza.oro).accessibilityHidden(true)
+            }
             VStack(alignment: .trailing, spacing: 2) {
                 if riga.minuti {
                     Text(riga.attesa + "′")

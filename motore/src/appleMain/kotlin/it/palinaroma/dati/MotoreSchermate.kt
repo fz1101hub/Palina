@@ -1,7 +1,15 @@
 package it.palinaroma.dati
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+/*
+ * Il motore visto dalle schermate SwiftUI (iPhone, poi Apple Watch). Ogni
+ * schermata ha il suo oggetto: le funzioni sospese si chiamano dal thread
+ * principale e lavorano li' (le letture e la rete vanno da sole sui loro
+ * thread); le altre ricalcolano subito con i dati gia' letti.
+ */
 
 /** Da chiamare una volta all'avvio dell'app per iPhone (o Apple Watch): rete e nome dell'app. */
 fun preparaMotore(agenteUtente: String) {
@@ -9,50 +17,229 @@ fun preparaMotore(agenteUtente: String) {
     Collegamento.agenteUtente = agenteUtente
 }
 
-/**
- * Il motore visto dalle schermate SwiftUI della Home: fermate vicine, ricerca e
- * tempi. Le funzioni sospese si chiamano dal thread principale e lavorano li'
- * (le letture e la rete vanno da sole sui loro thread).
- */
+/** La Home: preferite, fermate vicine, ricerca e tempi. */
 class MotoreHome(private val orario: Orario) {
     private val caricatore = CaricatoreArrivi()
     private var arrivi = ArriviFermate()
+    private var preferite: List<Fermata> = emptyList()
+    private var fissate: Set<String> = emptySet()
+    private var lat: Double? = null
+    private var lon: Double? = null
+
+    /** Le preferite salvate (id) e le linee fissate ("fermata|linea"), come sull'app Android. */
+    fun impostaPreferiti(preferiti: Set<String>, fissate: Set<String>) {
+        preferite = fermatePreferite(orario, preferiti)
+        this.fissate = fissate
+    }
+
+    fun posizione(lat: Double, lon: Double) {
+        this.lat = lat
+        this.lon = lon
+    }
 
     fun vicine(lat: Double, lon: Double): List<VoceFermata> = vociVicine(orario, lat, lon, 700.0)
 
     fun cerca(testo: String): List<VoceFermata> = vociCercate(orario, testo)
 
-    /** Chiede i tempi (Roma Mobilita', BusOne, Transitous, ASTRAL) e li mette nelle righe. */
-    suspend fun aggiorna(voci: List<VoceFermata>): List<FermataConTempi> = withContext(Dispatchers.Main) {
-        val fermate = withContext(dispatcherDati) {
-            val trovate = orario.fermate(voci.map { it.id })
-            voci.mapNotNull { trovate[it.id] }
+    /** Chiede i tempi (Roma Mobilita', BusOne, Transitous, ASTRAL) di preferite e vicine. */
+    suspend fun aggiorna(vicine: List<VoceFermata>): StatoHome = withContext(Dispatchers.Main) {
+        val ordine = ordinaPreferite(preferite, lat, lon)
+        val fermateVicine = withContext(dispatcherDati) {
+            val trovate = orario.fermate(vicine.map { it.id })
+            vicine.mapNotNull { trovate[it.id] }
         }
-        arrivi = caricatore.aggiorna(orario, fermateComplete(emptyList(), fermate), voci.map { it.id }, arrivi)
-        fermateConTempi(voci, arrivi, adessoMs() / 1000)
+        val idTempoReale = (ordine.ordinate.map { it.first.id } + vicine.map { it.id }).distinct()
+        arrivi = caricatore.aggiorna(orario, fermateComplete(ordine.ordinate.map { it.first }, fermateVicine), idTempoReale, arrivi)
+        stato(vicine)
     }
 
-    /** Le righe con i tempi gia' letti, ricalcolate per adesso (i minuti scendono da soli). */
-    fun righe(voci: List<VoceFermata>): List<FermataConTempi> = fermateConTempi(voci, arrivi, adessoMs() / 1000)
-
-    fun avviso(): String? = avvisoArrivi(arrivi, conRoma = true)
+    /** La Home con i tempi gia' letti, ricalcolata per adesso (i minuti scendono da soli). */
+    fun stato(vicine: List<VoceFermata>): StatoHome =
+        statoHome(orario, ordinaPreferite(preferite, lat, lon), fissate, vicine, arrivi, adessoMs())
 }
 
-/** Il motore visto dalla schermata di una fermata: intestazione, linee e tabellone. */
+/** La schermata di una fermata: intestazione, linee, tabellone con le linee fissate. */
 class MotoreFermata(private val orario: Orario, private val fermataId: String) {
     private val caricatore = CaricatoreArrivi()
     private var arrivi = ArriviFermate()
+    private var fissate: Set<String> = emptySet()
+    private val nomiLinee: Map<String, String> by lazy { lineeDellaFermata(orario, fermataId).associate { it.lineaId to it.nome } }
 
     fun intestazione(): VoceFermata? = intestazioneFermata(orario, fermataId)
 
     fun linee(): List<VoceLinea> = lineeDellaFermata(orario, fermataId)
 
+    /** Le linee fissate salvate ("fermata|linea"): servono quelle di questa fermata. */
+    fun impostaFissate(chiavi: Set<String>) {
+        fissate = lineeFissate(fermataId, chiavi)
+    }
+
+    /** La chiave da salvare (o togliere) per fissare una linea a questa fermata. */
+    fun chiaveDaFissare(lineaId: String): String = chiaveFissata(fermataId, lineaId)
+
     suspend fun aggiorna(): TabelloneFermata = withContext(Dispatchers.Main) {
         val fermata = withContext(dispatcherDati) { orario.fermata(fermataId) }
         if (fermata != null) arrivi = caricatore.aggiorna(orario, listOf(fermata), emptyList(), arrivi)
-        tabelloneFermata(fermataId, arrivi, adessoMs())
+        tabellone()
     }
 
     /** Il tabellone con i tempi gia' letti, per adesso. */
-    fun tabellone(): TabelloneFermata = tabelloneFermata(fermataId, arrivi, adessoMs())
+    fun tabellone(): TabelloneFermata = tabelloneFermata(fermataId, arrivi, adessoMs(), fissate, nomiLinee)
+}
+
+/** Una direzione di una linea: "→ Casaletto". */
+data class VoceDirezione(val direzione: Int, val testo: String, val scelta: Boolean)
+
+/** Una vettura sulla mappa della linea. */
+data class VoceVettura(
+    val chiave: String,
+    val lat: Double,
+    val lon: Double,
+    /** La rotta in gradi, -1 se non si sa. */
+    val rotta: Double,
+    val etichetta: String,
+    val altraDirezione: Boolean,
+    val fuoriPercorso: Boolean,
+    /** La vettura della corsa che stai aspettando. */
+    val attesa: Boolean,
+    /** La posizione ha piu' di 3 minuti. */
+    val vecchia: Boolean,
+)
+
+/** La fermata della linea piu' vicina a te e la frase che lo dice. */
+data class FermataVicinaLinea(val fermataId: String, val testo: String)
+
+/** Le vetture della linea e il testo sotto la mappa. */
+data class StatoLinea(val vetture: List<VoceVettura>, val testo: String, val senzaGps: String?)
+
+/** La schermata di una linea: direzioni, fermate, tracciato e vetture con il GPS. */
+class MotoreLinea(
+    private val orario: Orario,
+    val lineaId: String,
+    direzioneIniziale: Int,
+    private val corsaEvidenziata: String?,
+    private val fermataEvidenziata: String?,
+) {
+    private val linea = orario.linea(lineaId)
+    private val percorsi = orario.percorsi(lineaId)
+    private val perDirezione = fermatePerDirezione(orario, lineaId, percorsi)
+    private var vetture = VettureLette()
+    private var caricato = false
+
+    val nome: String = linea?.nome ?: lineaId
+    val colore: Long = coloreReteArgb(lineaId)
+    val fermataAttesa: Fermata? = fermataEvidenziata?.let { orario.fermata(it) }
+
+    var direzione: Int = (percorsi.firstOrNull { it.direzione == direzioneIniziale } ?: percorsi.firstOrNull())?.direzione ?: 0
+        private set
+
+    private val percorso: Percorso? get() = percorsi.firstOrNull { it.direzione == direzione }
+
+    /** "verso Casaletto", o la descrizione della linea. */
+    fun sottotitolo(): String =
+        percorso?.capolinea?.takeIf { it.isNotEmpty() }?.let { "verso $it" } ?: linea?.descrizione.orEmpty()
+
+    fun direzioni(): List<VoceDirezione> = percorsi.map {
+        VoceDirezione(it.direzione, "→ " + it.capolinea.ifEmpty { "Direzione ${it.direzione + 1}" }, it.direzione == direzione)
+    }
+
+    fun scegli(direzione: Int) {
+        if (direzione != this.direzione) {
+            this.direzione = direzione
+            vetture = vetture.copy(inDirezione = emptyList(), altre = emptyList())
+        }
+    }
+
+    /** Passa all'altra direzione (o alla successiva). */
+    fun cambiaDirezione() {
+        if (percorsi.size < 2) return
+        val i = percorsi.indexOfFirst { it.direzione == direzione }
+        scegli(percorsi[(i + 1) % percorsi.size].direzione)
+    }
+
+    fun fermate(): List<Fermata> = orario.fermateDelPercorso(lineaId, direzione)
+
+    /** Il tracciato della direzione scelta (o le fermate unite, se manca). */
+    fun forma(): List<Punto> {
+        val tracciato = percorso?.let { orario.forma(it.forma) }.orEmpty()
+        return if (tracciato.size >= 2) tracciato else fermate().map { Punto(it.lat, it.lon) }
+    }
+
+    /** Il tracciato dell'altra direzione: spesso passa per strade diverse. */
+    fun formaAltra(): List<Punto> {
+        val altro = percorsi.firstOrNull { it.direzione != direzione } ?: return emptyList()
+        return orario.forma(altro.forma).takeIf { it.size >= 2 }
+            ?: orario.fermateDelPercorso(lineaId, altro.direzione).map { Punto(it.lat, it.lon) }
+    }
+
+    /** La fermata della linea piu' vicina a te: "Sei a 300 m da Piazza Venezia, la sua fermata più vicina ›". */
+    fun fermataVicina(lat: Double, lon: Double): FermataVicinaLinea? =
+        fermate().map { it to distanzaMetri(lat, lon, it.lat, it.lon) }.minByOrNull { it.second }
+            ?.let { (f, metri) -> FermataVicinaLinea(f.id, testoFermataVicinaLinea(f.nome, metri)) }
+
+    /** Legge le vetture con il GPS (ogni 15 secondi): senza rete restano quelle di prima. */
+    suspend fun aggiorna(): StatoLinea = withContext(Dispatchers.Main) {
+        if (lineaConVetture(lineaId)) {
+            try {
+                vetture = leggiVettureLinea(
+                    orario, lineaId, linea?.nome, direzione, perDirezione,
+                    corsaEvidenziata, fermataEvidenziata, vetture,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // senza rete restano gli ultimi mezzi noti
+            }
+        }
+        caricato = true
+        stato()
+    }
+
+    fun stato(): StatoLinea {
+        val adesso = adessoMs() / 1000
+        val tutte = vetture.inDirezione + vetture.altre + listOfNotNull(vetture.evidenziato)
+        val lontananze = lontananzeVetture(lineaId, tutte, forma(), formaAltra())
+        val attesa = vetture.evidenziato?.let { chiaveMezzo(it) }
+        val altre = vetture.altre.map { chiaveMezzo(it) }.toSet()
+        val voci = tutte.distinctBy { chiaveMezzo(it) }.map { m ->
+            val chiave = chiaveMezzo(m)
+            VoceVettura(
+                chiave = chiave,
+                lat = m.lat,
+                lon = m.lon,
+                rotta = m.rotta?.toDouble() ?: -1.0,
+                etichetta = m.etichetta,
+                altraDirezione = chiave in altre && chiave != attesa,
+                fuoriPercorso = (lontananze[chiave] ?: 0.0) > METRI_FUORI_PERCORSO,
+                attesa = chiave == attesa,
+                vecchia = m.rilevato > 0 && adesso - m.rilevato > POSIZIONE_VECCHIA_SECONDI,
+            )
+        }
+        val testo = testoVetture(
+            lineaId, vetture.inDirezione.size, vetture.altre.size, caricato, vetture.romaFerma, vetture.aggiornatoAlle,
+        )
+        val senzaGps = if (corsaEvidenziata != null && caricato && lineaConVetture(lineaId) && vetture.evidenziato == null) {
+            testoSenzaGps(fermataAttesa, vetture.arrivoAtteso, adesso)
+        } else {
+            null
+        }
+        return StatoLinea(voci, testo, senzaGps)
+    }
+
+    /** La scheda della vettura toccata sulla mappa. */
+    fun scheda(chiave: String): SchedaVettura? {
+        val tutte = vetture.inDirezione + vetture.altre + listOfNotNull(vetture.evidenziato)
+        val mezzo = tutte.firstOrNull { chiaveMezzo(it) == chiave } ?: return null
+        val attesa = vetture.evidenziato?.let { chiaveMezzo(it) == chiave } ?: false
+        val distanza = lontananzeVetture(lineaId, listOf(mezzo), forma(), formaAltra())[chiave]?.takeIf { it > METRI_FUORI_PERCORSO }
+        return schedaVettura(
+            mezzo,
+            attesa = attesa,
+            altraDirezione = vetture.altre.any { chiaveMezzo(it) == chiave },
+            distanzaPercorso = distanza,
+            fermata = fermataAttesa,
+            arrivo = vetture.arrivoAtteso,
+            adesso = adessoMs() / 1000,
+        )
+    }
 }
