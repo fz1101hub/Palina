@@ -171,7 +171,7 @@ jobs:
           xcrun simctl terminate "$dispositivo" it.palinaroma
           # 5. La linea 64 con la mappa e le vetture
           l64=$(sqlite3 ios/Risorse/orario.db "SELECT id FROM linee WHERE nome = '64' LIMIT 1")
-          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "linea:$l64:0"
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "linea:$l64" -direzione 0
           sleep 16
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-05-linea.png
           # la prima mappa sul simulatore appena creato puo' metterci di piu'

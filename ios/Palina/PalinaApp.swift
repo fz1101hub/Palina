@@ -62,7 +62,7 @@ struct Principale: View {
 
 /**
  * Per le prove sul simulatore (compilazione su GitHub): `-apri fermata:70078`
- * o `-apri linea:64:0` apre una schermata, `-posizione 41.8958,12.4826` finge
+ * o `-apri linea:64 -direzione 0` apre una schermata, `-posizione 41.8958,12.4826` finge
  * di essere li', `-provaPreferiti 70078,F:12345` mette delle preferite.
  */
 enum Prova {
@@ -73,12 +73,9 @@ enum Prova {
         switch parti[0] {
         case "fermata": return [.fermata(parti[1])]
         case "linea":
-            // "64:0" (linea e direzione); gli id Cotral hanno gia' i due punti ("C:123:1")
-            let resto = parti[1]
-            if let ultimo = resto.lastIndex(of: ":"), let dir = Int(resto[resto.index(after: ultimo)...]) {
-                return [.linea(RichiestaLinea(lineaId: String(resto[..<ultimo]), direzione: dir))]
-            }
-            return [.linea(RichiestaLinea(lineaId: resto))]
+            // la direzione a parte (-direzione 0): gli id Cotral hanno gia' i due punti ("C:12")
+            let dir = UserDefaults.standard.object(forKey: "direzione") != nil ? UserDefaults.standard.integer(forKey: "direzione") : -1
+            return [.linea(RichiestaLinea(lineaId: parti[1], direzione: dir))]
         default: return []
         }
     }

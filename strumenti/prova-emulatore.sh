@@ -50,6 +50,10 @@ passo "telefoni simulati: $("$SDK/emulator/emulator" -list-avds | tr '\n' ' ')"
 } >> "$CONFIG"
 
 passo "avvio"
+# la chiave di adb prima dell'emulatore: le immagini firmate (Wear OS 7) accettano
+# solo la chiave che l'emulatore vi copia all'avvio, se c'e' gia'
+[ -f "$ANDROID_USER_HOME/adbkey" ] || "$ADB" keygen "$ANDROID_USER_HOME/adbkey" > /dev/null 2>&1 || true
+"$ADB" start-server > /dev/null 2>&1 || true
 # la console dell'emulatore senza parola d'ordine, cosi' "adb emu geo fix" funziona
 : > "$HOME/.emulator_console_auth_token"
 # -skip-adb-auth: le immagini Wear OS firmate chiedono di autorizzare adb, e qui nessuno tocca "Consenti"
