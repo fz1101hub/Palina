@@ -6,6 +6,13 @@ enum Tavolozza {
     static let porpora = Color(argb: Colori.shared.PORPORA)
     static let oro = Color(argb: Colori.shared.ORO)
     static let inchiostro = Color(argb: Colori.shared.INCHIOSTRO)
+
+    /** Le cifre grandi dei minuti: a punti come sulle paline (Doto), o normali se lo si e' scelto. */
+    static func cifre(_ grandezza: CGFloat, aPunti: Bool) -> Font {
+        aPunti
+            ? .custom("Doto-Black", size: grandezza, relativeTo: .title)
+            : .system(size: grandezza, weight: .black, design: .rounded)
+    }
 }
 
 extension Color {

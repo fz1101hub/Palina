@@ -318,3 +318,12 @@ jobs:
           gh release edit ultima --title "Ultima versione" --notes "$note" --latest
           gh release upload ultima "$apk" --clobber
           if [ -n "$orologio" ]; then gh release upload ultima "$orologio" --clobber; fi
+          # lo stesso orario per l'iPhone, gia' pronto e compresso: lo scarica da solo in Wi-Fi
+          mkdir -p /tmp/asset /tmp/iphone
+          unzip -o -j "$apk" 'assets/orario*' 'assets/reti*' -d /tmp/asset || true
+          python3 strumenti/orari_iphone.py /tmp/asset /tmp/iphone
+          if [ -f /tmp/iphone/orari-iphone.json ]; then
+            for f in /tmp/iphone/*.deflate; do gh release upload ultima "$f" --clobber; done
+            # per ultimo l'elenco: l'iPhone non vede un orario nuovo prima che i file ci siano
+            gh release upload ultima /tmp/iphone/orari-iphone.json --clobber
+          fi

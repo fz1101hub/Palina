@@ -122,7 +122,10 @@ jobs:
         run: |
           mkdir -p /tmp/apk
           gh release download ultima -p app-release.apk -D /tmp/apk
-          unzip -o -j /tmp/apk/app-release.apk assets/orario.db assets/reti.db -d ios/Risorse
+          unzip -o -j /tmp/apk/app-release.apk assets/orario.db assets/reti.db assets/orario-incluso.txt assets/reti-incluse.txt -d ios/Risorse
+          # l'orario per l'aggiornamento dall'iPhone: si deve aprire con NSData.decompressed(.zlib)
+          python3 strumenti/orari_iphone.py ios/Risorse /tmp/iphone | tee -a /tmp/esito/risorse.txt
+          swift strumenti/prova-deflate.swift /tmp/iphone/orario.db.deflate ios/Risorse/orario.db | tee -a /tmp/esito/risorse.txt
           ls -la ios/Risorse | tee /tmp/esito/risorse.txt
 
       - name: Progetto Xcode
@@ -195,6 +198,26 @@ jobs:
           xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "fermata:$lido" -apriPrimoTreno YES
           sleep 20
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-07b-treno-lido.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 8. Tragitti da piazza Venezia a Termini (Transitous), poi il primo con la mappa
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "tragitto:$termini"
+          sleep 20
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-08-tragitti.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "tragitto:$termini" -apriPrimoTragitto YES
+          sleep 28
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-09-tragitto.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 9. La scelta dell'arrivo con un indirizzo cercato
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "luogo:Colosseo"
+          sleep 12
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-10-luogo.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 10. Le impostazioni, con l'aspetto scuro
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "impostazioni:1" -aspetto SCURO
+          sleep 8
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-11-impostazioni.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
           ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i palina > /tmp/esito/crash.txt || true
           # 7. Apple Watch con il tabellone di esempio del motore (senza iPhone collegato)
           orologio=$(xcrun simctl create prova-watch "Apple Watch Series 11 (46mm)" 2>/dev/null || xcrun simctl create prova-watch "Apple Watch Series 10 (46mm)")

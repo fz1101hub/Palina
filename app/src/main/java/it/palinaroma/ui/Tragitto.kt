@@ -88,6 +88,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.EsitoRicercaTragitti
+import it.palinaroma.dati.altriTragitti
+import it.palinaroma.dati.attribuzioneTransitous
+import it.palinaroma.dati.avvisoPermessoTragitti
+import it.palinaroma.dati.cartaTragitto
+import it.palinaroma.dati.cercaTragitti
+import it.palinaroma.dati.giornoEOra
+import it.palinaroma.dati.luogoDaFermata
 import it.palinaroma.dati.ErroreTransitous
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.Luogo
@@ -121,13 +129,14 @@ sealed interface EsitoTragitti {
     data object Vuoto : EsitoTragitti
     data object InCorso : EsitoTragitti
     data class Errore(val messaggio: String) : EsitoTragitti
-    data class Pronto(
-        val tragitti: List<Tragitto>,
-        val soloAPiedi: Tragitto?,
-        val cursorePrima: String?,
-        val cursoreDopo: String?,
-        val calcolatoAlle: Long,
-    ) : EsitoTragitti
+    /** I risultati; la ricerca e i suoi errori sono nel motore condiviso con l'iPhone. */
+    data class Pronto(val risultato: EsitoRicercaTragitti) : EsitoTragitti {
+        val tragitti: List<Tragitto> get() = risultato.tragitti
+        val soloAPiedi: Tragitto? get() = risultato.soloAPiedi
+        val cursorePrima: String? get() = risultato.cursorePrima
+        val cursoreDopo: String? get() = risultato.cursoreDopo
+        val calcolatoAlle: Long get() = risultato.calcolatoAlle
+    }
 }
 
 /** La ricerca in corso: resta viva passando dall'elenco al dettaglio. */
@@ -168,39 +177,20 @@ object StatoTragitto {
         val aScelto = a ?: return
         chiaveUltima = chiave()
         esito = EsitoTragitti.InCorso
-        try {
-            val partenza = risolvi(context, daScelto)
-            val arrivo = risolvi(context, aScelto)
-            if (partenza == null || arrivo == null) {
-                esito = EsitoTragitti.Errore("Non riesco a leggere la tua posizione: attiva la localizzazione e riprova.")
-                return
-            }
-            if (distanzaMetri(partenza.lat, partenza.lon, arrivo.lat, arrivo.lon) < 40) {
-                esito = EsitoTragitti.Errore("Partenza e arrivo sono nello stesso punto.")
-                return
-            }
-            val (istante, arrivaEntro) = when (val q = quando) {
-                Quando.Adesso -> null to false
-                is Quando.Partenza -> q.istante to false
-                is Quando.Arrivo -> q.istante to true
-            }
-            val nuova = Richiesta(partenza, arrivo, istante, arrivaEntro)
-            val r = Transitous.tragitti(partenza, arrivo, istante, arrivaEntro, null)
-            richiesta = nuova
-            esito = EsitoTragitti.Pronto(
-                r.tragitti.distinctBy { it.chiave },
-                r.soloAPiedi,
-                r.cursorePrima,
-                r.cursoreDopo,
-                System.currentTimeMillis(),
-            )
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: ErroreTransitous) {
-            esito = EsitoTragitti.Errore(e.message ?: "Transitous non ha risposto.")
-        } catch (e: Exception) {
-            esito = EsitoTragitti.Errore("Non riesco a contattare Transitous. Controlla la connessione e riprova.")
+        val partenza = risolvi(context, daScelto)
+        val arrivo = risolvi(context, aScelto)
+        val (istante, arrivaEntro) = when (val q = quando) {
+            Quando.Adesso -> null to false
+            is Quando.Partenza -> q.istante to false
+            is Quando.Arrivo -> q.istante to true
         }
+        val r = cercaTragitti(partenza, arrivo, istante, arrivaEntro)
+        if (r.errore != null) {
+            esito = EsitoTragitti.Errore(r.errore)
+            return
+        }
+        richiesta = Richiesta(partenza!!, arrivo!!, istante, arrivaEntro)
+        esito = EsitoTragitti.Pronto(r)
     }
 
     /** Partenze precedenti o successive, aggiunte all'elenco. */
@@ -209,21 +199,11 @@ object StatoTragitto {
         val r0 = richiesta ?: return
         val cursore = (if (dopo) attuale.cursoreDopo else attuale.cursorePrima) ?: return
         if (caricandoAltri) return
+        if (cursore.isEmpty()) return
         caricandoAltri = true
         try {
-            val r = Transitous.tragitti(r0.da, r0.a, r0.istante, r0.arrivaEntro, cursore)
-            val uniti = (if (dopo) attuale.tragitti + r.tragitti else r.tragitti + attuale.tragitti)
-                .distinctBy { it.chiave }
-                .sortedBy { it.partenza }
-            esito = attuale.copy(
-                tragitti = uniti,
-                cursorePrima = if (dopo) attuale.cursorePrima else r.cursorePrima,
-                cursoreDopo = if (dopo) r.cursoreDopo else attuale.cursoreDopo,
-            )
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            // restano i risultati gia' trovati
+            // senza rete restano i risultati gia' trovati
+            esito = EsitoTragitti.Pronto(altriTragitti(attuale.risultato, r0.da, r0.a, r0.istante, r0.arrivaEntro, dopo))
         } finally {
             caricandoAltri = false
         }
@@ -236,7 +216,7 @@ object StatoTragitto {
     }
 }
 
-fun Fermata.comeLuogo() = Luogo(nome, "Palina $codice", lat, lon, TipoLuogo.FERMATA)
+fun Fermata.comeLuogo() = luogoDaFermata(this)
 
 // ---------------------------------------------------------------------------
 // Schermata principale dei tragitti
@@ -312,9 +292,7 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
             if (serveLaPosizione && !permesso) {
                 item {
                     Avviso(
-                        "Per partire o arrivare alla tua posizione serve il permesso di localizzazione. " +
-                            "Le coordinate vengono inviate a Transitous solo per calcolare il tragitto." +
-                            if (negatoPerSempre) " Il permesso è stato negato: puoi darlo dalle impostazioni dell'app." else "",
+                        avvisoPermessoTragitti(negatoPerSempre),
                     ) {
                         Button(
                             onClick = {
@@ -521,18 +499,6 @@ private fun SceltaQuando(quando: Quando, scegli: (Boolean?) -> Unit) {
     }
 }
 
-private fun giornoEOra(istante: Long): String {
-    val zona = ZoneId.systemDefault()
-    val giorno = Instant.ofEpochMilli(istante).atZone(zona).toLocalDate()
-    val oggi = LocalDate.now(zona)
-    val prefisso = when (giorno) {
-        oggi -> ""
-        oggi.plusDays(1) -> "domani "
-        else -> giorno.dayOfMonth.toString() + "/" + giorno.monthValue + " "
-    }
-    return prefisso + ora(istante)
-}
-
 @Composable
 private fun DialogoOrario(arrivo: Boolean, iniziale: Long, chiudi: () -> Unit, conferma: (Long) -> Unit) {
     val zona = ZoneId.systemDefault()
@@ -584,39 +550,30 @@ private fun CartaTragitto(t: Tragitto, adesso: Long, onClick: () -> Unit) {
             .testTag("tragitto")
             .clickable(onClick = onClick),
     ) {
+        // i testi della carta vengono dal motore, uguali sull'iPhone
+        val carta = cartaTragitto(t, adesso)
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "${ora(t.partenza)} – ${ora(t.arrivo)}",
+                    carta.orari,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
                     modifier = Modifier.weight(1f),
                 )
-                Text(testoDurata(t.durata), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(carta.durata, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
             SequenzaTratti(t.tratti)
-            val primo = t.mezzi.firstOrNull()
-            if (primo != null) {
-                val tra = ((primo.partenza - adesso) / 60_000).toInt()
-                val quando = when {
-                    tra in 0..59 -> if (tra < 1) "in partenza" else "tra $tra min"
-                    else -> "alle ${ora(primo.partenza)}"
-                }
+            carta.primoMezzo?.let { testo ->
                 Text(
-                    "${primo.nomeMezzo} ${primo.linea} $quando da ${primo.da.nome}",
+                    testo,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            val cambi = when (t.cambi) {
-                0 -> "Nessun cambio"
-                1 -> "1 cambio"
-                else -> "${t.cambi} cambi"
-            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "$cambi · ${t.minutiAPiedi} min a piedi",
+                    carta.cambiEPiedi,
                     style = MaterialTheme.typography.bodySmall,
                     color = Secondario,
                     modifier = Modifier.weight(1f),
@@ -708,8 +665,7 @@ fun IconaPiedi(colore: Color = Secondario, lato: Dp = 16.dp) {
 fun Attribuzione() {
     val collegamento = LocalUriHandler.current
     Text(
-        "Tragitti calcolati da Transitous con i dati di Roma Mobilità, Cotral, Trenitalia e OpenStreetMap. " +
-            "Tocca qui per tutte le fonti.",
+        attribuzioneTransitous(),
         style = MaterialTheme.typography.bodySmall,
         color = Secondario,
         modifier = Modifier

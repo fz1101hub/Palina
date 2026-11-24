@@ -36,7 +36,9 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        NSLocationWhenInUseUsageDescription: "Palina usa la tua posizione per mostrarti le fermate vicine."
+        NSLocationWhenInUseUsageDescription: "Palina usa la tua posizione per mostrarti le fermate vicine e per calcolare i tragitti."
+        # le cifre a punti delle paline (Doto, SIL Open Font License)
+        UIAppFonts: [Doto-Black.ttf]
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:

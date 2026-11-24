@@ -7,6 +7,7 @@ struct FermataVista: View {
     @EnvironmentObject private var archivio: Archivio
     @EnvironmentObject private var preferiti: Preferiti
     @EnvironmentObject private var navigazione: Navigazione
+    @EnvironmentObject private var tragitti: Tragitti
     @State private var motore: MotoreFermata?
     @State private var voce: VoceFermata?
     @State private var linee: [VoceLinea] = []
@@ -49,6 +50,15 @@ struct FermataVista: View {
         .navigationTitle(voce?.nome ?? "Fermata")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    tragitti.versoFermata(fermataId)
+                    navigazione.percorso.append(.tragitti)
+                } label: {
+                    Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
+                }
+                .accessibilityLabel("Come arrivo qui")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     preferiti.alternaPreferita(fermataId)
@@ -147,6 +157,7 @@ struct FermataVista: View {
 /** Una riga del tabellone: linea, direzione, "poi 12 · 25 min" e i minuti (in oro se in tempo reale). */
 struct RigaTabellone: View {
     let riga: RigaArrivo
+    @AppStorage("cifre_led") private var cifreLed = true
 
     var body: some View {
         HStack(spacing: 10) {
@@ -167,7 +178,7 @@ struct RigaTabellone: View {
             VStack(alignment: .trailing, spacing: 2) {
                 if riga.minuti {
                     Text(riga.attesa + "′")
-                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .font(Tavolozza.cifre(26, aPunti: cifreLed))
                         .foregroundStyle(riga.tempoReale ? Tavolozza.oro : Color.secondary)
                 } else {
                     Text(riga.attesa)

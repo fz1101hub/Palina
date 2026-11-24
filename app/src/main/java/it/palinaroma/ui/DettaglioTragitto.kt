@@ -80,6 +80,9 @@ import it.palinaroma.dati.etaRilevamento
 import it.palinaroma.dati.mezzoDellaCorsa
 import it.palinaroma.dati.testoDurata
 import it.palinaroma.dati.testoMetri
+import it.palinaroma.dati.fermataLocale
+import it.palinaroma.dati.testoVetturaTragitto
+import it.palinaroma.dati.vettureTragitto
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -100,10 +103,7 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
     val tragitto = esito?.let { if (indice < 0) it.soloAPiedi else it.tragitti.getOrNull(indice) }
 
     // le vetture dei bus e tram del tragitto, se Roma Mobilita' (o BusOne per Cotral) le segue via GPS
-    var mezzi by remember { mutableStateOf<List<MezzoRT>>(emptyList()) }
-    val conCotral = remember(tragitto) {
-        tragitto?.tratti.orEmpty().any { t -> !t.aPiedi && corsaApp(t.corsaId)?.let { Rete.di(it) == Rete.COTRAL } == true }
-    }
+    var vetture by remember { mutableStateOf<Map<Int, MezzoRT>>(emptyMap()) }
     var adesso by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
     val ciclo = LocalLifecycleOwner.current
     LaunchedEffect(tragitto) {
@@ -111,16 +111,8 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
         ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 try {
-                    val corse = try {
-                        TempoReale.corse()
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        emptyList()
-                    }
-                    val cotral = if (conCotral) seRiesce { BusOne.mezzi() }.orEmpty() else emptyList()
-                    val grezzi = TempoReale.mezzi()
-                    mezzi = withContext(Dispatchers.Default) { completaMezzi(grezzi, corse) + cotral }
+                    // stessa ricerca delle vetture dell'iPhone, nel motore
+                    vetture = vettureTragitto(tragitto)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
@@ -133,13 +125,6 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
     }
     // "sei qui" sulla mappa del tragitto
     val seiQui = rememberSeiQui()
-
-    val vetture: Map<Int, MezzoRT> = remember(tragitto, mezzi) {
-        tragitto?.tratti.orEmpty().withIndex()
-            .filter { !it.value.aPiedi }
-            .mapNotNull { (i, t) -> mezzoDellaCorsa(mezzi, t.corsaId)?.let { i to it } }
-            .toMap()
-    }
 
     Scaffold(
         topBar = {
@@ -297,22 +282,6 @@ private fun BloccoAPiedi(t: Tratto) {
     }
 }
 
-/** La fermata dell'app che corrisponde a una fermata di Transitous, per aprirne i tempi d'attesa. */
-private fun fermataLocale(orario: Orario, tappa: Tappa): Fermata? {
-    if (tappa.lat.isNaN() || tappa.lon.isNaN()) return null
-    val candidati = listOfNotNull(
-        tappa.codice,
-        tappa.fermataId?.substringAfterLast('_'),
-        tappa.fermataId?.substringAfterLast(':'),
-        tappa.fermataId,
-    ).distinct()
-    for (c in candidati) {
-        val f = orario.fermata(c) ?: continue
-        if (distanzaMetri(f.lat, f.lon, tappa.lat, tappa.lon) < 300) return f
-    }
-    return orario.fermateVicine(tappa.lat, tappa.lon, 60.0).firstOrNull()?.first
-}
-
 @Composable
 private fun BloccoMezzo(t: Tratto, vettura: MezzoRT?, adesso: Long, apriFermata: (String) -> Unit) {
     val orario by Archivio.orario.collectAsStateWithLifecycle()
@@ -429,13 +398,6 @@ private fun BloccoMezzo(t: Tratto, vettura: MezzoRT?, adesso: Long, apriFermata:
 /** Dove si trova adesso la vettura di questo tratto. */
 @Composable
 private fun RigaVettura(t: Tratto, vettura: MezzoRT, adesso: Long) {
-    val eta = etaRilevamento(vettura.rilevato, adesso)
-    val dove = if (t.partenza / 1000 > adesso && !t.da.lat.isNaN()) {
-        val metri = distanzaMetri(vettura.lat, vettura.lon, t.da.lat, t.da.lon)
-        "è a ${testoMetri(metri)} dalla fermata"
-    } else {
-        "è in viaggio"
-    }
     Row(
         Modifier
             .fillMaxWidth()
@@ -445,8 +407,7 @@ private fun RigaVettura(t: Tratto, vettura: MezzoRT, adesso: Long) {
     ) {
         FonteTempo(true)
         Text(
-            "  La vettura" + (if (vettura.etichetta.isNotBlank()) " ${vettura.etichetta}" else "") + " $dove" +
-                (eta?.let { " · rilevata $it" } ?: ""),
+            "  " + testoVetturaTragitto(t, vettura, adesso),
             style = MaterialTheme.typography.bodySmall,
             color = Accento,
         )

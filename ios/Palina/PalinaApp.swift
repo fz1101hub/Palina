@@ -6,6 +6,8 @@ struct PalinaApp: App {
     @StateObject private var archivio = Archivio()
     @StateObject private var posizione = Posizione()
     @StateObject private var preferiti = Preferiti()
+    @StateObject private var tragitti = Tragitti()
+    @AppStorage("aspetto") private var aspetto = "AUTOMATICO"
 
     init() {
         // la rete del motore; il contatto e' l'indirizzo del progetto, mai una email
@@ -19,22 +21,36 @@ struct PalinaApp: App {
                 .environmentObject(archivio)
                 .environmentObject(posizione)
                 .environmentObject(preferiti)
+                .environmentObject(tragitti)
                 .tint(Tavolozza.oro)
                 .onAppear {
                     // l'Apple Watch chiede il tabellone all'iPhone
                     PonteWatch.condiviso.avvia(archivio: archivio, preferiti: preferiti, posizione: posizione)
                     posizione.avvia()
                 }
+                .task(id: archivio.versione) {
+                    guard let orario = archivio.orario else { return }
+                    let primo = tragitti.motore == nil
+                    tragitti.prepara(orario: orario)
+                    if primo, let fermata = Prova.tragittoVerso { tragitti.versoFermata(fermata) }
+                }
+                .preferredColorScheme(aspetto == "CHIARO" ? .light : aspetto == "SCURO" ? .dark : nil)
         }
     }
 }
 
-/** Dove si puo' andare dalla Home: una fermata o una linea. */
+/** Dove si puo' andare dalla Home: fermate, linee, treni, tragitti e impostazioni. */
 enum Destinazione: Hashable {
     case fermata(String)
     case linea(RichiestaLinea)
     /** Un treno con tutte le sue fermate (la richiesta in JSON, dal motore). */
     case corsa(String)
+    case tragitti
+    /** La scelta della partenza ("da") o dell'arrivo ("a"), con un testo gia' scritto. */
+    case luogo(campo: String, testo: String)
+    /** Un tragitto dell'elenco (-1 = tutto a piedi). */
+    case dettaglioTragitto(Int)
+    case impostazioni
 }
 
 /** Una linea da aprire: la direzione e, se si arriva da una fermata, la corsa da evidenziare. */
@@ -63,6 +79,10 @@ struct Principale: View {
                     case .fermata(let id): FermataVista(fermataId: id)
                     case .linea(let richiesta): LineaVista(richiesta: richiesta)
                     case .corsa(let treno): CorsaVista(treno: treno)
+                    case .tragitti: TragittiVista()
+                    case .luogo(let campo, let testo): SceltaLuogoVista(campo: campo, testo: testo)
+                    case .dettaglioTragitto(let indice): DettaglioTragittoVista(indice: indice)
+                    case .impostazioni: ImpostazioniVista()
                     }
                 }
         }
@@ -82,6 +102,9 @@ enum Prova {
         guard parti.count == 2 else { return [] }
         switch parti[0] {
         case "fermata": return [.fermata(parti[1])]
+        case "tragitto": return [.tragitti]
+        case "luogo": return [.tragitti, .luogo(campo: "a", testo: parti[1])]
+        case "impostazioni": return [.impostazioni]
         case "linea":
             // la direzione a parte (-direzione 0): gli id Cotral hanno gia' i due punti ("C:12")
             let dir = UserDefaults.standard.object(forKey: "direzione") != nil ? UserDefaults.standard.integer(forKey: "direzione") : -1
@@ -98,6 +121,15 @@ enum Prova {
 
     /** `-apriPrimoTreno YES`: nella fermata aperta, apre il primo treno appena arrivano i tempi. */
     static var apriPrimoTreno: Bool { UserDefaults.standard.bool(forKey: "apriPrimoTreno") }
+
+    /** `-apri tragitto:70078`: i tragitti verso quella fermata. */
+    static var tragittoVerso: String? {
+        guard let apri = UserDefaults.standard.string(forKey: "apri"), apri.hasPrefix("tragitto:") else { return nil }
+        return String(apri.dropFirst("tragitto:".count))
+    }
+
+    /** `-apriPrimoTragitto YES`: apre il primo tragitto appena c'e'. */
+    static var apriPrimoTragitto: Bool { UserDefaults.standard.bool(forKey: "apriPrimoTragitto") }
 
     static var preferiti: [String]? {
         UserDefaults.standard.string(forKey: "provaPreferiti")?.split(separator: ",").map(String.init)

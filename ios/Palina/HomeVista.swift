@@ -6,6 +6,7 @@ struct HomeVista: View {
     @EnvironmentObject private var archivio: Archivio
     @EnvironmentObject private var posizione: Posizione
     @EnvironmentObject private var preferiti: Preferiti
+    @EnvironmentObject private var navigazione: Navigazione
     @State private var testo = ""
     @State private var vicine: [VoceFermata] = []
     @State private var stato: StatoHome?
@@ -18,6 +19,26 @@ struct HomeVista: View {
             } else if archivio.home == nil {
                 HStack { ProgressView(); Text("Apro l'orario…").foregroundStyle(.secondary) }
             } else if !testo.trimmingCharacters(in: .whitespaces).isEmpty {
+                if testo.trimmingCharacters(in: .whitespaces).count >= 3 {
+                    Section {
+                        Button {
+                            // sotto la scelta dell'arrivo c'e' la schermata dei tragitti
+                            let t = testo.trimmingCharacters(in: .whitespaces)
+                            navigazione.percorso.append(contentsOf: [.tragitti, .luogo(campo: "a", testo: t)])
+                        } label: {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Come arrivo a «\(testo.trimmingCharacters(in: .whitespaces))»")
+                                        .font(.body.weight(.medium)).foregroundStyle(.primary)
+                                    Text("cerca anche tra indirizzi e luoghi").font(.footnote).foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: "mappin.and.ellipse").foregroundStyle(Tavolozza.oro)
+                            }
+                        }
+                        .accessibilityIdentifier("cerca-luogo")
+                    }
+                }
                 Section("Fermate") {
                     if trovate.isEmpty { Text("Nessuna fermata trovata.").foregroundStyle(.secondary) }
                     ForEach(trovate, id: \.id) { voce in
@@ -29,6 +50,34 @@ struct HomeVista: View {
             }
         }
         .listStyle(.insetGrouped)
+        .safeAreaInset(edge: .bottom) {
+            if testo.isEmpty {
+                HStack {
+                    Spacer()
+                    NavigationLink(value: Destinazione.tragitti) {
+                        Label("Come arrivo…", systemImage: "mappin.and.ellipse")
+                            .font(.body.bold())
+                            .foregroundStyle(Tavolozza.inchiostro)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 14)
+                            .background(Tavolozza.oro, in: Capsule())
+                            .shadow(color: .black.opacity(0.2), radius: 6, y: 3)
+                    }
+                    .accessibilityLabel("Come arrivo")
+                    .accessibilityIdentifier("come-arrivo")
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: Destinazione.impostazioni) {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("Impostazioni")
+            }
+        }
         .navigationTitle("Palina")
         .searchable(text: $testo, prompt: "Cerca una fermata o un codice")
         .onAppear { posizione.avvia() }
@@ -80,7 +129,7 @@ struct HomeVista: View {
     }
 
     private var chiave: String {
-        "\(archivio.home != nil)-\(posizione.lat ?? 0)-\(posizione.lon ?? 0)-\(preferiti.fermate.sorted())-\(preferiti.fissate.sorted())"
+        "\(archivio.versione)-\(posizione.lat ?? 0)-\(posizione.lon ?? 0)-\(preferiti.fermate.sorted())-\(preferiti.fissate.sorted())"
     }
 
     /** Preferite, vicine e tempi: i tempi si chiedono ogni 30 secondi, i minuti si ricalcolano ogni 5. */
