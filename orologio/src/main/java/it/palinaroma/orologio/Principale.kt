@@ -564,8 +564,10 @@ private const val INTESTAZIONE_TRENO = 3
 @Composable
 private fun RigaFermataTreno(f: FermataTreno, qui: Boolean, adesso: Long) {
     val passata = (f.orario ?: Long.MAX_VALUE) < adesso * 1000 - 60_000 && !qui
-    val orario = f.orario?.let { oraBreve(it) } ?: "–"
-    val cambiato = f.orario != null && f.previsto != null && oraBreve(f.orario) != oraBreve(f.previsto)
+    val aggiornato = f.orario
+    val programmato = f.previsto
+    val orario = aggiornato?.let { oraBreve(it) } ?: "–"
+    val cambiato = aggiornato != null && programmato != null && oraBreve(aggiornato) != oraBreve(programmato)
     val descrizione = buildString {
         append(f.nome)
         if (f.soppressa) append(", fermata soppressa") else append(", ").append(orario)
@@ -596,7 +598,7 @@ private fun RigaFermataTreno(f: FermataTreno, qui: Boolean, adesso: Long) {
             )
             if (cambiato && !f.soppressa) {
                 Text(
-                    oraBreve(f.previsto!!),
+                    oraBreve(programmato!!),
                     color = GrigioOrologio,
                     textDecoration = TextDecoration.LineThrough,
                     style = MaterialTheme.typography.bodySmall,
