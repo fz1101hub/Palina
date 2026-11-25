@@ -472,7 +472,15 @@ class MotoreSegui(private val orario: Orario) {
     }
 
     /** Le fermate dove si puo' scendere: quelle della linea dopo dove si e' saliti. */
-    suspend fun fermateDiscesa(): List<FermataDiscesa> = withContext(dispatcherDati) {
+    suspend fun fermateDiscesa(): List<FermataDiscesa> = try {
+        fermateDiscesaDalPercorso()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Throwable) {
+        emptyList()
+    }
+
+    private suspend fun fermateDiscesaDalPercorso(): List<FermataDiscesa> = withContext(dispatcherDati) {
         val s = seguito ?: return@withContext emptyList()
         val direzione = orario.corse(listOf(s.corsaId).filter { it.isNotEmpty() })[s.corsaId]?.direzione
             ?: orario.percorsi(s.lineaId).firstOrNull { normalizza(it.capolinea) == normalizza(s.capolinea) }?.direzione
@@ -489,7 +497,13 @@ class MotoreSegui(private val orario: Orario) {
     /** Si scende a [fermataId]: avviso alla fermata prima. */
     suspend fun scendiA(fermataId: String): StatoSegui? = withContext(Dispatchers.Main) {
         val s = seguito ?: return@withContext null
-        val f = withContext(dispatcherDati) { orario.fermata(fermataId) } ?: return@withContext stato()
+        val f = try {
+            withContext(dispatcherDati) { orario.fermata(fermataId) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            null
+        } ?: return@withContext stato()
         val adesso = adessoMs() / 1000
         val stima = stimaArrivo(s, fermataId, adesso) ?: stimaDalPercorso(s, fermataId, adesso)
         seguito = s.copy(
@@ -539,7 +553,13 @@ class MotoreSegui(private val orario: Orario) {
         f.righe.firstOrNull { it.lineaId == lineaId && it.capolinea == capolinea } ?: f.righe.firstOrNull { it.lineaId == lineaId }
 
     private suspend fun minutiAPiediFino(fermataId: String, lat: Double, lon: Double): Int? {
-        val f = withContext(dispatcherDati) { orario.fermata(fermataId) } ?: return null
+        val f = try {
+            withContext(dispatcherDati) { orario.fermata(fermataId) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            null
+        } ?: return null
         val metri = distanzaMetri(lat, lon, f.lat, f.lon)
         // oltre 3 km non e' "uscire di casa": i minuti a piedi non servono
         return if (metri > 3000) null else minutiAPiedi(metri)

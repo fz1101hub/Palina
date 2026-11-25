@@ -222,7 +222,7 @@ fun testoInLingua(testi: Map<String, String>, lingua: String = Lingue.attuale.co
 
 /** Toglie i tag HTML e gli spazi in piu' (i testi di Roma Mobilita' a volte li hanno). */
 fun pulisciTestoAvviso(testo: String): String =
-    testo.replace(Regex("(?i)<br\\s*/?>|</p>"), "\n")
+    testo.replace(Regex("<br\\s*/?>|</p>", RegexOption.IGNORE_CASE), "\n")
         .replace(Regex("<[^>]+>"), "")
         .replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'")
         .replace("&lt;", "<").replace("&gt;", ">")
@@ -316,28 +316,41 @@ fun testoQuantiAvvisi(n: Int): String = txn("{0} avviso", "{0} avvisi", n)
 
 // --- per le schermate (Android e iPhone)
 
+/** Gli avvisi non devono mai fermare una schermata: senza rete o con un errore, nessun avviso. */
+private suspend fun senzaErrori(blocco: suspend () -> List<SchedaAvviso>): List<SchedaAvviso> = try {
+    blocco()
+} catch (e: CancellationException) {
+    throw e
+} catch (_: Throwable) {
+    emptyList()
+}
+
 /** Gli avvisi di Roma Mobilita' sulla linea [lineaId] (vuoto per le altre reti o senza rete). */
-suspend fun avvisiPerLinea(lineaId: String): List<SchedaAvviso> {
-    if (Rete.di(lineaId) != Rete.ROMA) return emptyList()
-    return avvisiDellaLinea(AvvisiRoma.tutti(), lineaId, adessoMs() / 1000)
+suspend fun avvisiPerLinea(lineaId: String): List<SchedaAvviso> = senzaErrori {
+    if (Rete.di(lineaId) != Rete.ROMA) emptyList() else avvisiDellaLinea(AvvisiRoma.tutti(), lineaId, adessoMs() / 1000)
 }
 
 /** Gli avvisi per la fermata [fermataId] e le linee di Roma che ci passano. */
-suspend fun avvisiPerFermata(orario: Orario, fermataId: String): List<SchedaAvviso> {
+suspend fun avvisiPerFermata(orario: Orario, fermataId: String): List<SchedaAvviso> = senzaErrori {
     val membri = orario.stazioneUnita(fermataId).filter { Rete.di(it) == Rete.ROMA }
-    if (membri.isEmpty()) return emptyList()
-    val avvisi = AvvisiRoma.tutti()
-    if (avvisi.isEmpty()) return emptyList()
-    val linee = kotlinx.coroutines.withContext(dispatcherDati) {
-        membri.flatMap { orario.lineeAllaFermata(it) }.associate { it.linea.id to it.linea.nome }
+    val avvisi = if (membri.isEmpty()) emptyList() else AvvisiRoma.tutti()
+    if (avvisi.isEmpty()) {
+        emptyList()
+    } else {
+        val linee = kotlinx.coroutines.withContext(dispatcherDati) {
+            membri.flatMap { orario.lineeAllaFermata(it) }.associate { it.linea.id to it.linea.nome }
+        }
+        avvisiDellaFermata(avvisi, membri, linee, adessoMs() / 1000)
     }
-    return avvisiDellaFermata(avvisi, membri, linee, adessoMs() / 1000)
 }
 
 /** Gli avvisi delle linee e delle fermate di un tragitto. */
-suspend fun avvisiPerTragitto(orario: Orario, t: Tragitto): List<SchedaAvviso> {
+suspend fun avvisiPerTragitto(orario: Orario, t: Tragitto): List<SchedaAvviso> = senzaErrori {
     val avvisi = AvvisiRoma.tutti()
-    if (avvisi.isEmpty()) return emptyList()
-    val (linee, fermate) = kotlinx.coroutines.withContext(dispatcherDati) { lineeDelTragitto(orario, t) to fermateDelTragitto(orario, t) }
-    return avvisiDelTragitto(avvisi, linee, fermate, adessoMs() / 1000)
+    if (avvisi.isEmpty()) {
+        emptyList()
+    } else {
+        val (linee, fermate) = kotlinx.coroutines.withContext(dispatcherDati) { lineeDelTragitto(orario, t) to fermateDelTragitto(orario, t) }
+        avvisiDelTragitto(avvisi, linee, fermate, adessoMs() / 1000)
+    }
 }

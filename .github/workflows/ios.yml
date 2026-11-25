@@ -155,6 +155,8 @@ jobs:
 
       - name: Prova sul simulatore con le schermate
         run: |
+          # ogni passo prova comunque: un errore non ferma le schermate successive
+          set +e
           set -x
           mkdir -p /tmp/esito/schermate
           dispositivo=$(xcrun simctl create prova "iPhone 17" 2>/dev/null || xcrun simctl create prova "iPhone 16")
@@ -309,6 +311,11 @@ jobs:
           xcrun simctl io "$orologio" screenshot /tmp/esito/schermate/watch-02-treno.png
           xcrun simctl spawn "$dispositivo" log show --last 3m --predicate 'process == "Palina"' --style compact > /tmp/esito/log-app.txt 2>&1 || true
           ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i palina > /tmp/esito/crash.txt || true
+          # i rapporti degli arresti dell'app, per capire dove
+          mkdir -p /tmp/esito/arresti
+          find ~/Library/Logs/DiagnosticReports -iname "*Palina*" -exec cp {} /tmp/esito/arresti/ \; 2>/dev/null || true
+          # lo step fallisce solo se l'app si e' fermata
+          ! ls /tmp/esito/arresti/* > /dev/null 2>&1
 
       - name: IPA non firmato (per AltStore o Sideloadly)
         run: |
