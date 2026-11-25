@@ -200,7 +200,10 @@ fun widgetTabellone(d: DatiWidget?, adesso: Long, quante: Int = 3): WidgetTabell
 
 /** Il widget della fermata piu' vicina. [adesso] in secondi. */
 fun widgetVicina(d: DatiWidget?, adesso: Long): WidgetVicina {
-    val f = d?.tabellone?.fermate?.filter { it.distanza != null }?.minByOrNull { it.distanza!! }
+    val vicine = d?.tabellone?.fermate?.filter { it.distanza != null }?.sortedBy { it.distanza!! }.orEmpty()
+    // la piu' vicina, o una poco piu' in la' se quella non ha passaggi a breve
+    val f = vicine.firstOrNull { v -> v.distanza!! <= vicine.first().distanza!! + 150 && v.righe.any { it.prossimi(adesso).isNotEmpty() } }
+        ?: vicine.firstOrNull()
         ?: return WidgetVicina("Palina", "", "", emptyList(), tx("Apri Palina con la posizione attiva"))
     val righe = f.righe.mapNotNull { riga(it, adesso) }.sortedBy { r -> if (r.tra.endsWith("'")) r.tra.dropLast(1).toIntOrNull() ?: 0 else 0 }.take(2)
     return WidgetVicina(
