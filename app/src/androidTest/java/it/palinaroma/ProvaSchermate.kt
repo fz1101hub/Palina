@@ -211,6 +211,9 @@ class ProvaSchermate {
         // si torna a come segue il telefono
         tocca(By.desc("Impostazioni"))
         tocca(By.textStartsWith("Automatico"))
+        // l'orario e' sotto la scelta della lingua: si scorre fino a vederlo
+        telefono.findObject(By.scrollable(true))
+            ?.scrollUntil(Direction.DOWN, Until.hasObject(By.textContains("incluso nell'app")))
         aspetta(By.textContains("incluso nell'app"), 15_000, "l'orario incluso nell'app")
         telefono.pressBack()
     }
