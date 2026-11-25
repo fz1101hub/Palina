@@ -316,8 +316,7 @@ class ProvaSchermate {
                 aspettaUnoDi(90_000, "i tempi d'attesa", By.textContains(fermata), By.res("arrivo"))
                 attendi(2_000)
                 schermata("21-$codice-fermata")
-                telefono.pressBack()
-                aspetta(By.desc(home), 15_000, "la Home")
+                tornaA(By.desc(home), "la Home")
                 tocca(By.desc(home))
                 attendi(2_000)
                 schermata("22-$codice-impostazioni")
@@ -403,11 +402,20 @@ class ProvaSchermate {
         }
     }
 
+    /** Scrive nel campo di ricerca; se lo schermo si aggiorna proprio allora, riprova. */
     private fun scrivi(testo: String) {
-        val campo = aspetta(By.clazz("android.widget.EditText"), 10_000, "il campo di ricerca")
-        campo.click()
-        campo.text = testo
-        attendi(1_000)
+        repeat(3) { tentativo ->
+            try {
+                val campo = aspetta(By.clazz("android.widget.EditText"), 10_000, "il campo di ricerca")
+                campo.click()
+                campo.text = testo
+                attendi(1_000)
+                return
+            } catch (e: StaleObjectException) {
+                if (tentativo == 2) throw e
+                attendi(700)
+            }
+        }
     }
 
     private companion object {
