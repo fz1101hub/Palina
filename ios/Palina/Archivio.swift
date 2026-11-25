@@ -141,12 +141,13 @@ final class Archivio: ObservableObject {
             megabyte = Int(((disponibili.orarioByte ?? 0) + (disponibili.retiByte ?? 0) + 999_999) / 1_000_000)
             if megabyte == 0 { megabyte = 8 }
             var nuovi = false
-            if disponibili.orario > creato {
+            // nelle prove si scarica anche se quello incluso e' gia' il piu' recente
+            if disponibili.orario > (Prova.aggiorna ? 0 : creato) {
                 aggiornamento = .inCorso("Scarico l'orario di Roma…")
                 try await scarica("orario", creato: disponibili.orario)
                 nuovi = true
             }
-            if let reti = disponibili.reti, reti > creatoReti {
+            if let reti = disponibili.reti, reti > (Prova.aggiorna ? 0 : creatoReti) {
                 aggiornamento = .inCorso("Scarico le reti Cotral e Trenitalia…")
                 try await scarica("reti", creato: reti)
                 nuovi = true

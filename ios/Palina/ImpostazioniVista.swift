@@ -6,6 +6,7 @@ struct ImpostazioniVista: View {
     @EnvironmentObject private var archivio: Archivio
     @AppStorage("aspetto") private var aspetto = "AUTOMATICO"
     @AppStorage("cifre_led") private var cifreLed = true
+    @State private var provato = false
     private let testi = TestiImpostazioni.shared
 
     var body: some View {
@@ -86,9 +87,12 @@ struct ImpostazioniVista: View {
         .listStyle(.insetGrouped)
         .navigationTitle(testi.TITOLO)
         .navigationBarTitleDisplayMode(.inline)
-        .task {
-            // prove: scarica l'orario pubblicato nella release, come "Aggiorna ora"
-            if Prova.aggiorna, archivio.orario != nil { await archivio.controlla(automatico: false) }
+        .task(id: archivio.versione) {
+            // prove: scarica l'orario pubblicato nella release, come "Aggiorna ora" (una volta, a orario aperto)
+            if Prova.aggiorna, archivio.orario != nil, !provato {
+                provato = true
+                await archivio.controlla(automatico: false)
+            }
         }
     }
 
