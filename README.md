@@ -109,6 +109,22 @@ Kotlin dell'app Android (`motore/`): una modifica lì vale per tutte e due.
 
 GitHub prova l'app sul simulatore di iPhone e di Apple Watch a ogni modifica (`.github/workflows/ios.yml`).
 
+## Lingue
+
+Palina parla italiano, inglese, francese, spagnolo, tedesco e portoghese: segue la lingua del
+telefono (inglese se non è tra queste) e nelle impostazioni si può sceglierne un'altra. I testi
+sono scritti in italiano nel codice, dentro `tx("...")` e `txn("...", "...", n)`, e le traduzioni
+stanno in `motore/traduzioni.tsv`, una riga per testo: valgono per Android, Wear OS, iPhone e
+Apple Watch. Dopo aver aggiunto o cambiato un testo:
+
+```
+python3 strumenti/traduzioni.py mancanti   # aggiunge al TSV le righe da tradurre
+python3 strumenti/traduzioni.py genera     # cataloghi del motore e risorse di sistema
+```
+
+La compilazione si ferma se un testo non è tradotto in tutte le lingue. Restano in italiano i
+dati delle fonti: nomi delle fermate, capolinea, avvisi.
+
 ## Come funziona
 
 - **Orario statico** (`rome_static_gtfs.zip`): `CostruttoreOrario` legge linee, fermate, corse,

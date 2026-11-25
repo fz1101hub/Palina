@@ -13,8 +13,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.21"
-    CURRENT_PROJECT_VERSION: "22"
+    MARKETING_VERSION: "0.22"
+    CURRENT_PROJECT_VERSION: "23"
 targets:
   Palina:
     type: application
