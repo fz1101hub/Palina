@@ -345,7 +345,7 @@ fun FermataSchermo(
                     item {
                         Text(
                             // la legenda e' nel motore, uguale sull'iPhone
-                            legendaFermata(rete, conAstral, Rete.ROMA in retiMembri),
+                            legendaFermata(rete, conAstral == true, Rete.ROMA in retiMembri),
                             style = MaterialTheme.typography.bodySmall,
                             color = Secondario,
                             modifier = Modifier.padding(horizontal = 8.dp),
