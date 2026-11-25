@@ -211,9 +211,8 @@ class ProvaSchermate {
         // si torna a come segue il telefono
         tocca(By.desc("Impostazioni"))
         tocca(By.textStartsWith("Automatico"))
-        // l'orario e' sotto la scelta della lingua: si scorre fino a vederlo
-        telefono.findObject(By.scrollable(true))
-            ?.scrollUntil(Direction.DOWN, Until.hasObject(By.textContains("incluso nell'app")))
+        // l'orario e' sotto la scelta della lingua: si scorre a piccoli passi fino a vederlo
+        scorriFinoA(By.textContains("incluso nell'app"))
         aspetta(By.textContains("incluso nell'app"), 15_000, "l'orario incluso nell'app")
         telefono.pressBack()
     }
@@ -398,6 +397,18 @@ class ProvaSchermate {
             } catch (e: StaleObjectException) {
                 if (tentativo == 2) throw e
                 attendi(700)
+            }
+        }
+    }
+
+    /** Scorre la schermata a piccoli passi (giu', poi su) finche' non compare [selettore]. */
+    private fun scorriFinoA(selettore: BySelector) {
+        val lista = telefono.findObject(By.scrollable(true)) ?: return
+        for (direzione in listOf(Direction.DOWN, Direction.UP)) {
+            repeat(12) {
+                if (telefono.hasObject(selettore)) return
+                runCatching { lista.scroll(direzione, 0.3f) }
+                attendi(300)
             }
         }
     }
