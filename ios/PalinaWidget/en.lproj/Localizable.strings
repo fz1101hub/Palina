@@ -1,10 +1,16 @@
 /* Generato da strumenti/traduzioni.py: non modificare a mano. */
 "La tua fermata" = "Your stop";
-"La preferita a cui sei vicino, con le linee che hai fissato." = "The favourite you're near, with your pinned lines.";
+"Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato." = "A stop of your choice, or the favourite you're near, with your pinned lines.";
 "Fermata più vicina" = "Nearest stop";
 "La fermata più vicina e le prossime due linee." = "The nearest stop and the next two lines.";
 "Esci tra" = "Leave in";
-"Quando uscire per il tragitto salvato." = "When to leave for your saved journey.";
+"Quando uscire per un tragitto salvato: mezzi, cambi e tempo di viaggio." = "When to leave for a saved journey: vehicles, changes and travel time.";
+"Fermata" = "Stop";
+"Tragitto" = "Journey";
+"Scegli la fermata" = "Choose the stop";
+"Scegli il tragitto" = "Choose the journey";
+"Automatica: la preferita a cui sei vicino" = "Automatic: the favourite you're near";
+"Automatico: il tragitto che parte più vicino a dove sei" = "Automatic: the journey starting closest to you";
 "Apri Palina per aggiornare" = "Open Palina to update";
 "Salva un tragitto in «Come arrivo» per vedere quando uscire." = "Save a journey in “Directions” to see when to leave.";
 "Sto uscendo" = "I'm leaving";

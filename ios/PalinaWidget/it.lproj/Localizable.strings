@@ -1,10 +1,16 @@
 /* Generato da strumenti/traduzioni.py: non modificare a mano. */
 "La tua fermata" = "La tua fermata";
-"La preferita a cui sei vicino, con le linee che hai fissato." = "La preferita a cui sei vicino, con le linee che hai fissato.";
+"Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato." = "Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato.";
 "Fermata più vicina" = "Fermata più vicina";
 "La fermata più vicina e le prossime due linee." = "La fermata più vicina e le prossime due linee.";
 "Esci tra" = "Esci tra";
-"Quando uscire per il tragitto salvato." = "Quando uscire per il tragitto salvato.";
+"Quando uscire per un tragitto salvato: mezzi, cambi e tempo di viaggio." = "Quando uscire per un tragitto salvato: mezzi, cambi e tempo di viaggio.";
+"Fermata" = "Fermata";
+"Tragitto" = "Tragitto";
+"Scegli la fermata" = "Scegli la fermata";
+"Scegli il tragitto" = "Scegli il tragitto";
+"Automatica: la preferita a cui sei vicino" = "Automatica: la preferita a cui sei vicino";
+"Automatico: il tragitto che parte più vicino a dove sei" = "Automatico: il tragitto che parte più vicino a dove sei";
 "Apri Palina per aggiornare" = "Apri Palina per aggiornare";
 "Salva un tragitto in «Come arrivo» per vedere quando uscire." = "Salva un tragitto in «Come arrivo» per vedere quando uscire.";
 "Sto uscendo" = "Sto uscendo";

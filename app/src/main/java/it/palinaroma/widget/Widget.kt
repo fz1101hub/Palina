@@ -74,6 +74,10 @@ abstract class WidgetPalina : AppWidgetProvider() {
     override fun onDisabled(context: Context) {
         if (!Widget.ciSonoWidget(context)) Widget.fermaMinuto(context)
     }
+
+    override fun onDeleted(context: Context, ids: IntArray) {
+        ids.forEach { Widget.salvaScelta(context, it, null) }
+    }
 }
 
 /** Ogni minuto (a schermo acceso) e al tocco di "aggiorna". */
@@ -164,6 +168,29 @@ object Widget {
         }
     }
 
+    // --- la scelta di ogni widget: la fermata o il tragitto ("" = automatica)
+
+    private fun memoria(context: Context) = context.getSharedPreferences("palina", Context.MODE_PRIVATE)
+
+    fun scelta(context: Context, id: Int): String = memoria(context).getString("widget_scelta_$id", "").orEmpty()
+
+    fun salvaScelta(context: Context, id: Int, valore: String?) {
+        memoria(context).edit().apply {
+            if (valore == null) remove("widget_scelta_$id") else putString("widget_scelta_$id", valore)
+        }.apply()
+    }
+
+    /** "tabellone", "vicina" o "tragitto". */
+    fun tipo(context: Context, id: Int): String = when (AppWidgetManager.getInstance(context).getAppWidgetInfo(id)?.provider?.className) {
+        WidgetTragitto::class.java.name -> "tragitto"
+        WidgetVicina::class.java.name -> "vicina"
+        else -> "tabellone"
+    }
+
+    /** Le scelte dei widget di una classe (le fermate o i tragitti), senza le automatiche. */
+    private fun scelte(context: Context, classe: Class<*>): List<String> =
+        ids(context, classe).map { scelta(context, it) }.filter { it.isNotEmpty() }.distinct()
+
     /** Calcola i dati dei widget con il motore e li ridisegna. */
     suspend fun calcola(context: Context, forza: Boolean) {
         withTimeoutOrNull(20_000) { Archivio.pronto.first { it } }
@@ -175,8 +202,10 @@ object Widget {
             Archivio.fissate.value,
             Archivio.posizioneRicordata(),
             Archivio.salvati.value,
-            prima?.partenze,
+            prima?.partenze.orEmpty(),
             forza,
+            fermateWidget = scelte(context, WidgetTabellone::class.java),
+            tragittiWidget = scelte(context, WidgetTragitto::class.java),
         )
         Archivio.salvaDatiWidget(CodificaWidget.scrivi(dati))
         disegnaTutti(context)
@@ -189,22 +218,23 @@ object Widget {
         val gestore = AppWidgetManager.getInstance(context)
         val adesso = System.currentTimeMillis()
         for (classe in classi) {
-            val ids = ids(context, classe)
-            if (ids.isEmpty()) continue
-            val vista = when (classe) {
-                WidgetTabellone::class.java -> tabellone(context, dati, adesso)
-                WidgetVicina::class.java -> vicina(context, dati, adesso)
-                else -> tragitto(context, dati, adesso)
+            for (id in ids(context, classe)) {
+                val scelta = scelta(context, id)
+                val vista = when (classe) {
+                    WidgetTabellone::class.java -> tabellone(context, dati, adesso, scelta, id)
+                    WidgetVicina::class.java -> vicina(context, dati, adesso)
+                    else -> tragitto(context, dati, adesso, scelta, id)
+                }
+                runCatching { gestore.updateAppWidget(id, vista) }
             }
-            runCatching { gestore.updateAppWidget(ids, vista) }
         }
     }
 
     /** Un widget disegnato ([tipo] "tabellone", "vicina", "tragitto"): per le prove. */
-    internal fun vista(context: Context, tipo: String, dati: DatiWidget?, adessoMs: Long): RemoteViews = when (tipo) {
-        "tabellone" -> tabellone(context, dati, adessoMs)
+    internal fun vista(context: Context, tipo: String, dati: DatiWidget?, adessoMs: Long, scelta: String = ""): RemoteViews = when (tipo) {
+        "tabellone" -> tabellone(context, dati, adessoMs, scelta, 0)
         "vicina" -> vicina(context, dati, adessoMs)
-        else -> tragitto(context, dati, adessoMs)
+        else -> tragitto(context, dati, adessoMs, scelta, 0)
     }
 
     private fun apri(context: Context, codice: Int, cosa: String): PendingIntent =
@@ -255,8 +285,8 @@ object Widget {
         }
     }
 
-    private fun tabellone(context: Context, dati: DatiWidget?, adessoMs: Long): RemoteViews {
-        val w = widgetTabellone(dati, adessoMs / 1000)
+    private fun tabellone(context: Context, dati: DatiWidget?, adessoMs: Long, scelta: String, id: Int): RemoteViews {
+        val w = widgetTabellone(dati, adessoMs / 1000, fermataId = scelta)
         val v = RemoteViews(context.packageName, R.layout.widget_tabellone)
         v.setTextViewText(R.id.etichetta, w.etichetta)
         v.setTextViewText(R.id.nome, w.nome)
@@ -266,7 +296,7 @@ object Widget {
         v.setContentDescription(R.id.aggiorna, tx("Aggiorna"))
         v.setOnClickPendingIntent(R.id.aggiorna, tocca(context))
         v.setOnClickPendingIntent(R.id.nota, tocca(context))
-        v.setOnClickPendingIntent(R.id.radice, apri(context, 11, if (w.fermataId.isNotEmpty()) "fermata:" + w.fermataId else "home"))
+        v.setOnClickPendingIntent(R.id.radice, apri(context, 1000 + id, if (w.fermataId.isNotEmpty()) "fermata:" + w.fermataId else "home"))
         return v
     }
 
@@ -282,15 +312,19 @@ object Widget {
         return v
     }
 
-    private fun tragitto(context: Context, dati: DatiWidget?, adessoMs: Long): RemoteViews {
-        val c = widgetTragitto(dati, adessoMs)
+    private fun tragitto(context: Context, dati: DatiWidget?, adessoMs: Long, scelta: String, id: Int): RemoteViews {
+        val c = widgetTragitto(dati, adessoMs, scelta)
         val v = RemoteViews(context.packageName, R.layout.widget_tragitto)
         if (c == null) {
             v.setTextViewText(R.id.nome, tx("Esci tra"))
             v.setTextViewText(R.id.esci, "")
             v.setTextViewText(R.id.numero, "")
             v.setTextViewText(R.id.unita, "")
-            v.setTextViewText(R.id.sotto, tx("Salva un tragitto in «Come arrivo» per vedere quando uscire."))
+            v.setTextViewText(R.id.viaggio, "")
+            v.setTextViewText(
+                R.id.sotto,
+                if (scelta.isNotEmpty() && dati != null) tx("Apri Palina per aggiornare") else tx("Salva un tragitto in «Come arrivo» per vedere quando uscire."),
+            )
             v.setOnClickPendingIntent(R.id.radice, apri(context, 13, "tragitto"))
             return v
         }
@@ -299,8 +333,9 @@ object Widget {
         v.setTextViewText(R.id.numero, c.numero)
         v.setTextViewText(R.id.unita, c.unita)
         v.setTextViewText(R.id.sotto, c.sotto)
+        v.setTextViewText(R.id.viaggio, c.viaggio)
         v.setContentDescription(R.id.radice, c.perVoce)
-        v.setOnClickPendingIntent(R.id.radice, apri(context, 13, "tragitto:" + c.id))
+        v.setOnClickPendingIntent(R.id.radice, apri(context, 2000 + id, "tragitto:" + c.id))
         return v
     }
 }

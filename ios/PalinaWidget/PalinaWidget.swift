@@ -1,4 +1,5 @@
 import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -206,6 +207,99 @@ struct VoceWidget: TimelineEntry {
     let date: Date
     let voce: VoceWidgetTelefono?
     let vuoto: TestiVuoti?
+    /** La fermata o il tragitto scelto nel widget (nil: automatica). */
+    var scelta: String? = nil
+}
+
+// MARK: - La scelta della fermata e del tragitto (tra quelli che l'app ha preparato)
+
+struct FermataWidget: AppEntity {
+    let id: String
+    let nome: String
+    let sotto: String
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Fermata")
+    static var defaultQuery = DomandaFermate()
+    var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(nome)", subtitle: "\(sotto)") }
+}
+
+struct DomandaFermate: EntityQuery {
+    func entities(for identifiers: [String]) async throws -> [FermataWidget] {
+        Self.tutte().filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [FermataWidget] { Self.tutte() }
+
+    static func tutte() -> [FermataWidget] {
+        (GruppoWidget.leggi()?.elenco?.fermate ?? []).map { FermataWidget(id: $0.id, nome: $0.nome, sotto: $0.sotto ?? "") }
+    }
+}
+
+struct TragittoWidget: AppEntity {
+    let id: String
+    let nome: String
+
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Tragitto")
+    static var defaultQuery = DomandaTragitti()
+    var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(nome)") }
+}
+
+struct DomandaTragitti: EntityQuery {
+    func entities(for identifiers: [String]) async throws -> [TragittoWidget] {
+        Self.tutti().filter { identifiers.contains($0.id) }
+    }
+
+    func suggestedEntities() async throws -> [TragittoWidget] { Self.tutti() }
+
+    static func tutti() -> [TragittoWidget] {
+        (GruppoWidget.leggi()?.elenco?.tragitti ?? []).map { TragittoWidget(id: $0.id, nome: $0.nome) }
+    }
+}
+
+struct SceltaFermata: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Scegli la fermata"
+    static var description = IntentDescription("Automatica: la preferita a cui sei vicino")
+
+    @Parameter(title: "Fermata")
+    var fermata: FermataWidget?
+}
+
+struct SceltaTragitto: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Scegli il tragitto"
+    static var description = IntentDescription("Automatico: il tragitto che parte più vicino a dove sei")
+
+    @Parameter(title: "Tragitto")
+    var tragitto: TragittoWidget?
+}
+
+/** Il widget della fermata: quella scelta o, se nessuna, la preferita a cui sei vicino. */
+struct FornitoreFermata: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> VoceWidget { FornitoreTelefono().placeholder(in: context) }
+
+    func snapshot(for configuration: SceltaFermata, in context: Context) async -> VoceWidget {
+        var voce = FornitoreTelefono.istantanea(in: context)
+        voce.scelta = configuration.fermata?.id
+        return voce
+    }
+
+    func timeline(for configuration: SceltaFermata, in context: Context) async -> Timeline<VoceWidget> {
+        FornitoreTelefono.linea(scelta: configuration.fermata?.id)
+    }
+}
+
+/** Il widget "esci tra": il tragitto scelto o quello che parte piu' vicino. */
+struct FornitoreTragitto: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> VoceWidget { FornitoreTelefono().placeholder(in: context) }
+
+    func snapshot(for configuration: SceltaTragitto, in context: Context) async -> VoceWidget {
+        var voce = FornitoreTelefono.istantanea(in: context)
+        voce.scelta = configuration.tragitto?.id
+        return voce
+    }
+
+    func timeline(for configuration: SceltaTragitto, in context: Context) async -> Timeline<VoceWidget> {
+        FornitoreTelefono.linea(scelta: configuration.tragitto?.id)
+    }
 }
 
 /** Le voci preparate dall'app, dal minuto attuale in poi; finite (un'ora) resta "Apri Palina". */
@@ -215,25 +309,33 @@ struct FornitoreTelefono: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (VoceWidget) -> Void) {
-        if context.isPreview && GruppoWidget.leggi() == nil {
-            completion(placeholder(in: context))
-        } else {
-            completion(voci().first ?? VoceWidget(date: Date(), voce: nil, vuoto: GruppoWidget.leggi()?.vuoto))
-        }
+        completion(Self.istantanea(in: context))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<VoceWidget>) -> Void) {
-        let elenco = voci()
-        let vuoto = GruppoWidget.leggi()?.vuoto
-        let fine = VoceWidget(date: (elenco.last?.date ?? Date()).addingTimeInterval(60), voce: nil, vuoto: vuoto)
-        completion(Timeline(entries: elenco.isEmpty ? [VoceWidget(date: Date(), voce: nil, vuoto: vuoto)] : elenco + [fine], policy: .never))
+        completion(Self.linea(scelta: nil))
     }
 
-    private func voci() -> [VoceWidget] {
+    static func istantanea(in context: Context) -> VoceWidget {
+        if context.isPreview && GruppoWidget.leggi() == nil {
+            return VoceWidget(date: Date(), voce: esempio, vuoto: nil)
+        }
+        return voci(scelta: nil).first ?? VoceWidget(date: Date(), voce: nil, vuoto: GruppoWidget.leggi()?.vuoto)
+    }
+
+    /** Le voci di un'ora; finite resta "Apri Palina per aggiornare". */
+    static func linea(scelta: String?) -> Timeline<VoceWidget> {
+        let elenco = voci(scelta: scelta)
+        let vuoto = GruppoWidget.leggi()?.vuoto
+        let fine = VoceWidget(date: (elenco.last?.date ?? Date()).addingTimeInterval(60), voce: nil, vuoto: vuoto, scelta: scelta)
+        return Timeline(entries: elenco.isEmpty ? [VoceWidget(date: Date(), voce: nil, vuoto: vuoto, scelta: scelta)] : elenco + [fine], policy: .never)
+    }
+
+    private static func voci(scelta: String?) -> [VoceWidget] {
         let adesso = Date()
         let letto = GruppoWidget.leggi()
         let tutte = (letto?.voci ?? []).map {
-            VoceWidget(date: Date(timeIntervalSince1970: Double($0.alle) / 1000), voce: $0, vuoto: letto?.vuoto)
+            VoceWidget(date: Date(timeIntervalSince1970: Double($0.alle) / 1000), voce: $0, vuoto: letto?.vuoto, scelta: scelta)
         }
         let passate = tutte.filter { $0.date <= adesso }
         return (passate.last.map { [$0] } ?? []) + tutte.filter { $0.date > adesso }
@@ -259,8 +361,10 @@ struct FornitoreTelefono: TimelineProvider {
         ),
         tragitto: WidgetTragittoVoce(
             id: "", nome: "Lavoro → Casa", esci: "ESCI TRA", numero: "4", unita: "min",
-            sotto: "60 alle 18:41 · arrivi 19:05", linea: "60", colore: 0xFF862633, poi: nil
-        )
+            sotto: "64 alle 18:41 · arrivi 19:05", linea: "64", colore: 0xFF862633, poi: nil,
+            viaggio: "64 → Metro B · 1 cambio · 24 min"
+        ),
+        fermate: nil, tragitti: nil
     )
 }
 
@@ -313,11 +417,11 @@ private func testoVecchio(_ voce: VoceWidget) -> String {
 
 struct WidgetLaTuaFermata: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "palina-tabellone", provider: FornitoreTelefono()) { voce in
+        AppIntentConfiguration(kind: "palina-tabellone", intent: SceltaFermata.self, provider: FornitoreFermata()) { voce in
             VistaTabellone(voce: voce)
         }
         .configurationDisplayName(Text("La tua fermata"))
-        .description(Text("La preferita a cui sei vicino, con le linee che hai fissato."))
+        .description(Text("Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato."))
         .supportedFamilies([.systemMedium, .systemLarge, .accessoryRectangular])
     }
 }
@@ -329,7 +433,8 @@ struct VistaTabellone: View {
 
     var body: some View {
         let colori = ColoriWidget(scuro: schema == .dark)
-        let t = voce.voce?.tabellone
+        // la fermata scelta (se non c'e' piu' tra i dati: "apri Palina") o quella automatica
+        let t = voce.scelta.map { voce.voce?.fermate?[$0] } ?? voce.voce?.tabellone
         Group {
             if famiglia == .accessoryRectangular {
                 VStack(alignment: .leading, spacing: 1) {
@@ -363,12 +468,12 @@ struct VistaTabellone: View {
                     } else {
                         Spacer(minLength: 0)
                     }
-                    Text(voce.voce == nil ? testoVecchio(voce) : (t?.nota ?? ""))
+                    Text(voce.voce == nil ? testoVecchio(voce) : (t?.nota ?? testoVecchio(voce)))
                         .font(.caption2)
                         .foregroundStyle(colori.tenue)
                         .lineLimit(2)
                 }
-                .widgetURL(URL(string: t.map { $0.fermataId.isEmpty ? "palina://home" : "palina://fermata/\($0.fermataId)" } ?? "palina://home"))
+                .widgetURL(URL(string: (t?.fermataId ?? voce.scelta).map { $0.isEmpty ? "palina://home" : "palina://fermata/\($0)" } ?? "palina://home"))
             }
         }
         .containerBackground(for: .widget) { famiglia == .accessoryRectangular ? Color.clear : colori.fondo }
@@ -430,12 +535,12 @@ struct VistaVicina: View {
 
 struct WidgetEsciTra: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "palina-tragitto", provider: FornitoreTelefono()) { voce in
+        AppIntentConfiguration(kind: "palina-tragitto", intent: SceltaTragitto.self, provider: FornitoreTragitto()) { voce in
             VistaEsciTra(voce: voce)
         }
         .configurationDisplayName(Text("Esci tra"))
-        .description(Text("Quando uscire per il tragitto salvato."))
-        .supportedFamilies([.systemSmall, .accessoryRectangular, .accessoryInline])
+        .description(Text("Quando uscire per un tragitto salvato: mezzi, cambi e tempo di viaggio."))
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -446,7 +551,7 @@ struct VistaEsciTra: View {
 
     var body: some View {
         let colori = ColoriWidget(scuro: schema == .dark)
-        let t = voce.voce?.tragitto
+        let t = voce.scelta.map { voce.voce?.tragitti?[$0] } ?? voce.voce?.tragitto
         let vuoto = voce.vuoto?.tragitto ?? NSLocalizedString("Salva un tragitto in «Come arrivo» per vedere quando uscire.", comment: "")
         Group {
             switch famiglia {
@@ -457,12 +562,40 @@ struct VistaEsciTra: View {
                     Text(t?.nome ?? NSLocalizedString("Esci tra", comment: "")).font(.headline).lineLimit(1).widgetAccentable()
                     if let t {
                         Text("\(t.esci) \(t.numero) \(t.unita)").font(.body.bold()).lineLimit(1)
-                        Text(t.sotto).font(.caption2).lineLimit(1)
+                        Text(t.viaggio ?? t.sotto).font(.caption2).lineLimit(1)
                     } else {
                         Text(voce.voce == nil ? testoVecchio(voce) : vuoto).font(.caption2).lineLimit(2)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            case .systemMedium:
+                HStack(alignment: .top, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t?.nome ?? NSLocalizedString("Esci tra", comment: "")).font(.footnote.bold()).foregroundStyle(colori.testo).lineLimit(2)
+                        Spacer(minLength: 0)
+                        if let t {
+                            Text(t.esci).font(.caption.bold()).tracking(1).foregroundStyle(colori.accento)
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text(t.numero).font(.system(size: 50, weight: .black, design: .rounded)).foregroundStyle(colori.accento)
+                                Text(t.unita).font(.subheadline).foregroundStyle(colori.accento)
+                            }
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let t {
+                            if let viaggio = t.viaggio, !viaggio.isEmpty {
+                                Text(viaggio).font(.subheadline.bold()).foregroundStyle(colori.accento).lineLimit(3)
+                            }
+                            Text(t.sotto).font(.footnote).foregroundStyle(colori.testo).lineLimit(2)
+                            if let poi = t.poi { Text(poi).font(.caption).foregroundStyle(colori.tenue).lineLimit(1) }
+                        } else {
+                            Text(voce.voce == nil ? testoVecchio(voce) : vuoto).font(.caption).foregroundStyle(colori.tenue).lineLimit(4)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .widgetURL(URL(string: t.map { "palina://tragitto/\($0.id)" } ?? "palina://tragitto"))
             default:
                 VStack(alignment: .leading, spacing: 4) {
                     Text(t?.nome ?? NSLocalizedString("Esci tra", comment: "")).font(.footnote.bold()).foregroundStyle(colori.testo).lineLimit(1)
@@ -474,7 +607,10 @@ struct VistaEsciTra: View {
                             Text(t.unita).font(.subheadline).foregroundStyle(colori.accento)
                         }
                         Spacer(minLength: 0)
-                        Text(t.sotto).font(.caption).foregroundStyle(colori.testo).lineLimit(2)
+                        if let viaggio = t.viaggio, !viaggio.isEmpty {
+                            Text(viaggio).font(.caption.bold()).foregroundStyle(colori.accento).lineLimit(2)
+                        }
+                        Text(t.sotto).font(.caption2).foregroundStyle(colori.testo).lineLimit(2)
                     } else {
                         Text(voce.voce == nil ? testoVecchio(voce) : vuoto).font(.caption).foregroundStyle(colori.tenue).lineLimit(4)
                         Spacer(minLength: 0)
@@ -483,6 +619,6 @@ struct VistaEsciTra: View {
                 .widgetURL(URL(string: t.map { "palina://tragitto/\($0.id)" } ?? "palina://tragitto"))
             }
         }
-        .containerBackground(for: .widget) { famiglia == .systemSmall ? colori.caldo : Color.clear }
+        .containerBackground(for: .widget) { famiglia == .systemSmall || famiglia == .systemMedium ? colori.caldo : Color.clear }
     }
 }

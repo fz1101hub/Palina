@@ -74,6 +74,15 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_tragitto" />
         </receiver>
+        <!-- la scelta della fermata o del tragitto di un widget -->
+        <activity
+            android:name=".widget.ConfiguraWidget"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
         <receiver
             android:name=".widget.RicevitoreWidget"
             android:exported="false" />

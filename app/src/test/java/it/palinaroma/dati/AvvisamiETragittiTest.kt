@@ -339,7 +339,14 @@ class AvvisamiETragittiTest {
         val vicina = FermataOrologio("70001", "Plebiscito", "palina 70001", false, 121, listOf(riga(300).copy(linea = "87", lineaId = "87")))
         val t = TabelloneOrologio(adesso * 1000, listOf(fermata, vicina))
         val salvato = TragittoSalvato("t1", "Lavoro → Casa", lavoro, casa)
-        val d = DatiWidget(adesso * 1000, t, setOf(chiaveFissata("70078", "40")), salvato, null)
+        val altro = TragittoSalvato("t2", "Casa → Lavoro", casa, lavoro)
+        val ms = adesso * 1000
+        val partenze = PartenzeTragitto(
+            "t2", ms,
+            listOf(PartenzaSalvata(ms + 6 * 60_000, ms + 38 * 60_000, "64", Colori.PORPORA, ms + 9 * 60_000, "Merulana", true, listOf("64", "Metro B"), 1, 32 * 60)),
+            null,
+        )
+        val d = DatiWidget(ms, t, setOf(chiaveFissata("70078", "40")), listOf(salvato, altro), mapOf("t2" to partenze), "t1")
         val tab = widgetTabellone(d, adesso)
         assertEquals("PREFERITA", tab.etichetta)
         // solo le linee fissate
@@ -350,17 +357,37 @@ class AvvisamiETragittiTest {
         // la piu' vicina e' la preferita (102 m)
         assertEquals("P.za Venezia", widgetVicina(d, adesso).nome)
         assertEquals("102 m", widgetVicina(d, adesso).distanza)
-        assertEquals("Calcolo le partenze…", widgetTragitto(d, adesso * 1000)!!.sotto)
+        // il tragitto automatico non ha ancora partenze
+        assertEquals("Calcolo le partenze…", widgetTragitto(d, ms)!!.sotto)
+        // quello scelto: mezzi, cambi e tempo di percorrenza
+        val scelto = widgetTragitto(d, ms, "t2")!!
+        assertEquals("Casa → Lavoro", scelto.nome)
+        assertEquals("6", scelto.numero)
+        assertEquals("64 → Metro B · 1 cambio · 32 min", scelto.viaggio)
+        assertNull(widgetTragitto(d, ms, "t9"))
+        // la fermata scelta, anche se non e' la prima
+        val plebiscito = widgetTabellone(d, adesso, fermataId = "70001")
+        assertEquals("FERMATA", plebiscito.etichetta)
+        assertEquals("Plebiscito", plebiscito.nome)
+        assertEquals(listOf("87"), plebiscito.righe.map { it.linea })
+        assertEquals("Apri Palina per aggiornare", widgetTabellone(d, adesso, fermataId = "99999").nota)
         // andata e ritorno in JSON
         val letto = CodificaWidget.leggi(CodificaWidget.scrivi(d))!!
         assertEquals(d.fissate, letto.fissate)
-        assertEquals(d.tragitto, letto.tragitto)
+        assertEquals(d.salvati, letto.salvati)
+        assertEquals(d.partenze, letto.partenze)
+        assertEquals("t1", letto.automatico)
         assertEquals(d.tabellone!!.fermate.map { it.id }, letto.tabellone!!.fermate.map { it.id })
         // un'ora di voci per WidgetKit
         val voci = Json.leggi(vociWidget(d, adesso * 1000)).comeOggetto().oggetti("voci")
         assertEquals(60, voci.size)
         assertEquals("P.za Venezia", voci[0].oggetto("tabellone")!!.testo("nome"))
+        // per la scelta nei widget: le preferite e i tragitti salvati
+        assertEquals(setOf("70078"), voci[0].oggetto("fermate")!!.keys)
+        assertEquals("64 → Metro B · 1 cambio · 32 min", voci[0].oggetto("tragitti")!!.oggetto("t2")!!.testo("viaggio"))
+        val elenco = Json.leggi(vociWidget(d, ms)).comeOggetto().oggetto("elenco")!!
+        assertEquals(listOf("t1", "t2"), elenco.oggetti("tragitti").map { it.testo("id") })
         // le scorciatoie dell'icona
-        assertEquals(listOf("vicina", "tragitto:t1", "palina"), scorciatoie(listOf(salvato)).map { it.id })
+        assertEquals(listOf("vicina", "tragitto:t1", "palina", "tragitto:t2"), scorciatoie(listOf(salvato, altro)).map { it.id })
     }
 }

@@ -2,9 +2,9 @@
 <!-- Generato da strumenti/traduzioni.py: non modificare a mano. -->
 <resources>
     <string name="widget_tabellone_nome">Palina: tu parada</string>
-    <string name="widget_tabellone_descrizione">El favorito cerca del que estás, con tus líneas fijadas</string>
+    <string name="widget_tabellone_descrizione">Una parada a elegir, o el favorito cerca del que estás, con tus líneas fijadas</string>
     <string name="widget_vicina_nome">Palina: parada más cercana</string>
     <string name="widget_vicina_descrizione">La parada más cercana y las dos próximas líneas</string>
     <string name="widget_tragitto_nome">Palina: sal en</string>
-    <string name="widget_tragitto_descrizione">Cuándo salir para el trayecto guardado</string>
+    <string name="widget_tragitto_descrizione">Cuándo salir para un trayecto guardado: vehículos, transbordos y tiempo de viaje</string>
 </resources>

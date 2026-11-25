@@ -21,36 +21,48 @@ import it.palinaroma.dati.tragittoPerWidget
 import it.palinaroma.dati.tx
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
 /*
- * I widget del telefono (Android e iPhone): il tabellone della preferita con
- * le linee fissate, la fermata piu' vicina e "esci tra" per un tragitto
- * salvato. L'app calcola i dati (stesso calcolo del tabellone per l'orologio)
+ * I widget del telefono (Android e iPhone): il tabellone di una fermata (quella
+ * scelta, o la preferita a cui sei vicino) con le linee fissate, la fermata piu'
+ * vicina e "esci tra" per un tragitto salvato (quello scelto, o quello che
+ * parte piu' vicino), con mezzi, cambi e tempo di percorrenza. L'app calcola i dati (stesso calcolo del tabellone per l'orologio)
  * e li salva; i widget li ridisegnano minuto per minuto senza rete.
  */
 
-/** Tutto quello che serve ai widget, con l'ora in cui e' stato calcolato. */
+/**
+ * Tutto quello che serve ai widget, con l'ora in cui e' stato calcolato: il
+ * tabellone (preferite, vicine e le fermate scelte nei widget) e le partenze
+ * dei tragitti salvati.
+ */
 data class DatiWidget(
     val creato: Long,
     val tabellone: TabelloneOrologio?,
-    /** Le linee fissate ("fermata|linea"): nel widget della preferita solo quelle. */
+    /** Le linee fissate ("fermata|linea"): nel widget della fermata solo quelle. */
     val fissate: Set<String>,
-    val tragitto: TragittoSalvato?,
-    val partenze: PartenzeTragitto?,
+    val salvati: List<TragittoSalvato>,
+    /** Le partenze per tragitto salvato (id -> partenze). */
+    val partenze: Map<String, PartenzeTragitto>,
+    /** Il tragitto del widget "automatico": quello che parte piu' vicino a dove sei. */
+    val automatico: String?,
 )
 
 object CodificaWidget {
+    private const val VERSIONE = 2
+
     fun scrivi(d: DatiWidget): String = ScriviJson.testo(
         mapOf(
-            "v" to 1,
+            "v" to VERSIONE,
             "creato" to d.creato,
             "tabellone" to d.tabellone?.let { CodificaOrologio.scrivi(it) },
             "fissate" to d.fissate.toList(),
-            "tragitto" to d.tragitto?.let {
+            "salvati" to d.salvati.map {
                 mapOf("id" to it.id, "nome" to it.nome, "da" to luogoInJson(it.partenza), "a" to luogoInJson(it.arrivo))
             },
-            "partenze" to d.partenze?.let { CodificaPartenze.inJson(it) },
+            "partenze" to d.partenze.mapValues { CodificaPartenze.inJson(it.value) },
+            "automatico" to d.automatico,
         ),
     )
 
@@ -58,17 +70,21 @@ object CodificaWidget {
         if (json.isNullOrBlank()) return null
         return try {
             val o = Json.leggi(json).comeOggetto()
-            val t = o.oggetto("tragitto")
+            if ((o["v"] as? Number)?.toInt() != VERSIONE) return null
             DatiWidget(
                 creato = (o["creato"] as? Number)?.toLong() ?: 0L,
                 tabellone = CodificaOrologio.leggi(o["tabellone"] as? String),
                 fissate = (o["fissate"] as? List<*>).orEmpty().mapNotNull { it as? String }.toSet(),
-                tragitto = t?.let {
-                    val da = it.oggetto("da")?.let { l -> luogoDaJson(l) } ?: return@let null
-                    val a = it.oggetto("a")?.let { l -> luogoDaJson(l) } ?: return@let null
-                    TragittoSalvato(it["id"] as? String ?: return@let null, it["nome"] as? String ?: "", da, a)
+                salvati = (o["salvati"] as? List<*>).orEmpty().mapNotNull { v ->
+                    val t = v.comeOggetto()
+                    val da = t.oggetto("da")?.let { l -> luogoDaJson(l) } ?: return@mapNotNull null
+                    val a = t.oggetto("a")?.let { l -> luogoDaJson(l) } ?: return@mapNotNull null
+                    TragittoSalvato(t["id"] as? String ?: return@mapNotNull null, t["nome"] as? String ?: "", da, a)
                 },
-                partenze = CodificaPartenze.daJson(o.oggetto("partenze")),
+                partenze = o.oggetto("partenze").orEmpty().mapNotNull { (id, v) ->
+                    CodificaPartenze.daJson(v.comeOggetto())?.let { id to it }
+                }.toMap(),
+                automatico = o["automatico"] as? String,
             )
         } catch (_: Exception) {
             null
@@ -77,10 +93,11 @@ object CodificaWidget {
 }
 
 /**
- * Calcola i dati dei widget: il tabellone delle preferite e delle fermate
- * vicine, e le partenze del tragitto salvato che parte piu' vicino.
- * [partenzePrima] sono quelle gia' calcolate: si richiedono a Transitous solo
- * se e' passato un quarto d'ora o e' cambiato il tragitto ([forza] sempre).
+ * Calcola i dati dei widget: il tabellone delle preferite, delle fermate
+ * vicine e di quelle scelte nei widget ([fermateWidget]), e le partenze dei
+ * tragitti salvati ([tragittiWidget]: quelli scelti nei widget; null = tutti).
+ * Le partenze gia' calcolate ([partenzePrima]) si richiedono a Transitous solo
+ * dopo un quarto d'ora o quando sono finite ([forza]: sempre).
  */
 suspend fun calcolaDatiWidget(
     orario: Orario,
@@ -88,34 +105,48 @@ suspend fun calcolaDatiWidget(
     fissate: Set<String>,
     posizione: Punto?,
     salvati: List<TragittoSalvato>,
-    partenzePrima: PartenzeTragitto?,
+    partenzePrima: Map<String, PartenzeTragitto>,
     forza: Boolean,
+    fermateWidget: Collection<String> = emptyList(),
+    tragittiWidget: Collection<String>? = null,
 ): DatiWidget = coroutineScope {
     val adesso = adessoMs()
-    val tragitto = tragittoPerWidget(salvati, posizione)
-    val partenze = async {
-        when {
-            tragitto == null -> null
-            !forza && partenzePrima != null && partenzePrima.id == tragitto.id &&
-                adesso - partenzePrima.calcolato < 15 * 60_000 &&
-                partenzePrima.partenze.any { it.partenza > adesso + 60_000 } -> partenzePrima
-            else -> try {
-                partenzeTragittoSalvato(tragitto, posizione)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                partenzePrima?.takeIf { it.id == tragitto.id }
+    val automatico = tragittoPerWidget(salvati, posizione)?.id
+    val quali = salvati.filter { tragittiWidget == null || it.id in tragittiWidget || it.id == automatico }.take(8)
+    val partenze = quali.map { t ->
+        async {
+            val prima = partenzePrima[t.id]
+            t.id to when {
+                !forza && prima != null && adesso - prima.calcolato < 15 * 60_000 &&
+                    prima.partenze.any { it.partenza > adesso + 60_000 } -> prima
+                else -> try {
+                    partenzeTragittoSalvato(t, posizione).let { nuove ->
+                        // senza rete restano quelle di prima, se ce ne sono ancora
+                        if (nuove.partenze.isEmpty() && prima != null && prima.partenze.any { it.partenza > adesso }) prima else nuove
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    prima
+                }
             }
         }
     }
     val tabellone = try {
-        calcolaTabelloneOrologio(orario, preferiti, fissate, posizione, adesso)
+        calcolaTabelloneOrologio(orario, preferiti, fissate, posizione, adesso, sempre = fermateWidget)
     } catch (e: CancellationException) {
         throw e
     } catch (_: Exception) {
         null
     }
-    DatiWidget(adesso, tabellone, fissate, tragitto, partenze.await())
+    DatiWidget(
+        creato = adesso,
+        tabellone = tabellone,
+        fissate = fissate,
+        salvati = salvati,
+        partenze = partenze.awaitAll().mapNotNull { (id, p) -> p?.let { id to it } }.toMap(),
+        automatico = automatico,
+    )
 }
 
 /** Una riga di un widget: "64 · Stazione S. Pietro · poi 9 · 1'". */
@@ -168,14 +199,25 @@ private fun riga(r: RigaOrologio, adesso: Long): RigaWidgetTelefono? {
     )
 }
 
-/** Il widget della preferita. [adesso] in secondi. */
-fun widgetTabellone(d: DatiWidget?, adesso: Long, quante: Int = 3): WidgetTabellone {
+/**
+ * Il widget della fermata: quella scelta ([fermataId]) o, se non se n'e'
+ * scelta una, la preferita a cui sei vicino. [adesso] in secondi.
+ */
+fun widgetTabellone(d: DatiWidget?, adesso: Long, quante: Int = 3, fermataId: String? = null): WidgetTabellone {
     val t = d?.tabellone
-    val f = t?.fermate?.firstOrNull { it.preferita } ?: t?.fermate?.firstOrNull()
+    val scelta = !fermataId.isNullOrEmpty()
+    val f = if (scelta) {
+        t?.fermate?.firstOrNull { it.id == fermataId }
+    } else {
+        t?.fermate?.firstOrNull { it.preferita } ?: t?.fermate?.firstOrNull()
+    }
     if (d == null || t == null || f == null) {
         return WidgetTabellone(
-            "PALINA", "Palina Roma", "", "", emptyList(),
-            t?.nota ?: tx("Aggiungi una fermata ai preferiti, o apri Palina per i tempi delle fermate vicine."),
+            "PALINA", "Palina Roma", fermataId.orEmpty(), "", emptyList(),
+            when {
+                scelta && d != null -> tx("Apri Palina per aggiornare")
+                else -> t?.nota ?: tx("Aggiungi una fermata ai preferiti, o apri Palina per i tempi delle fermate vicine.")
+            },
         )
     }
     val fisse = lineeFissate(f.id, d.fissate)
@@ -189,7 +231,11 @@ fun widgetTabellone(d: DatiWidget?, adesso: Long, quante: Int = 3): WidgetTabell
         else -> tx("Fissa le linee che usi con la puntina · tocca per aggiornare")
     }
     return WidgetTabellone(
-        etichetta = if (f.preferita) tx("PREFERITA") else tx("VICINO A TE"),
+        etichetta = when {
+            scelta -> tx("FERMATA")
+            f.preferita -> tx("PREFERITA")
+            else -> tx("VICINO A TE")
+        },
         nome = f.nome,
         fermataId = f.id,
         ora = oraARoma(d.creato),
@@ -215,10 +261,15 @@ fun widgetVicina(d: DatiWidget?, adesso: Long): WidgetVicina {
     )
 }
 
-/** Il widget "esci tra" del tragitto salvato. [adessoMs] in millisecondi. */
-fun widgetTragitto(d: DatiWidget?, adessoMs: Long): CartaSalvato? {
-    val t = d?.tragitto ?: return null
-    return cartaTragittoSalvato(t, d.partenze, adessoMs)
+/**
+ * Il widget "esci tra": il tragitto salvato scelto ([id]) o quello che parte
+ * piu' vicino a dove sei. [adessoMs] in millisecondi.
+ */
+fun widgetTragitto(d: DatiWidget?, adessoMs: Long, id: String? = null): CartaSalvato? {
+    val salvati = d?.salvati ?: return null
+    val scelto = if (id.isNullOrEmpty()) d.automatico else id
+    val t = salvati.firstOrNull { it.id == scelto } ?: return null
+    return cartaTragittoSalvato(t, d.partenze[t.id], adessoMs)
 }
 
 /**
@@ -227,6 +278,8 @@ fun widgetTragitto(d: DatiWidget?, adessoMs: Long): CartaSalvato? {
  */
 fun vociWidget(d: DatiWidget?, adessoMs: Long, minuti: Int = 60): String {
     val inizio = adessoMs / 60_000 * 60_000
+    // nei widget si scelgono le fermate preferite (e quelle gia' scelte, che l'app aggiunge)
+    val fermate = d?.tabellone?.fermate.orEmpty().filter { it.preferita }
     val voci = (0 until minuti).map { i ->
         val alle = inizio + i * 60_000L
         val adesso = alle / 1000
@@ -239,27 +292,34 @@ fun vociWidget(d: DatiWidget?, adessoMs: Long, minuti: Int = 60): String {
                 "tra" to it.tra, "tempoReale" to it.tempoReale,
             )
         }
+        fun tabellone(w: WidgetTabellone) = mapOf(
+            "etichetta" to w.etichetta, "nome" to w.nome, "fermataId" to w.fermataId, "ora" to w.ora,
+            "righe" to righe(w.righe), "nota" to w.nota,
+        )
+        fun carta(c: CartaSalvato) = mapOf(
+            "id" to c.id, "nome" to c.nome, "esci" to c.esci, "numero" to c.numero, "unita" to c.unita,
+            "sotto" to c.sotto, "linea" to c.linea, "colore" to c.colore, "poi" to c.poi, "viaggio" to c.viaggio,
+        )
         mapOf(
             "alle" to alle,
-            "tabellone" to mapOf(
-                "etichetta" to tab.etichetta, "nome" to tab.nome, "fermataId" to tab.fermataId, "ora" to tab.ora,
-                "righe" to righe(tab.righe), "nota" to tab.nota,
-            ),
+            "tabellone" to tabellone(tab),
+            // le fermate e i tragitti che si possono scegliere nei widget
+            "fermate" to fermate.associate { it.id to tabellone(widgetTabellone(d, adesso, quante = 4, fermataId = it.id)) },
+            "tragitti" to d?.salvati.orEmpty().associate { it.id to carta(widgetTragitto(d, alle, it.id)!!) },
             "vicina" to mapOf(
                 "nome" to vic.nome, "fermataId" to vic.fermataId, "distanza" to vic.distanza, "righe" to righe(vic.righe),
                 "nota" to vic.nota, "etichetta" to tx("PIÙ VICINA"),
             ),
-            "tragitto" to tra?.let {
-                mapOf(
-                    "id" to it.id, "nome" to it.nome, "esci" to it.esci, "numero" to it.numero, "unita" to it.unita,
-                    "sotto" to it.sotto, "linea" to it.linea, "colore" to it.colore, "poi" to it.poi,
-                )
-            },
+            "tragitto" to tra?.let { carta(it) },
         )
     }
     return ScriviJson.testo(
         mapOf(
             "voci" to voci,
+            "elenco" to mapOf(
+                "fermate" to fermate.map { mapOf("id" to it.id, "nome" to it.nome, "sotto" to it.sotto) },
+                "tragitti" to d?.salvati.orEmpty().map { mapOf("id" to it.id, "nome" to it.nome) },
+            ),
             "vuoto" to mapOf(
                 "tragitto" to tx("Salva un tragitto in «Come arrivo» per vedere quando uscire."),
                 "vecchio" to tx("Apri Palina per aggiornare"),

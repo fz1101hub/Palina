@@ -1,10 +1,16 @@
 /* Generato da strumenti/traduzioni.py: non modificare a mano. */
 "La tua fermata" = "Sua parada";
-"La preferita a cui sei vicino, con le linee che hai fissato." = "O favorito perto de você, com as linhas que você fixou.";
+"Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato." = "Uma parada à escolha, ou o favorito perto de você, com as linhas que você fixou.";
 "Fermata più vicina" = "Parada mais próxima";
 "La fermata più vicina e le prossime due linee." = "A parada mais próxima e as próximas duas linhas.";
 "Esci tra" = "Saia em";
-"Quando uscire per il tragitto salvato." = "Quando sair para o trajeto salvo.";
+"Quando uscire per un tragitto salvato: mezzi, cambi e tempo di viaggio." = "Quando sair para um trajeto salvo: veículos, baldeações e tempo de viagem.";
+"Fermata" = "Parada";
+"Tragitto" = "Trajeto";
+"Scegli la fermata" = "Escolha a parada";
+"Scegli il tragitto" = "Escolha o trajeto";
+"Automatica: la preferita a cui sei vicino" = "Automática: o favorito perto de você";
+"Automatico: il tragitto che parte più vicino a dove sei" = "Automático: o trajeto que começa mais perto de você";
 "Apri Palina per aggiornare" = "Abra o Palina para atualizar";
 "Salva un tragitto in «Come arrivo» per vedere quando uscire." = "Salve um trajeto em “Como chegar” para ver quando sair.";
 "Sto uscendo" = "Estou saindo";

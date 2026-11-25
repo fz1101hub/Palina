@@ -2,9 +2,9 @@
 <!-- Generato da strumenti/traduzioni.py: non modificare a mano. -->
 <resources>
     <string name="widget_tabellone_nome">Palina : votre arrêt</string>
-    <string name="widget_tabellone_descrizione">Le favori près duquel vous êtes, avec vos lignes épinglées</string>
+    <string name="widget_tabellone_descrizione">Un arrêt de votre choix, ou le favori près duquel vous êtes, avec vos lignes épinglées</string>
     <string name="widget_vicina_nome">Palina : arrêt le plus proche</string>
     <string name="widget_vicina_descrizione">L\'arrêt le plus proche et les deux prochaines lignes</string>
     <string name="widget_tragitto_nome">Palina : partez dans</string>
-    <string name="widget_tragitto_descrizione">Quand partir pour le trajet enregistré</string>
+    <string name="widget_tragitto_descrizione">Quand partir pour un trajet enregistré : véhicules, correspondances et durée du trajet</string>
 </resources>

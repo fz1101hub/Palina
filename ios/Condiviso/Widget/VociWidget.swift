@@ -8,6 +8,19 @@ import Foundation
 struct VociWidgetTelefono: Codable {
     var voci: [VoceWidgetTelefono]
     var vuoto: TestiVuoti?
+    /** Le fermate preferite e i tragitti salvati che si possono scegliere nei widget. */
+    var elenco: ElencoWidget?
+}
+
+struct ElencoWidget: Codable {
+    var fermate: [VoceElenco]
+    var tragitti: [VoceElenco]
+}
+
+struct VoceElenco: Codable {
+    var id: String
+    var nome: String
+    var sotto: String?
 }
 
 struct TestiVuoti: Codable {
@@ -21,6 +34,9 @@ struct VoceWidgetTelefono: Codable {
     var tabellone: WidgetTabelloneVoce
     var vicina: WidgetVicinaVoce
     var tragitto: WidgetTragittoVoce?
+    /** Il widget per ogni fermata e ogni tragitto che si puo' scegliere (id -> contenuto). */
+    var fermate: [String: WidgetTabelloneVoce]?
+    var tragitti: [String: WidgetTragittoVoce]?
 }
 
 struct RigaWidgetVoce: Codable, Hashable {
@@ -60,6 +76,8 @@ struct WidgetTragittoVoce: Codable {
     var linea: String
     var colore: Int64
     var poi: String?
+    /** "64 → Metro B · 1 cambio · 32 min". */
+    var viaggio: String?
 }
 
 enum GruppoWidget {

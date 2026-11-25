@@ -40,20 +40,26 @@ RISORSE_OROLOGIO = {
 # I nomi che Android mostra per i widget del telefono: risorsa -> testo italiano
 RISORSE_APP = {
     "widget_tabellone_nome": "Palina: la tua fermata",
-    "widget_tabellone_descrizione": "La preferita a cui sei vicino, con le linee che hai fissato",
+    "widget_tabellone_descrizione": "Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato",
     "widget_vicina_nome": "Palina: fermata più vicina",
     "widget_vicina_descrizione": "La fermata più vicina e le prossime due linee",
     "widget_tragitto_nome": "Palina: esci tra",
-    "widget_tragitto_descrizione": "Quando uscire per il tragitto salvato",
+    "widget_tragitto_descrizione": "Quando uscire per un tragitto salvato: mezzi, cambi e tempo di viaggio",
 }
 # I testi dei widget dell'iPhone scritti nell'estensione (il resto viene dal motore, tramite l'app)
 WIDGET_IPHONE = [
     "La tua fermata",
-    "La preferita a cui sei vicino, con le linee che hai fissato.",
+    "Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato.",
     "Fermata più vicina",
     "La fermata più vicina e le prossime due linee.",
     "Esci tra",
-    "Quando uscire per il tragitto salvato.",
+    "Quando uscire per un tragitto salvato: mezzi, cambi e tempo di viaggio.",
+    "Fermata",
+    "Tragitto",
+    "Scegli la fermata",
+    "Scegli il tragitto",
+    "Automatica: la preferita a cui sei vicino",
+    "Automatico: il tragitto che parte più vicino a dove sei",
     "Apri Palina per aggiornare",
     "Salva un tragitto in «Come arrivo» per vedere quando uscire.",
     "Sto uscendo",

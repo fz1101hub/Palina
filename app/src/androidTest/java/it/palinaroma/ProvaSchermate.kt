@@ -382,6 +382,17 @@ class ProvaSchermate {
         attendi(20_000)
         schermata("35-home-tragitto-salvato")
         disegnaWidget()
+        // la scelta del tragitto di un widget "esci tra" (si apre quando lo si aggiunge alla Home)
+        val ctx = strumenti.targetContext
+        ctx.startActivity(
+            android.content.Intent(ctx, it.palinaroma.widget.ConfiguraWidget::class.java)
+                .putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, 9999)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        aspetta(By.res("scelta-widget"), 20_000, "la scelta del widget")
+        attendi(1_500)
+        schermata("37-scelta-widget")
+        telefono.pressBack()
     }
 
     /** I widget non si possono aggiungere alla Home dalla prova: li si disegna in un'immagine con gli stessi dati. */

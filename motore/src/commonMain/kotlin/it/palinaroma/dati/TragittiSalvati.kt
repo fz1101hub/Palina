@@ -83,6 +83,10 @@ data class PartenzaSalvata(
     /** Dove si prende il primo mezzo. */
     val da: String,
     val tempoReale: Boolean,
+    /** I mezzi in ordine ("64", "Metro B"), i cambi e la durata porta a porta (secondi). */
+    val linee: List<String> = emptyList(),
+    val cambi: Int = 0,
+    val durata: Int = 0,
 )
 
 /** Le prossime partenze di un tragitto salvato, o perche' non si sanno. */
@@ -101,6 +105,9 @@ fun partenzeDaTragitti(id: String, tragitti: List<Tragitto>, adessoMs: Long): Li
                 oraMezzo = primo?.partenza ?: t.partenza,
                 da = primo?.da?.nome.orEmpty(),
                 tempoReale = primo?.tempoReale == true,
+                linee = t.mezzi.map { it.linea.ifEmpty { it.nomeMezzo } },
+                cambi = t.cambi,
+                durata = t.durata,
             )
         }
 
@@ -129,6 +136,7 @@ object CodificaPartenze {
             mapOf(
                 "partenza" to it.partenza, "arrivo" to it.arrivo, "linea" to it.linea, "colore" to it.colore,
                 "oraMezzo" to it.oraMezzo, "da" to it.da, "tempoReale" to it.tempoReale,
+                "linee" to it.linee, "cambi" to it.cambi, "durata" to it.durata,
             )
         },
     )
@@ -147,6 +155,9 @@ object CodificaPartenze {
                     oraMezzo = it.numero("oraMezzo")?.toLong() ?: 0L,
                     da = it.testo("da").orEmpty(),
                     tempoReale = it.vero("tempoReale"),
+                    linee = (it["linee"] as? List<*>).orEmpty().mapNotNull { l -> l as? String },
+                    cambi = it.numero("cambi")?.toInt() ?: 0,
+                    durata = it.numero("durata")?.toInt() ?: 0,
                 )
             },
             errore = o.testo("errore"),
@@ -169,7 +180,21 @@ data class CartaSalvato(
     /** La partenza dopo: "oppure esci alle 18:53". */
     val poi: String?,
     val perVoce: String,
+    /** Il viaggio: "64 → Metro B · 1 cambio · 32 min" (vuoto quando non si sa). */
+    val viaggio: String = "",
 )
+
+/** "64 → Metro B · 1 cambio · 32 min": i mezzi, i cambi e il tempo di percorrenza stimato. */
+fun testoViaggio(p: PartenzaSalvata): String {
+    val durata = (if (p.durata > 0) p.durata else ((p.arrivo - p.partenza) / 1000).toInt()).coerceAtLeast(60)
+    val mezzi = if (p.linee.isEmpty()) tx("a piedi") else p.linee.joinToString(" → ")
+    val cambi = when {
+        p.linee.isEmpty() -> null
+        p.cambi == 0 -> tx("nessun cambio")
+        else -> txn("{0} cambio", "{0} cambi", p.cambi)
+    }
+    return listOfNotNull(mezzi, cambi, testoDurata(durata)).joinToString(" · ")
+}
 
 fun cartaTragittoSalvato(t: TragittoSalvato, partenze: PartenzeTragitto?, adessoMs: Long): CartaSalvato {
     val vuota = CartaSalvato(t.id, t.nome, "", "", "", "", "", Colori.PORPORA, null, t.nome)
@@ -187,6 +212,7 @@ fun cartaTragittoSalvato(t: TragittoSalvato, partenze: PartenzeTragitto?, adesso
         tx("{0} alle {1} · arrivi {2}", p.linea, oraARoma(p.oraMezzo), oraARoma(p.arrivo))
     }
     val ora = minuti < 1
+    val viaggio = testoViaggio(p)
     val poi = prossime.getOrNull(1)?.let { tx("oppure esci alle {0}", oraARoma(it.partenza)) }
     return CartaSalvato(
         id = t.id,
@@ -198,7 +224,9 @@ fun cartaTragittoSalvato(t: TragittoSalvato, partenze: PartenzeTragitto?, adesso
         linea = p.linea,
         colore = p.colore,
         poi = poi,
-        perVoce = t.nome + ". " + (if (ora) tx("Esci ora.") else tx("Esci tra {0}.", txn("{0} minuto", "{0} minuti", minuti))) + " " + sotto + ".",
+        perVoce = t.nome + ". " + (if (ora) tx("Esci ora.") else tx("Esci tra {0}.", txn("{0} minuto", "{0} minuti", minuti))) + " " +
+            sotto + ". " + viaggio + ".",
+        viaggio = viaggio,
     )
 }
 

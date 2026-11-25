@@ -53,6 +53,8 @@ suspend fun calcolaTabelloneOrologio(
     posizione: Punto?,
     adessoMs: Long = adessoMs(),
     seguite: List<LineaSeguita> = emptyList(),
+    /** Fermate che ci devono essere comunque (quelle scelte nei widget del telefono). */
+    sempre: Collection<String> = emptyList(),
 ): TabelloneOrologio {
     val adesso = adessoMs / 1000
 
@@ -74,10 +76,10 @@ suspend fun calcolaTabelloneOrologio(
         // le fermate delle linee seguite sull'orologio ci sono sempre, anche se ci si e' allontanati
         val fin = preferite + vicine
         val presenti = fin.map { it.first.id }.toSet()
-        val seguiteFermate = seguite.map { it.fermataId }.distinct().filter { it !in presenti }
+        val seguiteFermate = (seguite.map { it.fermataId } + sempre).distinct().filter { it !in presenti }
         val trovateSeguite = orario.fermate(seguiteFermate)
         val inPiu = seguiteFermate.mapNotNull { id -> trovateSeguite[id]?.let { f -> orario.fermataUnita(id)?.copy(id = id) ?: f } }
-            .map { f -> Triple(f, posizione?.let { distanzaMetri(it.lat, it.lon, f.lat, f.lon) }, false) }
+            .map { f -> Triple(f, posizione?.let { distanzaMetri(it.lat, it.lon, f.lat, f.lon) }, f.id in preferiti) }
         fin + inPiu
     }
     if (scelte.isEmpty()) {
