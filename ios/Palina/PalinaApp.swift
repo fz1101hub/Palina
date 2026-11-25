@@ -83,10 +83,10 @@ struct PalinaApp: App {
         }
     }
 
-    static let idWidget = "it.palinaroma.widget"
+    nonisolated static let idWidget = "it.palinaroma.widget"
 
     /** Il prossimo aggiornamento dei widget in sottofondo, tra un quarto d'ora o quando iOS decide. */
-    static func programmaWidget() {
+    nonisolated static func programmaWidget() {
         let richiesta = BGAppRefreshTaskRequest(identifier: idWidget)
         richiesta.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
         try? BGTaskScheduler.shared.submit(richiesta)

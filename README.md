@@ -10,7 +10,12 @@ App personale per i mezzi pubblici di Roma, con l'aspetto di un tabellone delle 
 - **stazioni di scambio unite**: Piramide/Porta San Paolo, Basilica San Paolo ed EUR Magliana (Metro B e Metromare) e Flaminio (Metro A e Roma Nord) sono un solo risultato, con gli orari della metro e dei treni insieme;
 - **se Roma Mobilità non pubblica il tempo reale** (il suo flusso a volte resta vuoto anche se le paline mostrano i bus) l'app lo dice, invece di mostrare l'orario senza spiegazioni;
 - **linee**: tracciato sulla mappa, fermate e mezzi in movimento;
-- **tragitti da A a B** con bus, tram, metro e treni: cambi, tratti a piedi con le indicazioni, ritardi in tempo reale e mappa del percorso.
+- **tragitti da A a B** con bus, tram, metro e treni: cambi, tratti a piedi con le indicazioni, ritardi in tempo reale e mappa del percorso; i risultati dicono «parti tra», si ordinano per meno cambi o meno strada a piedi e si condividono;
+- **tragitti salvati** («Lavoro → Casa», con la stella in «Come arrivo»): in Home con «esci tra», nel widget e tra le scorciatoie, con il ritorno a un tocco;
+- **Avvisami** (la campanella accanto a una linea): l'app conta i minuti a piedi fino alla fermata e avvisa all'ora di uscire, o quando il mezzo è a 5 o a 2 minuti; se il prossimo non lo prendi in tempo propone il successivo. Sulla schermata di blocco c'è il conto alla rovescia con «Sto uscendo» e «Prendo il successivo»; a bordo si sceglie dove scendere e arriva «Scendi alla prossima»;
+- **widget**: la preferita a cui sei vicino con le sole linee fissate, la fermata più vicina, «esci tra» per il tragitto salvato. I tempi si ridisegnano ogni minuto a schermo acceso senza rete; i dati si chiedono al massimo ogni quarto d'ora, toccando «aggiorna» e uscendo da Palina;
+- **scorciatoie** tenendo premuta l'icona: fermata più vicina, i tragitti salvati, numero della palina;
+- **avvisi di Roma Mobilità** (deviazioni, lavori, fermate spostate) sulla linea, sulla fermata e sul tragitto che riguardano.
 
 ## Installare l'app
 
@@ -100,10 +105,15 @@ Kotlin dell'app Android (`motore/`): una modifica lì vale per tutte e due.
   vetture, treni Cotral e Trenitalia, tragitti con Transitous, impostazioni. L'orario si aggiorna da
   solo in Wi-Fi: ogni settimana la compilazione pubblica nella release `orario.db` e `reti.db`
   compressi (circa 8 MB).
-- **Segui**: scorrendo una riga del tabellone (o tenendola premuta) parte il conto alla rovescia
-  sulla schermata di blocco, nella Dynamic Island e nello Smart Stack dell'Apple Watch, con un
-  avviso 2 minuti prima. È il "Segui" di Wear OS, con lo stesso calcolo; i tempi si aggiornano
-  mentre Palina è aperta, chiusa il conto alla rovescia continua sull'ultimo tempo letto.
+- **Avvisami e Segui**: scorrendo una riga del tabellone (o tenendola premuta) si apre «Avvisami»,
+  come su Android; il conto alla rovescia («Esci ora», poi «Scendi alla prossima») va sulla
+  schermata di blocco, nella Dynamic Island e nello Smart Stack dell'Apple Watch. I tempi si
+  aggiornano mentre Palina è aperta; chiusa, il conto alla rovescia continua sull'ultimo tempo
+  letto e gli avvisi restano programmati.
+- **Widget, scorciatoie, tragitti salvati e avvisi di Roma Mobilità** come su Android. I widget
+  (schermata Home e di blocco) li prepara l'app, minuto per minuto per un'ora, nel gruppo
+  condiviso: si aggiornano quando apri Palina e, quando iOS lo permette, in sottofondo. Con un
+  Apple ID gratuito il gruppo condiviso potrebbe non esserci: allora i widget dicono di aprire Palina.
 - **Apple Watch**: tabellone delle fermate preferite e vicine calcolato dall'iPhone, dettaglio dei
   treni, complicazioni e widget nello Smart Stack con la prossima linea.
 
@@ -139,6 +149,9 @@ dati delle fonti: nomi delle fermate, capolinea, avvisi.
   dal thread dell'interfaccia. Alle fermate si aggiungono le partenze programmate di Transitous.
   Un flusso letto ma senza nessuna corsa, o prodotto più di 10 minuti prima, vale come
   «Roma Mobilità non pubblica» (`senzaTempoReale`).
+- **Avvisi di servizio**: `FeedAvvisi` legge il feed GTFS-Realtime «service alerts» di Roma
+  Mobilità (tenuto 5 minuti); `AvvisiServizio.kt` li collega a linee e fermate e sceglie la
+  lingua del testo, se il feed ce l'ha.
 - **Bus Cotral col GPS**: `BusOne` legge posizioni e tempi da
   [BusOne](https://proxy.busone.app/cotral/readme), con gli stessi codici dell'orario ufficiale
   Cotral (nell'app con il prefisso `C:`), dichiarando app e uso personale come chiedono le sue

@@ -3,25 +3,43 @@ package it.palinaroma.dati
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.SQLiteStatement
 import androidx.sqlite.driver.NativeSQLiteDriver
+import platform.Foundation.NSRecursiveLock
 
-/** Un file SQLite su iPhone (l'orario incluso nell'app) dietro a [BaseDati]. */
+/**
+ * Un file SQLite su iPhone (l'orario incluso nell'app) dietro a [BaseDati].
+ * La connessione non si puo' usare da due thread insieme (tabellone, widget,
+ * avvisi lavorano in parallelo): una domanda alla volta, come fa Android.
+ */
 class BaseIos(percorso: String) : BaseDati {
     private val connessione: SQLiteConnection = NativeSQLiteDriver().open(percorso)
+    private val blocco = NSRecursiveLock()
 
     override fun <T> elenco(sql: String, argomenti: List<String>, leggi: (Riga) -> T): List<T> {
-        val istruzione = connessione.prepare(sql)
+        blocco.lock()
         try {
-            argomenti.forEachIndexed { i, a -> istruzione.bindText(i + 1, a) }
-            val riga = RigaIstruzione(istruzione)
-            val lista = ArrayList<T>()
-            while (istruzione.step()) lista.add(leggi(riga))
-            return lista
+            val istruzione = connessione.prepare(sql)
+            try {
+                argomenti.forEachIndexed { i, a -> istruzione.bindText(i + 1, a) }
+                val riga = RigaIstruzione(istruzione)
+                val lista = ArrayList<T>()
+                while (istruzione.step()) lista.add(leggi(riga))
+                return lista
+            } finally {
+                istruzione.close()
+            }
         } finally {
-            istruzione.close()
+            blocco.unlock()
         }
     }
 
-    override fun chiudi() = connessione.close()
+    override fun chiudi() {
+        blocco.lock()
+        try {
+            connessione.close()
+        } finally {
+            blocco.unlock()
+        }
+    }
 }
 
 private class RigaIstruzione(private val s: SQLiteStatement) : Riga {
