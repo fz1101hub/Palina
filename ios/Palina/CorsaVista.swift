@@ -29,7 +29,7 @@ struct CorsaVista: View {
                         }
                     }
                 } else {
-                    HStack { ProgressView(); Text("Cerco il treno…").foregroundStyle(.secondary) }
+                    HStack { ProgressView(); Text(tx("Cerco il treno…")).foregroundStyle(.secondary) }
                 }
             }
             .listStyle(.insetGrouped)
@@ -37,7 +37,7 @@ struct CorsaVista: View {
                 if let qui, qui >= 0 { withAnimation { scorri.scrollTo(Int(qui), anchor: .center) } }
             }
         }
-        .navigationTitle(stato?.titolo ?? "Treno")
+        .navigationTitle(stato?.titolo ?? tx("Treno"))
         .navigationBarTitleDisplayMode(.inline)
         .task(id: archivio.orario != nil) { await segui() }
     }
@@ -79,9 +79,9 @@ struct RigaFermataTreno: View {
                     .foregroundStyle(riga.passata ? .secondary : .primary)
                     .lineLimit(2)
                 if riga.soppressa {
-                    Text("fermata soppressa").font(.caption).foregroundStyle(Tavolozza.oro)
+                    Text(tx("fermata soppressa")).font(.caption).foregroundStyle(Tavolozza.oro)
                 } else if let binario = riga.binario {
-                    Text(binario + (riga.binarioCambiato ? " (cambiato)" : ""))
+                    Text(binario + (riga.binarioCambiato ? " " + tx("(cambiato)") : ""))
                         .font(.caption)
                         .foregroundStyle(riga.binarioCambiato ? Tavolozza.oro : .secondary)
                 }
@@ -97,7 +97,7 @@ struct RigaFermataTreno: View {
                     Text(ritardo).font(.caption.bold()).foregroundStyle(Tavolozza.oro)
                 }
                 if riga.stimato {
-                    Text("stimato").font(.caption2).foregroundStyle(.secondary)
+                    Text(tx("stimato")).font(.caption2).foregroundStyle(.secondary)
                 }
             }
         }

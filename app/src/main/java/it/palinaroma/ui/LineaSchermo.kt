@@ -69,6 +69,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.tx
 import it.palinaroma.dati.METRI_FUORI_PERCORSO
 import it.palinaroma.dati.VettureLette
 import it.palinaroma.dati.chiaveMezzo
@@ -228,15 +229,15 @@ fun LineaSchermo(
     Scaffold(
         topBar = {
             BarraSuperiore(
-                titolo = "Linea ${linea?.nome ?: lineaId}",
-                sottotitolo = percorso?.capolinea?.takeIf { it.isNotEmpty() }?.let { "verso $it" }
+                titolo = tx("Linea {0}", linea?.nome ?: lineaId),
+                sottotitolo = percorso?.capolinea?.takeIf { it.isNotEmpty() }?.let { tx("verso {0}", it) }
                     ?: linea?.descrizione,
                 indietro = indietro,
                 azioni = {
                     if (percorsi.size > 1) {
                         IconButton(
                             onClick = cambiaDirezione,
-                            modifier = Modifier.semantics { contentDescription = "Cambia direzione" },
+                            modifier = Modifier.semantics { contentDescription = tx("Cambia direzione") },
                         ) {
                             Text(
                                 "⇄",
@@ -264,16 +265,16 @@ fun LineaSchermo(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("DIREZIONE", style = MaterialTheme.typography.labelSmall, color = Secondario)
+                        Text(tx("Direzione").uppercase(), style = MaterialTheme.typography.labelSmall, color = Secondario)
                         Text(
-                            "→ " + percorso.capolinea.ifEmpty { "Direzione ${percorso.direzione + 1}" },
+                            "→ " + percorso.capolinea.ifEmpty { tx("Direzione {0}", percorso.direzione + 1) },
                             fontWeight = FontWeight.Bold,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                         if (percorsi.size == 1) {
                             Text(
-                                "Nell'orario questa linea ha una sola direzione (per esempio è circolare).",
+                                tx("Nell'orario questa linea ha una sola direzione (per esempio è circolare)."),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Secondario,
                             )
@@ -286,7 +287,7 @@ fun LineaSchermo(
                             modifier = Modifier.padding(start = 12.dp),
                         ) {
                             Text("⇄ ", modifier = Modifier.clearAndSetSemantics { })
-                            Text("Cambia")
+                            Text(tx("Cambia"))
                         }
                     }
                 }
@@ -308,7 +309,7 @@ fun LineaSchermo(
                             },
                             label = {
                                 Text(
-                                    "→ " + p.capolinea.ifEmpty { "Direzione ${p.direzione + 1}" },
+                                    "→ " + p.capolinea.ifEmpty { tx("Direzione {0}", p.direzione + 1) },
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -323,7 +324,7 @@ fun LineaSchermo(
             }
             if (percorso == null) {
                 Text(
-                    "Per questa linea l'orario non ha un percorso.",
+                    tx("Per questa linea l'orario non ha un percorso."),
                     color = Secondario,
                     modifier = Modifier.padding(16.dp),
                 )
@@ -518,7 +519,7 @@ private fun SchedaSenzaGps(fermata: Fermata?, arrivo: Long?, adesso: Long, modif
             Row(verticalAlignment = Alignment.CenterVertically) {
                 FonteTempo(tracciato = false)
                 Text(
-                    "  La tua corsa non ha una posizione GPS",
+                    "  " + tx("La tua corsa non ha una posizione GPS"),
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -579,7 +580,7 @@ private fun RigaPercorso(fermata: Fermata, prima: Boolean, ultima: Boolean, atte
                 fontWeight = if (attesa) FontWeight.Bold else FontWeight.Normal,
             )
             Text(
-                "Palina ${fermata.codice}" + if (attesa) " · la tua fermata" else "",
+                tx("Palina {0}", fermata.codice) + if (attesa) " · " + tx("la tua fermata") else "",
                 style = MaterialTheme.typography.bodySmall,
                 color = Secondario,
             )

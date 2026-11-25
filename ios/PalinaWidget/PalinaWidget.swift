@@ -29,7 +29,7 @@ struct SeguiLiveActivity: Widget {
                     Linea(nome: a.linea, colore: a.colore, grande: true)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Conto(arrivo: s.arrivo, tempoReale: s.tempoReale)
+                    Conto(arrivo: s.arrivo, tempoReale: s.tempoReale, testoOra: a.testoOra)
                         .font(.title2.bold())
                 }
                 DynamicIslandExpandedRegion(.center) {
@@ -44,11 +44,11 @@ struct SeguiLiveActivity: Widget {
             } compactLeading: {
                 Linea(nome: a.linea, colore: a.colore, grande: false)
             } compactTrailing: {
-                Conto(arrivo: s.arrivo, tempoReale: s.tempoReale)
+                Conto(arrivo: s.arrivo, tempoReale: s.tempoReale, testoOra: a.testoOra)
                     .font(.caption.bold())
                     .frame(maxWidth: 46)
             } minimal: {
-                Conto(arrivo: s.arrivo, tempoReale: s.tempoReale)
+                Conto(arrivo: s.arrivo, tempoReale: s.tempoReale, testoOra: a.testoOra)
                     .font(.caption2.bold())
             }
             .keylineTint(Color(argb: a.colore))
@@ -60,13 +60,15 @@ struct SeguiLiveActivity: Widget {
 private struct Conto: View {
     let arrivo: Date
     let tempoReale: Bool
+    /** "ora" nella lingua dell'app (lo scrive l'app, il widget non ha il motore). */
+    let testoOra: String
 
     var body: some View {
         Group {
             if arrivo > Date() {
                 Text(timerInterval: Date()...arrivo, countsDown: true)
             } else {
-                Text("ora")
+                Text(testoOra)
             }
         }
         .monospacedDigit()
@@ -104,13 +106,13 @@ private struct SchermataBlocco: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("→ " + attributi.capolinea).font(.headline).foregroundStyle(.white).lineLimit(1)
                 Text(attributi.fermata).font(.subheadline).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
-                Text(scaduto ? "tempi da aggiornare: apri Palina" : stato.fonte)
+                Text(scaduto ? attributi.testoScaduto : stato.fonte)
                     .font(.caption)
                     .foregroundStyle(stato.tempoReale && !scaduto ? Color.oroPalina : .white.opacity(0.6))
             }
             Spacer(minLength: 4)
             VStack(alignment: .trailing, spacing: 0) {
-                Conto(arrivo: stato.arrivo, tempoReale: stato.tempoReale)
+                Conto(arrivo: stato.arrivo, tempoReale: stato.tempoReale, testoOra: attributi.testoOra)
                     .font(.system(size: 32, weight: .black, design: .rounded))
                 Text(stato.arrivo, style: .time).font(.caption).foregroundStyle(.white.opacity(0.6))
             }

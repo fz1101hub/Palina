@@ -55,11 +55,11 @@ class CercaCorsa(private val orario: Orario?, private val richiesta: RichiestaCo
         }
         val id = trovata
         if (id == null) {
-            Esito(null, "Non trovo questo treno negli orari: torna indietro e riprova.")
+            Esito(null, tx("Non trovo questo treno negli orari: torna indietro e riprova."))
         } else {
             val tratto = Transitous.corsa(id)
             if (tratto == null) {
-                Esito(null, "Non trovo le fermate di questo treno.")
+                Esito(null, tx("Non trovo le fermate di questo treno."))
             } else {
                 val d = withContext(Dispatchers.Default) {
                     dettaglioCorsa(tratto, r.fermataId, f?.lat ?: Double.NaN, f?.lon ?: Double.NaN, ritardo)
@@ -70,7 +70,7 @@ class CercaCorsa(private val orario: Orario?, private val richiesta: RichiestaCo
     } catch (e: CancellationException) {
         throw e
     } catch (_: Exception) {
-        Esito(null, "Non riesco a leggere le fermate. Controlla la connessione e riprova.")
+        Esito(null, tx("Non riesco a leggere le fermate. Controlla la connessione e riprova."))
     }
 }
 
@@ -83,20 +83,20 @@ fun nomeLineaCorsa(d: DettaglioCorsa?, lineaId: String, orario: Orario?): String
 fun DettaglioCorsa.testoFonte(breve: Boolean = false): String {
     val quiFermata = qui?.let { fermate.getOrNull(it) }
     val minuti = (quiFermata ?: fermate.firstOrNull { it.ritardoMinuti != null })?.ritardoMinuti
-    val luogo = quiFermata?.nome?.let { " a $it" }.orEmpty()
+    val luogo = quiFermata?.nome?.let { " " + tx("a {0}", it) }.orEmpty()
     val ritardo = when {
         minuti == null -> ""
-        minuti == 0 -> ": in orario$luogo"
-        minuti > 0 -> ": $minuti min di ritardo$luogo"
-        else -> ": ${-minuti} min di anticipo$luogo"
+        minuti == 0 -> ": " + tx("in orario") + luogo
+        minuti > 0 -> ": " + tx("{0} min di ritardo", minuti) + luogo
+        else -> ": " + tx("{0} min di anticipo", -minuti) + luogo
     }
     return when {
-        tratto.cancellato -> "Corsa soppressa."
+        tratto.cancellato -> tx("Corsa soppressa.")
         fonte == FonteCorsa.TEMPO_REALE ->
-            "In tempo reale$ritardo." + if (breve) "" else " Le fermate sono solo quelle dove il treno ferma."
+            tx("In tempo reale{0}.", ritardo) + if (breve) "" else " " + tx("Le fermate sono solo quelle dove il treno ferma.")
         fonte == FonteCorsa.ASTRAL ->
-            "Ritardo da ASTRAL$ritardo" + if (breve) "." else "; per le stazioni dopo è una stima."
-        breve -> "Orario programmato: ora non c'è il tempo reale."
-        else -> "Orario programmato: per questo treno ora non c'è il tempo reale. Le fermate sono solo quelle dove ferma."
+            tx("Ritardo da ASTRAL{0}", ritardo) + if (breve) "." else tx("; per le stazioni dopo è una stima.")
+        breve -> tx("Orario programmato: ora non c'è il tempo reale.")
+        else -> tx("Orario programmato: per questo treno ora non c'è il tempo reale. Le fermate sono solo quelle dove ferma.")
     }
 }

@@ -18,7 +18,7 @@ struct HomeVista: View {
             if let errore = archivio.errore {
                 Text(errore).foregroundStyle(.secondary)
             } else if archivio.home == nil {
-                HStack { ProgressView(); Text("Apro l'orario…").foregroundStyle(.secondary) }
+                HStack { ProgressView(); Text(tx("Apro l'orario…")).foregroundStyle(.secondary) }
             } else if !testo.trimmingCharacters(in: .whitespaces).isEmpty {
                 if testo.trimmingCharacters(in: .whitespaces).count >= 3 {
                     Section {
@@ -29,9 +29,9 @@ struct HomeVista: View {
                         } label: {
                             Label {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Come arrivo a «\(testo.trimmingCharacters(in: .whitespaces))»")
+                                    Text(tx("Come arrivo a «{0}»", testo.trimmingCharacters(in: .whitespaces)))
                                         .font(.body.weight(.medium)).foregroundStyle(.primary)
-                                    Text("cerca anche tra indirizzi e luoghi").font(.footnote).foregroundStyle(.secondary)
+                                    Text(tx("cerca anche tra indirizzi e luoghi")).font(.footnote).foregroundStyle(.secondary)
                                 }
                             } icon: {
                                 Image(systemName: "mappin.and.ellipse").foregroundStyle(Tavolozza.oro)
@@ -40,8 +40,8 @@ struct HomeVista: View {
                         .accessibilityIdentifier("cerca-luogo")
                     }
                 }
-                Section("Fermate") {
-                    if trovate.isEmpty { Text("Nessuna fermata trovata.").foregroundStyle(.secondary) }
+                Section(tx("Fermate")) {
+                    if trovate.isEmpty { Text(tx("Nessuna fermata trovata.")).foregroundStyle(.secondary) }
                     ForEach(trovate, id: \.id) { voce in
                         NavigationLink(value: Destinazione.fermata(voce.id)) { RigaFermata(voce: voce) }
                     }
@@ -56,7 +56,7 @@ struct HomeVista: View {
                 HStack {
                     Spacer()
                     NavigationLink(value: Destinazione.tragitti) {
-                        Label("Come arrivo…", systemImage: "mappin.and.ellipse")
+                        Label(tx("Come arrivo…"), systemImage: "mappin.and.ellipse")
                             .font(.body.bold())
                             .foregroundStyle(Tavolozza.inchiostro)
                             .padding(.horizontal, 18)
@@ -64,7 +64,7 @@ struct HomeVista: View {
                             .background(Tavolozza.oro, in: Capsule())
                             .shadow(color: .black.opacity(0.2), radius: 6, y: 3)
                     }
-                    .accessibilityLabel("Come arrivo")
+                    .accessibilityLabel(tx("Come arrivo"))
                     .accessibilityIdentifier("come-arrivo")
                 }
                 .padding(.horizontal, 20)
@@ -76,11 +76,11 @@ struct HomeVista: View {
                 NavigationLink(value: Destinazione.impostazioni) {
                     Image(systemName: "gearshape")
                 }
-                .accessibilityLabel("Impostazioni")
+                .accessibilityLabel(tx("Impostazioni"))
             }
         }
         .navigationTitle("Palina")
-        .searchable(text: $testo, prompt: "Cerca una fermata o un codice")
+        .searchable(text: $testo, prompt: tx("Cerca una fermata o un codice"))
         .onAppear { posizione.avvia() }
         .task(id: chiave) { await seguiTempi() }
         .task(id: testo) { cerca() }
@@ -89,7 +89,7 @@ struct HomeVista: View {
     @ViewBuilder
     private var contenuto: some View {
         if let s = seguito.stato {
-            Section("Stai seguendo") {
+            Section(tx("Stai seguendo")) {
                 SchedaSeguito(stato: s) { seguito.smetti() }
             }
         }
@@ -100,7 +100,7 @@ struct HomeVista: View {
             Section {
                 SchedaPreferitaVistaSwift(scheda: evidenza)
             } header: {
-                IntestazioneConAggiornamento(titolo: "Sei vicino a", aggiornato: stato?.aggiornato)
+                IntestazioneConAggiornamento(titolo: tx("Sei vicino a"), aggiornato: stato?.aggiornato)
             }
         }
         if let titolo = stato?.titoloPreferite, let preferite = stato?.preferite {
@@ -110,14 +110,14 @@ struct HomeVista: View {
                 IntestazioneConAggiornamento(titolo: titolo, aggiornato: stato?.evidenza == nil ? stato?.aggiornato : nil)
             }
         }
-        Section("Vicino a te") {
+        Section(tx("Vicino a te")) {
             if posizione.negata {
-                Text("Per le fermate vicine serve la posizione: puoi permetterla nelle Impostazioni.")
+                Text(tx("Per le fermate vicine serve la posizione: puoi permetterla nelle Impostazioni."))
                     .foregroundStyle(.secondary)
             } else if posizione.lat == nil {
-                HStack { ProgressView(); Text("Cerco dove sei…").foregroundStyle(.secondary) }
+                HStack { ProgressView(); Text(tx("Cerco dove sei…")).foregroundStyle(.secondary) }
             } else if vicine.isEmpty {
-                Text("Nessuna fermata entro 700 metri.").foregroundStyle(.secondary)
+                Text(tx("Nessuna fermata entro 700 metri.")).foregroundStyle(.secondary)
             }
             ForEach(righeVicine, id: \.voce.id) { riga in
                 NavigationLink(value: Destinazione.fermata(riga.voce.id)) { RigaFermataConTempi(riga: riga) }
@@ -199,7 +199,7 @@ struct SchedaPreferitaVistaSwift: View {
                 }
                 if !scheda.pillole.isEmpty {
                     DisposizioneACapo(spazio: 6) {
-                        Text("Altre:").font(.footnote).foregroundStyle(.secondary)
+                        Text(tx("Altre:")).font(.footnote).foregroundStyle(.secondary)
                         ForEach(Array(scheda.pillole.enumerated()), id: \.offset) { _, p in Pillola(pillola: p) }
                         if scheda.inPiu > 0 {
                             Text("+\(scheda.inPiu)").font(.footnote).foregroundStyle(.secondary)
@@ -281,7 +281,7 @@ struct SchedaSeguito: View {
                     if arrivo > Date() {
                         Text(timerInterval: Date()...arrivo, countsDown: true)
                     } else {
-                        Text("ora")
+                        Text(tx("ora§adesso"))
                     }
                 }
                 .font(.title2.bold())
@@ -291,7 +291,7 @@ struct SchedaSeguito: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(stato.titolo + ". " + stato.testo)
             Button(role: .destructive, action: smetti) {
-                Label("Smetti di seguire", systemImage: "bell.slash")
+                Label(tx("Smetti di seguire"), systemImage: "bell.slash")
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.red)

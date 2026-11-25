@@ -106,7 +106,7 @@ class MotoreTragitti(private val orario: Orario) {
         if (daScelto == null || aScelto == null) return@withContext stato()
         chiaveUltima = chiave()
         inCorso = true
-        val qui = Luogo("La mia posizione", "", lat, lon, TipoLuogo.POSIZIONE)
+        val qui = Luogo(tx("La mia posizione"), "", lat, lon, TipoLuogo.POSIZIONE)
         val partenza = if (daScelto.tipo == TipoLuogo.POSIZIONE) qui.takeIf { it.haCoordinate } else daScelto
         val arrivo = if (aScelto.tipo == TipoLuogo.POSIZIONE) qui.takeIf { it.haCoordinate } else aScelto
         val ist = if (quando == 0) null else istante
@@ -137,14 +137,14 @@ class MotoreTragitti(private val orario: Orario) {
             a = a,
             quando = quando,
             istante = if (quando == 0) adesso else istante,
-            etichettaParti = if (quando == 1) "Parti " + giornoEOra(istante) else "Parti alle…",
-            etichettaArriva = if (quando == 2) "Arriva " + giornoEOra(istante) else "Arriva entro…",
+            etichettaParti = if (quando == 1) tx("Parti {0}", giornoEOra(istante)) else tx("Parti alle…"),
+            etichettaArriva = if (quando == 2) tx("Arriva {0}", giornoEOra(istante)) else tx("Arriva entro…"),
             inCorso = inCorso,
             messaggio = when {
-                a == null || da == null -> "Scegli dove vuoi andare: cerca un indirizzo, un luogo o una fermata."
+                a == null || da == null -> tx("Scegli dove vuoi andare: cerca un indirizzo, un luogo o una fermata.")
                 inCorso -> null
                 r?.errore != null -> r.errore
-                pronto && r.tragitti.isEmpty() -> "Nessun tragitto con i mezzi in questo orario. Prova a cambiare l'ora o il luogo."
+                pronto && r.tragitti.isEmpty() -> tx("Nessun tragitto con i mezzi in questo orario. Prova a cambiare l'ora o il luogo.")
                 else -> null
             },
             riprova = !inCorso && r?.errore != null && a != null,
@@ -153,7 +153,7 @@ class MotoreTragitti(private val orario: Orario) {
             prima = pronto && r.cursorePrima != null && r.tragitti.isNotEmpty(),
             dopo = pronto && r.cursoreDopo != null && r.tragitti.isNotEmpty(),
             caricandoAltri = caricandoAltri,
-            calcolato = if (pronto) "Calcolato alle ${oraARoma(r.calcolatoAlle)}. Tocca un tragitto per la mappa e le fermate." else null,
+            calcolato = if (pronto) tx("Calcolato alle {0}. Tocca un tragitto per la mappa e le fermate.", oraARoma(r.calcolatoAlle)) else null,
         )
     }
 
@@ -218,11 +218,11 @@ class MotoreTragitti(private val orario: Orario) {
         val fermate = withContext(dispatcherDati) { fermateTrovate(t) }
         try {
             val luoghi = Transitous.cerca(t, if (lat.isNaN()) null else Punto(lat, lon))
-            LuoghiTrovati(fermate, luoghi, null, if (fermate.isEmpty() && luoghi.isEmpty()) "Nessun risultato per \"$t\"." else null)
+            LuoghiTrovati(fermate, luoghi, null, if (fermate.isEmpty() && luoghi.isEmpty()) tx("Nessun risultato per \"{0}\".", t) else null)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (_: Exception) {
-            LuoghiTrovati(fermate, emptyList(), "La ricerca degli indirizzi non è disponibile: controlla la connessione.", null)
+            LuoghiTrovati(fermate, emptyList(), tx("La ricerca degli indirizzi non è disponibile: controlla la connessione."), null)
         }
     }
 

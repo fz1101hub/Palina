@@ -51,9 +51,9 @@ fun minutiAttesa(orario: Long, adesso: Long): Int = ((orario - adesso) / 60).toI
 fun testoAggiornato(aggiornatoMs: Long, adessoMs: Long): String {
     val secondi = ((adessoMs - aggiornatoMs) / 1000).coerceAtLeast(0)
     return when {
-        secondi < 10 -> "adesso"
-        secondi < 60 -> "${secondi / 10 * 10} s fa"
-        else -> "${secondi / 60} min fa"
+        secondi < 10 -> tx("adesso")
+        secondi < 60 -> tx("{0} s fa", secondi / 10 * 10)
+        else -> tx("{0} min fa", secondi / 60)
     }
 }
 
@@ -75,7 +75,6 @@ fun daLeggere(nome: String): String {
     return t.replace(Regex("\\s*/\\s*"), ", ").replace(Regex("\\s+"), " ").trim()
 }
 
-private fun minutiAParole(minuti: Int): String = if (minuti == 1) "1 minuto" else "$minuti minuti"
 
 /**
  * La riga di un arrivo come una frase sola, per il lettore dello schermo:
@@ -84,23 +83,23 @@ private fun minutiAParole(minuti: Int): String = if (minuti == 1) "1 minuto" els
 fun fraseArrivo(arrivo: Arrivo, adesso: Long): String {
     val primo = arrivo.passaggi.first()
     val minuti = minutiAttesa(primo.orario, adesso)
-    val verso = if (arrivo.capolinea.isEmpty()) "" else " per " + daLeggere(arrivo.capolinea)
-    val quando = if (minuti < 1) "In arrivo" else "Tra " + minutiAParole(minuti)
-    val fonte = primo.avviso ?: if (primo.tracciato) "in tempo reale" else "secondo l'orario"
+    val linea = if (arrivo.capolinea.isEmpty()) arrivo.nomeLinea else tx("{0} per {1}", arrivo.nomeLinea, daLeggere(arrivo.capolinea))
+    val fonte = primo.avviso?.let { testoAvviso(it) } ?: if (primo.tracciato) tx("in tempo reale") else tx("secondo l'orario")
+    val quando = if (minuti < 1) tx("In arrivo, {0}.", fonte) else txn("Tra {0} minuto, {1}.", "Tra {0} minuti, {1}.", minuti, fonte)
     val successivi = arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) }
     val poi = when {
         successivi.isEmpty() -> ""
-        successivi.size == 1 && successivi[0] < 1 -> " Poi un altro in arrivo."
-        successivi.size == 1 -> " Poi tra " + minutiAParole(successivi[0]) + "."
-        successivi[0] < 1 -> " Poi un altro in arrivo e uno tra " + minutiAParole(successivi[1]) + "."
-        else -> " Poi tra ${successivi[0]} e " + minutiAParole(successivi[1]) + "."
+        successivi.size == 1 && successivi[0] < 1 -> " " + tx("Poi un altro in arrivo.")
+        successivi.size == 1 -> " " + txn("Poi tra {0} minuto.", "Poi tra {0} minuti.", successivi[0])
+        successivi[0] < 1 -> " " + txn("Poi un altro in arrivo e uno tra {0} minuto.", "Poi un altro in arrivo e uno tra {0} minuti.", successivi[1])
+        else -> " " + tx("Poi tra {0} e {1} minuti.", successivi[0], successivi[1])
     }
-    return "${arrivo.nomeLinea}$verso. $quando, $fonte.$poi"
+    return "$linea. $quando$poi"
 }
 
 /** I passaggi dopo il primo, in breve: "poi 9 · 17 min"; "<1" se arrivano quasi insieme. */
 fun testoPoi(minuti: List<Int>): String =
-    if (minuti.isEmpty()) "" else "poi " + minuti.joinToString(" · ") { if (it < 1) "<1" else it.toString() } + " min"
+    if (minuti.isEmpty()) "" else tx("poi {0} min", minuti.joinToString(" · ") { if (it < 1) "<1" else it.toString() })
 
 /**
  * La fermata preferita a cui sei vicino: la piu' vicina entro [raggio] metri.

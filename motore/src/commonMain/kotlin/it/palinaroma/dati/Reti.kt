@@ -16,6 +16,9 @@ enum class Rete(val prefisso: String, val datiTransitous: String, val etichetta:
     TRENITALIA("T:", "it-trenitalia", "Trenitalia"),
     ;
 
+    /** Il nome da mostrare ("Cotral", "Treni Cotral", "Trenitalia") nella lingua dell'app. */
+    val nome: String get() = if (this == COTRAL_TRENI) tx("Treni Cotral") else etichetta
+
     /** I treni: niente GPS dei mezzi, si parla di stazioni e di ritardi. */
     val treni: Boolean get() = this == COTRAL_TRENI || this == TRENITALIA
 

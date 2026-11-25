@@ -80,6 +80,9 @@ import it.palinaroma.dati.etaRilevamento
 import it.palinaroma.dati.mezzoDellaCorsa
 import it.palinaroma.dati.testoDurata
 import it.palinaroma.dati.testoMetri
+import it.palinaroma.dati.dettaglioTragitto
+import it.palinaroma.dati.tx
+import it.palinaroma.dati.txn
 import it.palinaroma.dati.fermataLocale
 import it.palinaroma.dati.testoVetturaTragitto
 import it.palinaroma.dati.vettureTragitto
@@ -129,21 +132,16 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
     Scaffold(
         topBar = {
             BarraSuperiore(
-                titolo = tragitto?.let { "${ora(it.partenza)} – ${ora(it.arrivo)}" } ?: "Tragitto",
-                sottotitolo = tragitto?.let {
-                    testoDurata(it.durata) + when (it.cambi) {
-                        0 -> if (it.mezzi.isEmpty()) " a piedi" else " · nessun cambio"
-                        1 -> " · 1 cambio"
-                        else -> " · ${it.cambi} cambi"
-                    }
-                },
+                titolo = tragitto?.let { "${ora(it.partenza)} – ${ora(it.arrivo)}" } ?: tx("Tragitto"),
+                // gli stessi testi del dettaglio sull'iPhone, dal motore
+                sottotitolo = tragitto?.let { dettaglioTragitto(it).sottotitolo },
                 indietro = indietro,
             )
         },
     ) { margini ->
         if (tragitto == null) {
             Text(
-                "Questo tragitto non è più disponibile: torna indietro e cercalo di nuovo.",
+                tx("Questo tragitto non è più disponibile: torna indietro e cercalo di nuovo."),
                 color = Secondario,
                 modifier = Modifier
                     .padding(margini)
@@ -201,7 +199,7 @@ private fun RigaEstremo(partenza: Boolean, nome: String, istante: Long) {
     ) {
         Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) { PallinoTappa(partenza, 18.dp) }
         Text(
-            (if (partenza) "Parti da " else "Arrivi a ") + nome,
+            if (partenza) tx("Parti da {0}", nome) else tx("Arrivi a {0}", nome),
             fontWeight = FontWeight.Bold,
             modifier = Modifier
                 .weight(1f)
@@ -253,14 +251,14 @@ private fun BloccoAPiedi(t: Tratto) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconaPiedi(lato = 18.dp)
                 Text(
-                    "A piedi · " + testoDurata(t.durata) + (t.metri?.takeIf { it > 0 }?.let { " · " + testoMetri(it) } ?: ""),
+                    tx("A piedi") + " · " + testoDurata(t.durata) + (t.metri?.takeIf { it > 0 }?.let { " · " + testoMetri(it) } ?: ""),
                     color = Secondario,
                     modifier = Modifier.padding(start = 6.dp),
                 )
             }
             if (t.passi.size > 1) {
                 TextButton(onClick = { aperto = !aperto }, contentPadding = PaddingValues(0.dp)) {
-                    Text(if (aperto) "Nascondi le indicazioni" else "Indicazioni a piedi", color = Accento)
+                    Text(if (aperto) tx("Nascondi le indicazioni") else tx("Indicazioni a piedi"), color = Accento)
                     Icon(
                         if (aperto) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                         contentDescription = null,
@@ -321,7 +319,7 @@ private fun BloccoMezzo(t: Tratto, vettura: MezzoRT?, adesso: Long, apriFermata:
                 BadgeLinea(t.linea.ifEmpty { t.nomeMezzo }, grande = true)
                 Column(Modifier.padding(start = 10.dp)) {
                     Text(
-                        if (t.direzione.isNotEmpty()) "${t.nomeMezzo} per ${t.direzione}" else t.nomeMezzo,
+                        if (t.direzione.isNotEmpty()) tx("{0} per {1}", t.nomeMezzo, t.direzione) else t.nomeMezzo,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -332,10 +330,10 @@ private fun BloccoMezzo(t: Tratto, vettura: MezzoRT?, adesso: Long, apriFermata:
                 }
             }
             if (t.cancellato) {
-                Text("Corsa soppressa", color = Accento, fontWeight = FontWeight.Bold)
+                Text(tx("Corsa soppressa"), color = Accento, fontWeight = FontWeight.Bold)
             }
             if (vettura != null) RigaVettura(t, vettura, adesso)
-            RigaFermataTragitto("Sali a", t.da, t.partenza, t.partenzaPrevista, t.tempoReale)
+            RigaFermataTragitto(tx("Sali a {0}"), t.da, t.partenza, t.partenzaPrevista, t.tempoReale)
             val fermate = t.intermedie.size + 1
             TextButton(
                 onClick = { aperto = !aperto },
@@ -343,7 +341,7 @@ private fun BloccoMezzo(t: Tratto, vettura: MezzoRT?, adesso: Long, apriFermata:
                 contentPadding = PaddingValues(0.dp),
             ) {
                 Text(
-                    (if (fermate == 1) "1 fermata" else "$fermate fermate") + " · " + testoDurata(t.durata),
+                    txn("{0} fermata", "{0} fermate", fermate) + " · " + testoDurata(t.durata),
                     color = if (t.intermedie.isNotEmpty()) Accento else Secondario,
                 )
                 if (t.intermedie.isNotEmpty()) {
@@ -368,7 +366,7 @@ private fun BloccoMezzo(t: Tratto, vettura: MezzoRT?, adesso: Long, apriFermata:
                     }
                 }
             }
-            RigaFermataTragitto("Scendi a", t.a, t.arrivo, t.arrivoPrevisto, t.tempoReale)
+            RigaFermataTragitto(tx("Scendi a {0}"), t.a, t.arrivo, t.arrivoPrevisto, t.tempoReale)
             t.avvisi.forEach { avviso ->
                 Row(
                     Modifier
@@ -383,7 +381,7 @@ private fun BloccoMezzo(t: Tratto, vettura: MezzoRT?, adesso: Long, apriFermata:
             }
             salita?.let { f ->
                 Text(
-                    "Tempi d'attesa a ${f.nome} ›",
+                    tx("Tempi d'attesa a {0} ›", f.nome),
                     color = Accento,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
@@ -418,10 +416,10 @@ private fun RigaVettura(t: Tratto, vettura: MezzoRT, adesso: Long) {
 private fun RigaFermataTragitto(azione: String, tappa: Tappa, istante: Long, previsto: Long, tempoReale: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text("$azione ${tappa.nome}", maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(tx(azione, tappa.nome), maxLines = 2, overflow = TextOverflow.Ellipsis)
             val dettagli = listOfNotNull(
-                tappa.codice?.let { "Palina $it" },
-                tappa.binario?.let { "Binario $it" },
+                tappa.codice?.let { tx("Palina {0}", it) },
+                tappa.binario?.let { tx("Binario {0}", it) },
             )
             if (dettagli.isNotEmpty()) {
                 Text(dettagli.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = Secondario)
@@ -435,7 +433,7 @@ private fun RigaFermataTragitto(azione: String, tappa: Tappa, istante: Long, pre
                     when {
                         ritardo > 0 -> "+$ritardo min"
                         ritardo < 0 -> "$ritardo min"
-                        else -> "in orario"
+                        else -> tx("in orario")
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = if (ritardo != 0) Accento else Secondario,
@@ -579,7 +577,7 @@ internal fun MappaTragitto(
                 position = GeoPoint(v.lat, v.lon)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 icon = iconaVettura(m.context.resources, t.linea.ifEmpty { t.nomeMezzo }, v.rotta, true, vecchia, densita)
-                title = "Vettura " + v.etichetta
+                title = tx("Vettura {0}", v.etichetta)
             })
         }
         m.overlays.add(diritti)

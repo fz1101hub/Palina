@@ -9,8 +9,12 @@ struct PalinaApp: App {
     @StateObject private var tragitti = Tragitti()
     @StateObject private var seguito = Seguito()
     @AppStorage("aspetto") private var aspetto = "AUTOMATICO"
+    /** La lingua scelta in Palina ("" come il telefono): cambiandola si ridisegna tutto. */
+    @AppStorage("lingua") private var lingua = ""
 
     init() {
+        // la lingua dei testi del motore: quella del telefono o quella scelta in Palina
+        LinguaApp.imposta()
         // la rete del motore; il contatto e' l'indirizzo del progetto, mai una email
         let versione = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
         MotoreSchermateKt.preparaMotore(agenteUtente: "PalinaRoma-iOS/\(versione)")
@@ -38,12 +42,17 @@ struct PalinaApp: App {
                     if primo, let fermata = Prova.tragittoVerso { tragitti.versoFermata(fermata) }
                 }
                 .task { await seguito.ciclo() }
-                .alert("Segui", isPresented: Binding(get: { seguito.messaggio != nil }, set: { if !$0 { seguito.messaggio = nil } })) {
+                .alert(tx("Segui"), isPresented: Binding(get: { seguito.messaggio != nil }, set: { if !$0 { seguito.messaggio = nil } })) {
                     Button("OK", role: .cancel) { seguito.messaggio = nil }
                 } message: {
                     Text(seguito.messaggio ?? "")
                 }
                 .preferredColorScheme(aspetto == "CHIARO" ? .light : aspetto == "SCURO" ? .dark : nil)
+                .id(lingua)
+                .onChange(of: lingua) {
+                    LinguaApp.imposta()
+                    tragitti.aggiorna()
+                }
         }
     }
 }

@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import it.palinaroma.dati.POSIZIONE_VECCHIA_SECONDI
+import it.palinaroma.dati.tx
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -118,7 +119,7 @@ fun iconaVettura(
     return icona
 }
 
-/** Pallino oro "GPS" (per i treni "tempo reale") oppure scritta grigia "da orario". */
+/** Pallino oro "GPS" (per i treni "tempo reale") oppure scritta grigia tx("da orario"). */
 @Composable
 fun FonteTempo(tracciato: Boolean, modifier: Modifier = Modifier, etichetta: String = "GPS") {
     if (tracciato) {
@@ -131,6 +132,6 @@ fun FonteTempo(tracciato: Boolean, modifier: Modifier = Modifier, etichetta: Str
             Text(etichetta, style = MaterialTheme.typography.labelSmall, color = Accento, fontWeight = FontWeight.Bold)
         }
     } else {
-        Text("da orario", style = MaterialTheme.typography.labelSmall, color = Secondario, modifier = modifier)
+        Text(tx("da orario"), style = MaterialTheme.typography.labelSmall, color = Secondario, modifier = modifier)
     }
 }

@@ -28,14 +28,13 @@ import androidx.wear.watchface.complications.datasource.SuspendingComplicationDa
 import com.google.common.util.concurrent.ListenableFuture
 import it.palinaroma.ponte.RigaOrologio
 import it.palinaroma.ponte.TabelloneOrologio
+import it.palinaroma.ponte.oraBreve
+import it.palinaroma.dati.tx
 import it.palinaroma.ponte.fermataDelRiquadro
 import it.palinaroma.ponte.primoPassaggio
 import it.palinaroma.ponte.prossimi
 import it.palinaroma.ponte.testoPassaggi
-import java.text.SimpleDateFormat
 import java.time.Instant
-import java.util.Date
-import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 private const val VERSIONE_RISORSE = "1"
@@ -87,7 +86,7 @@ fun contenutoRiquadro(t: TabelloneOrologio?, adesso: Long, pacchetto: String): L
         colonna.addContent(spazio(4f))
         colonna.addContent(
             testo(
-                t?.nota ?: "Apri Palina per chiedere i tempi al telefono",
+                t?.nota ?: tx("Apri Palina per chiedere i tempi al telefono"),
                 12f, GRIGIO, righe = 3,
             ),
         )
@@ -95,13 +94,12 @@ fun contenutoRiquadro(t: TabelloneOrologio?, adesso: Long, pacchetto: String): L
         colonna.addContent(testo(fermata.nome, 14f, ORO, grassetto = true))
         colonna.addContent(spazio(6f))
         val righe = fermata.righe.filter { it.prossimi(adesso).isNotEmpty() }.take(3)
-        if (righe.isEmpty()) colonna.addContent(testo("Nessun passaggio a breve", 12f, GRIGIO, righe = 2))
+        if (righe.isEmpty()) colonna.addContent(testo(tx("Nessun passaggio a breve"), 12f, GRIGIO, righe = 2))
         righe.forEach { r ->
             colonna.addContent(rigaRiquadro(r, adesso))
             colonna.addContent(spazio(4f))
         }
-        val ora = SimpleDateFormat("HH:mm", Locale.ITALY).format(Date(t!!.creato))
-        colonna.addContent(testo("tempi delle $ora", 10f, GRIGIO))
+        colonna.addContent(testo(tx("tempi delle {0}", oraBreve(t!!.creato)), 10f, GRIGIO))
     }
     val apri = ModifiersBuilders.Clickable.Builder()
         .setId("apri")
@@ -217,7 +215,7 @@ fun testoComplicazione(linea: String, quando: Long, fermata: String, tocco: Pend
         .setMinimumTimeUnit(TimeUnit.MINUTES)
         .setDisplayAsNow(true)
         .build()
-    return ShortTextComplicationData.Builder(conto, PlainComplicationText.Builder("Linea $linea a $fermata").build())
+    return ShortTextComplicationData.Builder(conto, PlainComplicationText.Builder(tx("Linea {0} a {1}", linea, fermata)).build())
         .setTitle(PlainComplicationText.Builder(linea.take(7)).build())
         .apply { if (tocco != null) setTapAction(tocco) }
         .build()

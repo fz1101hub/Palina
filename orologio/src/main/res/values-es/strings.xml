@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generato da strumenti/traduzioni.py: non modificare a mano. -->
+<resources>
+    <string name="riquadro">Palina: próximos pasos</string>
+    <string name="riquadro_descrizione">Los próximos autobuses y trenes de la parada favorita más cercana</string>
+    <string name="complicazione">Palina: próximo paso</string>
+</resources>

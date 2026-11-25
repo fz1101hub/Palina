@@ -27,12 +27,12 @@ fun coloreReteArgb(id: String): Long = when (Rete.di(id)) {
 /** Sotto il nome di una fermata: "Palina 70078", "Cotral · palina 12345", "Stazione · Trenitalia". */
 fun descrizioneFermata(fermata: Fermata, orario: Orario?): String {
     // le stazioni di scambio: "Stazione · Metro B/B1 · Metromare"
-    orario?.lineeStazioneUnita(fermata.id)?.let { return "Stazione · $it" }
+    orario?.lineeStazioneUnita(fermata.id)?.let { return tx("Stazione · {0}", it) }
     val rete = Rete.di(fermata.id)
     return when {
-        rete == Rete.ROMA -> "Palina ${fermata.codice}"
-        rete.treni -> "Stazione · ${rete.etichetta}"
-        else -> "${rete.etichetta} · palina ${fermata.codice}"
+        rete == Rete.ROMA -> tx("Palina {0}", fermata.codice)
+        rete.treni -> tx("Stazione · {0}", rete.nome)
+        else -> tx("{0} · palina {1}", rete.nome, fermata.codice)
     }
 }
 
@@ -53,6 +53,8 @@ data class VoceFermata(
     val colore: Long,
     /** Il testo per chi usa il lettore dello schermo. */
     val perVoce: String,
+    /** Lo stesso senza le linee (in Home al loro posto ci sono i tempi). */
+    val perVoceSenzaLinee: String,
     val lat: Double,
     val lon: Double,
 )
@@ -66,11 +68,11 @@ fun voceFermata(fermata: Fermata, distanzaMetri: Double?, orario: Orario?): Voce
     val perVoce = buildString {
         append(fermata.nome)
         val unita = orario?.lineeStazioneUnita(fermata.id)
-        if (unita != null) append(", " + unita.replace(" · ", ", ")) else if (rete != Rete.ROMA) append(", ${rete.etichetta}")
-        if (distanzaMetri != null) append(", a ${distanzaMetri.roundToInt()} metri")
-        append(if (rete.treni) ". Stazione." else ". Palina ${fermata.codice}.")
-        if (linee.isNotEmpty()) append(" Linee " + linee.take(14).joinToString(", ") + ".")
+        if (unita != null) append(", " + unita.replace(" · ", ", ")) else if (rete != Rete.ROMA) append(", " + rete.nome)
+        if (distanzaMetri != null) append(tx(", a {0} metri", distanzaMetri.roundToInt()))
+        append(if (rete.treni) tx(". Stazione.") else tx(". Palina {0}.", fermata.codice))
     }
+    val conLinee = if (linee.isEmpty()) perVoce else perVoce + " " + tx("Linee {0}.", linee.take(14).joinToString(", "))
     return VoceFermata(
         id = fermata.id,
         nome = fermata.nome,
@@ -78,7 +80,8 @@ fun voceFermata(fermata: Fermata, distanzaMetri: Double?, orario: Orario?): Voce
         distanza = distanzaMetri?.let { testoDistanzaBreve(it) },
         linee = linee.take(14),
         colore = coloreReteArgb(fermata.id),
-        perVoce = perVoce,
+        perVoce = conLinee,
+        perVoceSenzaLinee = perVoce,
         lat = fermata.lat,
         lon = fermata.lon,
     )
@@ -122,11 +125,11 @@ data class PillolaPassaggio(val testo: String, val tempoReale: Boolean)
 fun pillolaPassaggio(arrivo: Arrivo, adesso: Long): PillolaPassaggio {
     val primo = arrivo.passaggi.first()
     val minuti = minutiAttesa(primo.orario, adesso)
-    val tempo = if (minuti < 1) "in arrivo" else "$minuti′"
+    val tempo = if (minuti < 1) tx("in arrivo") else "$minuti′"
     val testo = when {
-        primo.avviso == "soppresso" -> "${arrivo.nomeLinea} · soppresso"
+        primo.avviso == "soppresso" -> arrivo.nomeLinea + " · " + tx("soppresso")
         primo.tracciato -> "${arrivo.nomeLinea} · $tempo"
-        else -> "${arrivo.nomeLinea} · $tempo orario"
+        else -> arrivo.nomeLinea + " · " + tx("{0} orario", tempo)
     }
     return PillolaPassaggio(testo, primo.tracciato)
 }
@@ -137,10 +140,10 @@ data class FermataConTempi(val voce: VoceFermata, val pillole: List<PillolaPassa
 fun fermateConTempi(voci: List<VoceFermata>, arrivi: ArriviFermate, adesso: Long): List<FermataConTempi> =
     voci.map { v ->
         val presi = ancoraAttesi(arrivi.perFermata[v.id].orEmpty(), adesso).take(4)
-        val perVoce = if (presi.isEmpty()) v.perVoce else v.perVoce.substringBefore(" Linee ") + " " +
+        val perVoce = if (presi.isEmpty()) v.perVoce else v.perVoceSenzaLinee + " " +
             presi.joinToString(" ") { a ->
                 val m = minutiAttesa(a.passaggi.first().orario, adesso)
-                "${a.nomeLinea} " + (if (m < 1) "in arrivo" else "tra $m minuti") + "."
+                if (m < 1) tx("{0} in arrivo.", a.nomeLinea) else tx("{0} tra {1} minuti.", a.nomeLinea, m)
             }
         FermataConTempi(
             voce = v,
@@ -157,10 +160,10 @@ fun fermateComplete(preferite: List<Fermata>, vicine: List<Fermata>): List<Ferma
 /** L'avviso sopra i tempi, se la rete non risponde o Roma Mobilita' e' ferma; null se va tutto bene. */
 fun avvisoArrivi(arrivi: ArriviFermate, conRoma: Boolean): String? = when {
     arrivi.errore && arrivi.aggiornatoAlle > 0 ->
-        "Non riesco ad aggiornare: i tempi sono quelli delle ${oraARoma(arrivi.aggiornatoAlle)}."
-    arrivi.errore -> "Non riesco a leggere i tempi d'attesa. Controlla la connessione."
+        tx("Non riesco ad aggiornare: i tempi sono quelli delle {0}.", oraARoma(arrivi.aggiornatoAlle))
+    arrivi.errore -> tx("Non riesco a leggere i tempi d'attesa. Controlla la connessione.")
     arrivi.romaFerma && conRoma ->
-        "Roma Mobilità ora non pubblica il tempo reale: i tempi di Roma sono calcolati sull'orario."
+        tx("Roma Mobilità ora non pubblica il tempo reale: i tempi di Roma sono calcolati sull'orario.")
     else -> null
 }
 
@@ -219,21 +222,21 @@ fun rigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean = false, stazione:
         },
         nome = arrivo.nomeLinea,
         colore = coloreReteArgb(arrivo.lineaId),
-        capolinea = arrivo.capolinea.ifEmpty { "Direzione non indicata" },
+        capolinea = arrivo.capolinea.ifEmpty { tx("Direzione non indicata") },
         capolineaNoto = arrivo.capolinea.isNotEmpty(),
         poi = testoPoi(arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) }),
         attesa = when {
-            soppresso -> "soppresso"
-            minuti < 1 -> "in arrivo"
+            soppresso -> tx("soppresso")
+            minuti < 1 -> tx("in arrivo")
             else -> minuti.toString()
         },
         minuti = !soppresso && minuti >= 1,
         sotto = when {
             soppresso -> oraARoma(primo.orario * 1000)
-            primo.avviso != null -> primo.avviso
-            !primo.tracciato -> "da orario"
+            primo.avviso != null -> testoAvviso(primo.avviso)
+            !primo.tracciato -> tx("da orario")
             rete == Rete.ROMA || primo.gps -> "GPS"
-            else -> "tempo reale"
+            else -> tx("tempo reale")
         },
         tempoReale = primo.tracciato,
         evidenzia = soppresso || primo.avviso != null,
@@ -272,9 +275,9 @@ fun tabelloneFermata(
         fissateSenzaPassaggi = diviso.senzaPassaggi.map { nomiLinee[it] ?: it },
         altre = diviso.altre.map { rigaArrivo(it, adesso, stazione = stazioneDi(it)) },
         conFissate = fissate.isNotEmpty(),
-        suggerimento = if (fissate.isEmpty() && diviso.altre.isNotEmpty()) "Tocca la puntina accanto a una linea: resta in cima qui e in Home." else null,
+        suggerimento = if (fissate.isEmpty() && diviso.altre.isNotEmpty()) tx("Tocca la puntina accanto a una linea: resta in cima qui e in Home.") else null,
         avviso = avvisoArrivi(arrivi, Rete.di(fermataId) == Rete.ROMA),
-        aggiornato = if (arrivi.aggiornatoAlle > 0) "Aggiornato " + testoAggiornato(arrivi.aggiornatoAlle, adessoMs) else null,
+        aggiornato = if (arrivi.aggiornatoAlle > 0) tx("Aggiornato {0}", testoAggiornato(arrivi.aggiornatoAlle, adessoMs)) else null,
     )
 }
 
@@ -332,13 +335,37 @@ fun statoHome(
         evidenza = evidenza?.let { scheda(it.first, it.second) },
         titoloPreferite = when {
             resto.isEmpty() -> null
-            evidenza == null -> "Preferiti"
-            else -> "Altri preferiti"
+            evidenza == null -> tx("Preferiti")
+            else -> tx("Altri preferiti")
         },
         preferite = resto.map { scheda(it.first, it.second) },
         vicine = fermateConTempi(vicine, arrivi, adesso),
         avviso = avvisoArrivi(arrivi, conRoma),
-        aggiornato = if (arrivi.aggiornatoAlle > 0) "aggiornato " + testoAggiornato(arrivi.aggiornatoAlle, adessoMs) else null,
-        suggerimento = if (ordine.ordinate.isEmpty()) "Tocca il cuore in una fermata: la ritrovi qui in cima, con i suoi tempi." else null,
+        aggiornato = if (arrivi.aggiornatoAlle > 0) tx("aggiornato {0}", testoAggiornato(arrivi.aggiornatoAlle, adessoMs)) else null,
+        suggerimento = if (ordine.ordinate.isEmpty()) tx("Tocca il cuore in una fermata: la ritrovi qui in cima, con i suoi tempi.") else null,
     )
+}
+
+/** Gli avvisi delle corse ("soppresso", "bus sostitutivo") nella lingua dell'app. */
+fun testoAvviso(avviso: String): String = when (avviso) {
+    "soppresso" -> tx("soppresso")
+    "bus sostitutivo" -> tx("bus sostitutivo")
+    else -> avviso
+}
+
+/** La spiegazione sotto il tabellone di una fermata: da dove vengono i tempi e cosa si puo' toccare. */
+fun legendaFermata(rete: Rete, conAstral: Boolean, conMetro: Boolean): String = when (rete) {
+    Rete.ROMA ->
+        tx("Cifre oro con il pallino: vettura vista ora dal GPS. Grigie: tempo calcolato sull'orario. Tocca una riga per vedere la vettura sulla mappa, trascina giù per aggiornare.")
+    Rete.COTRAL ->
+        tx("Cifre oro con il pallino: in tempo reale (Cotral, tramite Transitous); «GPS»: il bus è visto ora dal GPS (BusOne). Grigie: orario programmato. Tocca una riga per vedere il bus o il percorso.")
+    Rete.COTRAL_TRENI -> (
+        if (conAstral) {
+            tx("Orari, ritardi e soppressioni dei treni: ASTRAL. Cifre oro: ritardo già comunicato; grigie: orario programmato. Tocca un treno per vedere tutte le sue fermate.")
+        } else {
+            tx("Ritardi dei treni non disponibili ora (ASTRAL non risponde, o di notte non ha ancora l'orario del giorno): vedi l'orario programmato. Tocca un treno per vedere tutte le sue fermate.")
+        }
+        ) + if (conMetro) " " + tx("Qui ci sono anche le banchine della metro: i loro tempi sono da orario.") else ""
+    Rete.TRENITALIA ->
+        tx("Cifre oro con il pallino: in tempo reale (Trenitalia, tramite Transitous). Grigie: orario programmato. Tocca un treno per vedere tutte le sue fermate.")
 }

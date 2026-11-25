@@ -54,7 +54,7 @@ final class Archivio: ObservableObject {
         let scelta = Self.scegliFile(memoria: memoria)
         Task.detached(priority: .userInitiated) {
             guard let scelta else {
-                await MainActor.run { self.errore = "Manca l'orario incluso nell'app." }
+                await MainActor.run { self.errore = tx("Manca l'orario incluso nell'app.") }
                 return
             }
             Self.pulisci(tenendo: [scelta.roma, scelta.reti].compactMap { $0 })
@@ -133,7 +133,7 @@ final class Archivio: ObservableObject {
             if Date().timeIntervalSince1970 - ultimo < 24 * 3600 { return }
             guard await Self.reteSenzaLimiti() else { return }
         }
-        aggiornamento = .inCorso("Controllo se c'è un orario nuovo…")
+        aggiornamento = .inCorso(tx("Controllo se c'è un orario nuovo…"))
         do {
             let (dati, _) = try await URLSession.shared.data(from: URL(string: Self.indirizzo + "orari-iphone.json")!)
             let disponibili = try JSONDecoder().decode(Disponibili.self, from: dati)
@@ -143,12 +143,12 @@ final class Archivio: ObservableObject {
             var nuovi = false
             // nelle prove si scarica anche se quello incluso e' gia' il piu' recente
             if disponibili.orario > (Prova.aggiorna ? 0 : creato) {
-                aggiornamento = .inCorso("Scarico l'orario di Roma…")
+                aggiornamento = .inCorso(tx("Scarico l'orario di Roma…"))
                 try await scarica("orario", creato: disponibili.orario)
                 nuovi = true
             }
             if let reti = disponibili.reti, reti > (Prova.aggiorna ? 0 : creatoReti) {
-                aggiornamento = .inCorso("Scarico le reti Cotral e Trenitalia…")
+                aggiornamento = .inCorso(tx("Scarico le reti Cotral e Trenitalia…"))
                 try await scarica("reti", creato: reti)
                 nuovi = true
             }
@@ -196,10 +196,10 @@ final class Archivio: ObservableObject {
 
     nonisolated private static func descrivi(_ errore: Error) -> String {
         switch errore {
-        case ErroreOrario.risposta(let codice): return "il server ha risposto \(codice)."
-        case ErroreOrario.incompleto: return "il file scaricato non è completo."
-        case is DecodingError: return "le informazioni sull'orario non sono leggibili."
-        default: return "controlla la connessione e riprova."
+        case ErroreOrario.risposta(let codice): return tx("il server ha risposto {0}.", codice)
+        case ErroreOrario.incompleto: return tx("il file scaricato non è completo.")
+        case is DecodingError: return tx("le informazioni sull'orario non sono leggibili.")
+        default: return tx("controlla la connessione e riprova.")
         }
     }
 

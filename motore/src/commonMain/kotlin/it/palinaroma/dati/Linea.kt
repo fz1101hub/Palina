@@ -108,37 +108,35 @@ fun testoVetture(
 ): String {
     val rete = Rete.di(lineaId)
     val principale = if (!lineaConVetture(lineaId)) {
-        "${rete.etichetta}: la posizione dei mezzi non è disponibile, solo il percorso"
+        tx("{0}: la posizione dei mezzi non è disponibile, solo il percorso", rete.nome)
     } else if (romaFerma && inDirezione == 0 && altre == 0) {
-        "Roma Mobilità ora non pubblica le posizioni delle vetture"
+        tx("Roma Mobilità ora non pubblica le posizioni delle vetture")
     } else if (rete == Rete.COTRAL) {
         when (inDirezione) {
-            0 -> if (caricato) "Nessun bus GPS in questa direzione" else "Cerco i bus…"
-            else -> "$inDirezione bus GPS in questa direzione"
+            0 -> if (caricato) tx("Nessun bus GPS in questa direzione") else tx("Cerco i bus…")
+            else -> txn("{0} bus GPS in questa direzione", "{0} bus GPS in questa direzione§molti", inDirezione)
         } + if (caricato) " (BusOne)" else ""
     } else {
         when (inDirezione) {
-            0 -> if (caricato) "Nessuna vettura GPS in questa direzione" else "Cerco le vetture…"
-            1 -> "1 vettura GPS in questa direzione"
-            else -> "$inDirezione vetture GPS in questa direzione"
+            0 -> if (caricato) tx("Nessuna vettura GPS in questa direzione") else tx("Cerco le vetture…")
+            else -> txn("{0} vettura GPS in questa direzione", "{0} vetture GPS in questa direzione", inDirezione)
         }
     }
     return principale + when (altre) {
         0 -> ""
-        1 -> " · 1 nell'altra (in grigio)"
-        else -> " · $altre nell'altra (in grigio)"
+        else -> " · " + txn("{0} nell'altra (in grigio)", "{0} nell'altra (in grigio)§molti", altre)
     } + if (aggiornatoAlle > 0) " · ${oraARoma(aggiornatoAlle)}" else ""
 }
 
 /** "Sei a 300 m da Piazza Venezia, la sua fermata più vicina ›" (o solo la distanza, se e' lontana). */
 fun testoFermataVicinaLinea(nomeFermata: String, metri: Double): String =
-    if (metri > 3_000) "Sei a ${testoMetri(metri)} da questa linea"
-    else "Sei a ${testoMetri(metri)} da $nomeFermata, la sua fermata più vicina ›"
+    if (metri > 3_000) tx("Sei a {0} da questa linea", testoMetri(metri))
+    else tx("Sei a {0} da {1}, la sua fermata più vicina ›", testoMetri(metri), nomeFermata)
 
 /** "in arrivo" oppure "7 min" ([orario] e [adesso] in secondi). */
 fun minutiOInArrivo(orario: Long, adesso: Long): String {
     val minuti = ((orario - adesso) / 60).toInt()
-    return if (minuti < 1) "in arrivo" else "$minuti min"
+    return if (minuti < 1) tx("in arrivo") else tx("{0} min", minuti)
 }
 
 /** I testi della scheda di una vettura toccata sulla mappa. */
@@ -169,33 +167,39 @@ fun schedaVettura(
     val eta = etaRilevamento(mezzo.rilevato, adesso)
     val vecchia = mezzo.rilevato > 0 && adesso - mezzo.rilevato > POSIZIONE_VECCHIA_SECONDI
     val avvisi = buildList {
-        if (vecchia) add("Il segnale è vecchio: la vettura potrebbe essere più avanti.")
+        if (vecchia) add(tx("Il segnale è vecchio: la vettura potrebbe essere più avanti."))
         if (distanzaPercorso != null) {
-            add(
-                "È a ${testoMetri(distanzaPercorso)} dal percorso della linea: forse è in deviazione, " +
-                    "in rimessa o sta andando al capolinea.",
-            )
+            add(tx("È a {0} dal percorso della linea: forse è in deviazione, in rimessa o sta andando al capolinea.", testoMetri(distanzaPercorso)))
         }
     }
     val testoArrivo = if (attesa && fermata != null) {
         val metri = distanzaMetri(mezzo.lat, mezzo.lon, fermata.lat, fermata.lon)
-        val quando = arrivo?.let { " " + minutiOInArrivo(it, adesso).let { t -> if (t == "in arrivo") t else "tra $t" } } ?: ""
-        "Arriva a ${fermata.nome}$quando · a ${testoMetri(metri)} in linea d'aria"
+        val minuti = arrivo?.let { ((it - adesso) / 60).toInt() }
+        when {
+            minuti == null -> tx("Arriva a {0} · a {1} in linea d'aria", fermata.nome, testoMetri(metri))
+            minuti < 1 -> tx("Arriva a {0} in arrivo · a {1} in linea d'aria", fermata.nome, testoMetri(metri))
+            else -> tx("Arriva a {0} tra {1} min · a {2} in linea d'aria", fermata.nome, minuti, testoMetri(metri))
+        }
     } else {
         null
     }
     return SchedaVettura(
-        titolo = (if (attesa) "La tua vettura" else "Vettura") + (if (mezzo.etichetta.isNotBlank()) " ${mezzo.etichetta}" else ""),
-        rilevata = if (eta != null) "posizione rilevata $eta" else "posizione in tempo reale",
+        titolo = when {
+            mezzo.etichetta.isBlank() -> if (attesa) tx("La tua vettura") else tx("Vettura")
+            attesa -> tx("La tua vettura {0}", mezzo.etichetta)
+            else -> tx("Vettura {0}", mezzo.etichetta)
+        },
+        rilevata = if (eta != null) tx("posizione rilevata {0}", eta) else tx("posizione in tempo reale"),
         vecchia = vecchia,
         avvisi = avvisi,
-        altraDirezione = if (altraDirezione) "Va nell'altra direzione · mostra quella direzione ›" else null,
+        altraDirezione = if (altraDirezione) tx("Va nell'altra direzione · mostra quella direzione ›") else null,
         arrivo = testoArrivo,
     )
 }
 
 /** La corsa attesa non ha una vettura con il GPS: il tempo e' quello dell'orario. */
 fun testoSenzaGps(fermata: Fermata?, arrivo: Long?, adesso: Long): String =
-    "Il tempo d'attesa" + (fermata?.let { " a ${it.nome}" } ?: "") +
-        (arrivo?.let { " (" + minutiOInArrivo(it, adesso) + ")" } ?: "") +
-        " è calcolato sull'orario programmato: la vettura potrebbe non essere ancora partita."
+    tx(
+        "Il tempo d'attesa{0} è calcolato sull'orario programmato: la vettura potrebbe non essere ancora partita.",
+        (fermata?.let { " " + tx("a {0}", it.nome) } ?: "") + (arrivo?.let { " (" + minutiOInArrivo(it, adesso) + ")" } ?: ""),
+    )

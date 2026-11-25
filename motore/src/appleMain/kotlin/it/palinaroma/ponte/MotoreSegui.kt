@@ -2,6 +2,7 @@ package it.palinaroma.ponte
 
 import it.palinaroma.dati.Orario
 import it.palinaroma.dati.adessoMs
+import it.palinaroma.dati.tx
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -93,7 +94,7 @@ class MotoreSegui(private val orario: Orario) {
             tempoReale = s.tempoReale,
             titolo = titoloSegui(s),
             testo = testoSegui(s, adesso),
-            fonte = if (s.tempoReale) "tempo reale" else "da orario",
+            fonte = if (s.tempoReale) tx("tempo reale") else tx("da orario"),
             avvisoAlleMs = (s.obiettivo - AVVISO_SECONDI) * 1000,
             avvisoTitolo = titoloAvvisoSegui(avviso),
             avvisoTesto = testoAvvisoSegui(avviso, maxOf(adesso, s.obiettivo - AVVISO_SECONDI)),

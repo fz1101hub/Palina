@@ -44,6 +44,8 @@ import it.palinaroma.ui.rotta
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // la lingua dei testi (del motore): quella del telefono o quella scelta in Palina
+        Archivio.linguaDelSistemaCambiata(this)
         enableEdgeToEdge()
         setContent {
             val aspetto by Archivio.aspetto.collectAsStateWithLifecycle()

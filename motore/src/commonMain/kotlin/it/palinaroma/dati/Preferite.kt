@@ -49,20 +49,20 @@ fun schedaPreferita(
     adesso: Long,
 ): SchedaPreferita {
     val sotto = (
-        if (Rete.di(fermata.id) == Rete.ROMA && orario?.lineeStazioneUnita(fermata.id) == null) "palina ${fermata.codice}"
+        if (Rete.di(fermata.id) == Rete.ROMA && orario?.lineeStazioneUnita(fermata.id) == null) tx("palina {0}", fermata.codice)
         else descrizioneFermata(fermata, orario)
         ) + (distanza?.let { " · " + testoMetri(it) } ?: "")
     val elenco = arrivi?.let { ancoraAttesi(it, adesso) }
-    if (elenco == null) return SchedaPreferita(fermata, distanza, sotto, "Carico i tempi…", emptyList(), emptyList())
+    if (elenco == null) return SchedaPreferita(fermata, distanza, sotto, tx("Carico i tempi…"), emptyList(), emptyList())
     if (elenco.isEmpty()) {
-        return SchedaPreferita(fermata, distanza, sotto, "Nessun passaggio nei prossimi 90 minuti.", emptyList(), emptyList())
+        return SchedaPreferita(fermata, distanza, sotto, tx("Nessun passaggio nei prossimi 90 minuti."), emptyList(), emptyList())
     }
     val diviso = dividiArrivi(elenco, fissate)
     val principali = if (fissate.isNotEmpty()) diviso.fissate else elenco.take(3)
     val resto = if (fissate.isNotEmpty()) diviso.altre else elenco.drop(3)
     return SchedaPreferita(
         fermata, distanza, sotto,
-        messaggio = if (principali.isEmpty()) "Le linee che hai fissato non passano nei prossimi 90 minuti." else null,
+        messaggio = if (principali.isEmpty()) tx("Le linee che hai fissato non passano nei prossimi 90 minuti.") else null,
         principali = principali,
         altre = resto,
     )

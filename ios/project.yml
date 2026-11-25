@@ -8,6 +8,8 @@ options:
     iOS: "17.0"
     watchOS: "10.0"
   createIntermediateGroups: true
+  # i testi sono in italiano; le traduzioni (en, fr, es, de, pt) vengono dal motore
+  developmentLanguage: it
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -20,6 +22,7 @@ targets:
     sources:
       - path: Palina
       - path: Condiviso/Colore.swift
+      - path: Condiviso/Motore
       - path: Condiviso/Segui
       - path: Risorse
         type: folder
@@ -67,6 +70,7 @@ targets:
     sources:
       - path: PalinaWatch
       - path: Condiviso/Colore.swift
+      - path: Condiviso/Motore
       - path: Condiviso/Orologio
     dependencies:
       - framework: ../motore/build/XCFrameworks/debug/Motore.xcframework

@@ -53,6 +53,10 @@ import androidx.compose.ui.unit.sp
 import it.palinaroma.R
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Arrivo
+import it.palinaroma.dati.giornoLungo
+import it.palinaroma.dati.oraARoma
+import it.palinaroma.dati.pillolaPassaggio
+import it.palinaroma.dati.tx
 import it.palinaroma.dati.Colori
 import it.palinaroma.dati.Fermata
 import it.palinaroma.dati.Rete
@@ -60,9 +64,6 @@ import it.palinaroma.dati.coloreReteArgb
 import it.palinaroma.dati.daLeggere
 import it.palinaroma.dati.descrizioneFermata
 import it.palinaroma.dati.minutiAttesa
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.math.roundToInt
 
 // Colori fissi: porpora (Pantone 202 C) e oro (Pantone 130 C) di Roma. Valgono
@@ -255,7 +256,7 @@ fun BarraSuperiore(
         navigationIcon = {
             if (indietro != null) {
                 IconButton(onClick = indietro) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Indietro")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tx("Indietro"))
                 }
             }
         },
@@ -308,7 +309,7 @@ fun Intestazione(testo: String, modifier: Modifier = Modifier, colore: Color = A
 }
 
 /**
- * I minuti d'attesa grandi, con le cifre a punti: "4 min", oppure "in arrivo".
+ * I minuti d'attesa grandi, con le cifre a punti: "4 min", oppure tx("in arrivo").
  * Oro (o ambra) se la vettura e' seguita col GPS, grigio se il tempo viene dall'orario.
  */
 @Composable
@@ -316,7 +317,7 @@ fun CifreAttesa(minuti: Int, tracciato: Boolean, modifier: Modifier = Modifier, 
     val colore = if (tracciato) Accento else ColoreOrario
     Row(modifier, verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         if (minuti < 1) {
-            Text("in arrivo", color = colore, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(tx("in arrivo"), color = colore, fontWeight = FontWeight.Bold, fontSize = 15.sp)
         } else {
             Text(
                 minuti.toString(),
@@ -326,7 +327,7 @@ fun CifreAttesa(minuti: Int, tracciato: Boolean, modifier: Modifier = Modifier, 
                 fontSize = grandezza.sp,
                 lineHeight = grandezza.sp,
             )
-            Text("min", color = colore, fontSize = 12.sp, modifier = Modifier.padding(bottom = 2.dp))
+            Text(tx("min"), color = colore, fontSize = 12.sp, modifier = Modifier.padding(bottom = 2.dp))
         }
     }
 }
@@ -342,16 +343,11 @@ fun Modifier.riquadroTabellone(fondo: Color, bordo: Color): Modifier =
 @Composable
 fun PillolaAttesa(arrivo: Arrivo, adesso: Long) {
     val primo = arrivo.passaggi.first()
-    val minuti = minutiAttesa(primo.orario, adesso)
-    val tempo = if (minuti < 1) "in arrivo" else "$minuti′"
     val fondo = if (primo.tracciato) AccentoFondo else MaterialTheme.colorScheme.surfaceVariant
     val colore = if (primo.tracciato) Accento else ColoreOrario
     Text(
-        when {
-            primo.avviso == "soppresso" -> "${arrivo.nomeLinea} · soppresso"
-            primo.tracciato -> "${arrivo.nomeLinea} · $tempo"
-            else -> "${arrivo.nomeLinea} · $tempo orario"
-        },
+        // il testo della pillola e' nel motore, uguale sull'iPhone
+        pillolaPassaggio(arrivo, adesso).testo,
         color = colore,
         fontWeight = if (primo.tracciato) FontWeight.Bold else FontWeight.Medium,
         fontSize = 13.sp,
@@ -382,17 +378,17 @@ fun RigaFermata(
         append(daLeggere(fermata.nome))
         // le stazioni di scambio dicono tutte le loro linee: "Metro B/B1, Metromare"
         val unita = Archivio.orario.value?.lineeStazioneUnita(fermata.id)
-        if (unita != null) append(", " + unita.replace(" · ", ", ")) else if (rete != Rete.ROMA) append(", ${rete.etichetta}")
-        if (distanza != null) append(", a ${distanza.roundToInt()} metri")
-        append(if (rete.treni) ". Stazione." else ". Palina ${fermata.codice}.")
+        if (unita != null) append(", " + unita.replace(" · ", ", ")) else if (rete != Rete.ROMA) append(", " + rete.nome)
+        if (distanza != null) append(tx(", a {0} metri", distanza.roundToInt()))
+        append(if (rete.treni) tx(". Stazione.") else tx(". Palina {0}.", fermata.codice))
         if (conTempi) {
             append(" ")
             append(arrivi.orEmpty().take(4).joinToString(" ") { a ->
                 val m = minutiAttesa(a.passaggi.first().orario, adesso)
-                "${a.nomeLinea} " + (if (m < 1) "in arrivo" else "tra $m minuti") + "."
+                if (m < 1) tx("{0} in arrivo.", a.nomeLinea) else tx("{0} tra {1} minuti.", a.nomeLinea, m)
             })
         } else if (linee.isNotEmpty()) {
-            append(" Linee " + linee.take(14).joinToString(", ") + ".")
+            append(" " + tx("Linee {0}.", linee.take(14).joinToString(", ")))
         }
     }
     Column(
@@ -453,12 +449,12 @@ fun RigaFermata(
     HorizontalDivider(color = Divisore, modifier = Modifier.padding(horizontal = 20.dp))
 }
 
-/** "in arrivo" oppure "7 min". */
+/** tx("in arrivo") oppure "7 min". */
 fun testoMinuti(orario: Long, adesso: Long): String {
     val minuti = ((orario - adesso) / 60).toInt()
-    return if (minuti < 1) "in arrivo" else "$minuti min"
+    return if (minuti < 1) tx("in arrivo") else tx("{0} min", minuti)
 }
 
-fun ora(millisecondi: Long): String = SimpleDateFormat("HH:mm", Locale.ITALY).format(Date(millisecondi))
+fun ora(millisecondi: Long): String = oraARoma(millisecondi)
 
-fun giorno(millisecondi: Long): String = SimpleDateFormat("d MMMM yyyy", Locale.ITALY).format(Date(millisecondi))
+fun giorno(millisecondi: Long): String = giornoLungo(millisecondi)

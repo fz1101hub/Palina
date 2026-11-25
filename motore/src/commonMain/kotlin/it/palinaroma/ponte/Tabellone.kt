@@ -3,6 +3,8 @@ package it.palinaroma.ponte
 import it.palinaroma.dati.Json
 import it.palinaroma.dati.ScriviJson
 import it.palinaroma.dati.decimali
+import it.palinaroma.dati.tx
+import it.palinaroma.dati.txn
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.roundToInt
@@ -335,7 +337,7 @@ fun RigaOrologio.prossimi(adesso: Long): List<Long> = orari.filter { it >= adess
 fun testoMinuti(orario: Long, adesso: Long): String {
     val minuti = ((orario - adesso) / 60).coerceAtLeast(0)
     return when {
-        minuti < 1 -> "ora"
+        minuti < 1 -> tx("ora§adesso")
         minuti < 60 -> "$minuti'"
         else -> "${minuti / 60} h " + (minuti % 60).toString().padStart(2, '0') + "'"
     }
@@ -457,3 +459,14 @@ internal fun Map<String, Any?>.testoO(chiave: String): String = when (val v = th
 internal fun Map<String, Any?>.lungo(chiave: String): Long? = (this[chiave] as? Number)?.toLong()
 
 internal fun Map<String, Any?>.intero(chiave: String): Int? = (this[chiave] as? Number)?.toLong()?.toInt()
+
+/** Una riga del tabellone dell'orologio per il lettore dello schermo: "64 verso Termini: 3 minuti, 12 minuti, in tempo reale". */
+fun perVoceRigaOrologio(r: RigaOrologio, adesso: Long): String {
+    val tempi = r.prossimi(adesso).take(3).joinToString(", ") {
+        val minuti = ((it - adesso) / 60).toInt()
+        if (minuti < 1) tx("in arrivo") else txn("{0} minuto", "{0} minuti", minuti)
+    }
+    return tx("{0} verso {1}: {2}", r.linea, r.capolinea, tempi) +
+        ", " + (if (r.tempoReale) tx("in tempo reale") else tx("da orario")) +
+        (r.avviso?.let { ", $it" } ?: "")
+}

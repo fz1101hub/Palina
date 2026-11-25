@@ -20,7 +20,9 @@ import it.palinaroma.dati.distanzaMetri
 import it.palinaroma.dati.dividiArrivi
 import it.palinaroma.dati.lineeFissate
 import it.palinaroma.dati.nomeLineaCorsa
+import it.palinaroma.dati.testoAvviso
 import it.palinaroma.dati.testoFonte
+import it.palinaroma.dati.tx
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -79,7 +81,7 @@ suspend fun calcolaTabelloneOrologio(
         fin + inPiu
     }
     if (scelte.isEmpty()) {
-        return TabelloneOrologio(adessoMs, emptyList(), "Aggiungi una fermata ai preferiti sul telefono, o attiva la posizione.")
+        return TabelloneOrologio(adessoMs, emptyList(), tx("Aggiungi una fermata ai preferiti sul telefono, o attiva la posizione."))
     }
 
     // le fonti di tutte le fermate (anche quelle delle stazioni di scambio), in parallelo
@@ -121,7 +123,7 @@ suspend fun calcolaTabelloneOrologio(
             )
         }
     }
-    val nota = if (conRoma && TempoReale.fermo(corse)) "Roma Mobilità ora non pubblica il tempo reale: tempi da orario." else null
+    val nota = if (conRoma && TempoReale.fermo(corse)) tx("Roma Mobilità ora non pubblica il tempo reale: tempi da orario.") else null
     return TabelloneOrologio(adessoMs, fermate, nota)
 }
 
@@ -150,7 +152,7 @@ fun righeOrologio(
                 capolinea = a.capolinea,
                 orari = prossimi.map { it.orario },
                 tempoReale = prossimi.first().tracciato,
-                avviso = prossimi.first().avviso,
+                avviso = prossimi.first().avviso?.let { testoAvviso(it) },
                 lineaId = a.lineaId,
                 treni = if (stazione == null) {
                     emptyList()
@@ -177,10 +179,10 @@ suspend fun calcolaCorsaOrologio(orario: Orario?, treno: TrenoOrologio): CorsaOr
     val esito = CercaCorsa(orario, richiesta).aggiorna()
     val adesso = adessoMs()
     val d = esito.dettaglio
-        ?: return CorsaOrologio(treno.chiave, adesso, nomeLineaCorsa(null, treno.lineaId, orario).ifEmpty { "Treno" }, null, null, emptyList(), null, esito.errore)
-    val titolo = listOf(nomeLineaCorsa(d, treno.lineaId, orario), d.tratto.numero).filter { it.isNotBlank() }.joinToString(" ").ifEmpty { "Treno" }
+        ?: return CorsaOrologio(treno.chiave, adesso, nomeLineaCorsa(null, treno.lineaId, orario).ifEmpty { tx("Treno") }, null, null, emptyList(), null, esito.errore)
+    val titolo = listOf(nomeLineaCorsa(d, treno.lineaId, orario), d.tratto.numero).filter { it.isNotBlank() }.joinToString(" ").ifEmpty { tx("Treno") }
     val verso = d.tratto.direzione.takeIf { it.isNotBlank() }?.let { dir ->
-        "verso $dir" + (d.tratto.gestore.takeIf { it.isNotBlank() }?.let { " · " + bellaScrittura(it) } ?: "")
+        tx("verso {0}", dir) + (d.tratto.gestore.takeIf { it.isNotBlank() }?.let { " · " + bellaScrittura(it) } ?: "")
     }
     return CorsaOrologio(
         chiave = treno.chiave,

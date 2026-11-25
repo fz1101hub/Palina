@@ -22,7 +22,9 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,10 +38,11 @@ import it.palinaroma.dati.Aspetto
 import it.palinaroma.dati.ORIGINE_INCLUSA
 import it.palinaroma.dati.StatoAggiornamento
 import it.palinaroma.dati.TestiImpostazioni
+import it.palinaroma.dati.tx
 
 @Composable
 fun OrarioSchermo(indietro: () -> Unit) {
-    Scaffold(containerColor = Sfondo, topBar = { BarraSuperiore("Impostazioni", indietro = indietro) }) { margini ->
+    Scaffold(containerColor = Sfondo, topBar = { BarraSuperiore(TestiImpostazioni.TITOLO, indietro = indietro) }) { margini ->
         Column(
             Modifier
                 .padding(margini)
@@ -49,6 +52,7 @@ fun OrarioSchermo(indietro: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             PannelloAspetto()
+            PannelloLingua()
             PannelloOrario(Modifier.fillMaxWidth(), primaVolta = false)
             // i testi sono nel motore, uguali sull'iPhone
             TestiImpostazioni.schede.forEach { Scheda(it.titolo, it.testo) }
@@ -121,6 +125,51 @@ private fun PannelloAspetto() {
     }
 }
 
+/** La lingua dei testi: come il telefono o una delle sei; i nomi sono ognuno nella sua lingua. */
+@Composable
+private fun PannelloLingua() {
+    val lingua by Archivio.lingua.collectAsStateWithLifecycle()
+    val attivita = LocalActivity.current
+    Card(colors = CardDefaults.cardColors(containerColor = Superficie), modifier = Modifier.fillMaxWidth().testTag("lingue")) {
+        Column(Modifier.padding(vertical = 12.dp).selectableGroup()) {
+            Text(
+                TestiImpostazioni.LINGUA,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            TestiImpostazioni.lingue.forEach { scelta ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .selectable(
+                            selected = lingua == scelta.chiave,
+                            onClick = {
+                                if (lingua != scelta.chiave) {
+                                    Archivio.impostaLinguaScelta(scelta.chiave)
+                                    // tutti i testi vengono dal motore: si ridisegna lo schermo
+                                    attivita?.recreate()
+                                }
+                            },
+                            role = Role.RadioButton,
+                        )
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(selected = lingua == scelta.chiave, onClick = null)
+                    Column(Modifier.padding(start = 12.dp)) {
+                        Text(scelta.nome)
+                        if (scelta.descrizione.isNotEmpty()) {
+                            Text(scelta.descrizione, style = MaterialTheme.typography.bodySmall, color = Secondario)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun Scheda(titolo: String, testo: String) {
     Card(colors = CardDefaults.cardColors(containerColor = Superficie), modifier = Modifier.fillMaxWidth()) {
@@ -139,16 +188,14 @@ fun PannelloOrario(modifier: Modifier = Modifier, primaVolta: Boolean) {
     Card(colors = CardDefaults.cardColors(containerColor = Superficie), modifier = modifier) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                if (primaVolta) "Benvenuto in Palina Roma" else TestiImpostazioni.ORARIO,
+                if (primaVolta) tx("Benvenuto in Palina Roma") else TestiImpostazioni.ORARIO,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
             val o = orario
             Text(
                 if (o == null) {
-                    "Per iniziare scarico l'orario di Roma Mobilità: serve per i nomi delle fermate, " +
-                        "le direzioni e i tracciati delle linee. Sono circa 50 MB, meglio in Wi-Fi; " +
-                        "poi lo trasformo in un piccolo database, ci vuole qualche minuto."
+                    tx("Per iniziare scarico l'orario di Roma Mobilità: serve per i nomi delle fermate, le direzioni e i tracciati delle linee. Sono circa 50 MB, meglio in Wi-Fi; poi lo trasformo in un piccolo database, ci vuole qualche minuto.")
                 } else {
                     val incluso = o.info("origine") == ORIGINE_INCLUSA
                     TestiImpostazioni.statoOrario(o, Archivio.ultimoAggiornamento(), incluso) +
@@ -176,7 +223,7 @@ fun PannelloOrario(modifier: Modifier = Modifier, primaVolta: Boolean) {
                 onClick = { Archivio.aggiorna() },
                 enabled = stato !is StatoAggiornamento.InCorso,
             ) {
-                Text(if (o == null) "Scarica l'orario" else TestiImpostazioni.AGGIORNA)
+                Text(if (o == null) tx("Scarica l'orario") else TestiImpostazioni.AGGIORNA)
             }
         }
     }

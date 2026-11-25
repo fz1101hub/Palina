@@ -71,6 +71,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.tx
 import it.palinaroma.dati.Arrivo
 import it.palinaroma.dati.ArriviFermate
 import it.palinaroma.dati.CaricatoreArrivi
@@ -102,7 +103,7 @@ data class FermataConLinee(val fermata: Fermata, val distanza: Double?, val line
 private fun Orario.conLinee(fermata: Fermata, distanza: Double?) =
     FermataConLinee(fermata, distanza, stazioneUnita(fermata.id).flatMap { lineeAllaFermata(it) }.map { it.linea.nome }.distinct())
 
-/** Spazio in fondo agli elenchi, perche' il pulsante "Come arrivo…" non copra le ultime righe. */
+/** Spazio in fondo agli elenchi, perche' il pulsante tx("Come arrivo…") non copra le ultime righe. */
 private val SOTTO_IL_PULSANTE = PaddingValues(bottom = 96.dp)
 
 /** Le preferite con i passaggi completi (tempo reale e orario di Transitous): le altre solo tempo reale. */
@@ -129,7 +130,7 @@ fun HomeSchermo(
         topBar = {
             BarraSuperiore("Palina Roma", azioni = {
                 IconButton(onClick = apriOrario) {
-                    Icon(Icons.Filled.Settings, contentDescription = "Impostazioni")
+                    Icon(Icons.Filled.Settings, contentDescription = tx("Impostazioni"))
                 }
             })
         },
@@ -140,11 +141,11 @@ fun HomeSchermo(
                     containerColor = Oro,
                     contentColor = Inchiostro,
                     icon = { Icon(Icons.Filled.Place, contentDescription = null) },
-                    text = { Text("Come arrivo…", fontWeight = FontWeight.Bold) },
+                    text = { Text(tx("Come arrivo…"), fontWeight = FontWeight.Bold) },
                     // il testo del pulsante non arriva al lettore di schermo: lo si dice qui
                     modifier = Modifier
                         .testTag("come-arrivo")
-                        .semantics { contentDescription = "Come arrivo" },
+                        .semantics { contentDescription = tx("Come arrivo") },
                 )
             }
         },
@@ -163,7 +164,7 @@ fun HomeSchermo(
                 } else {
                     // primo avvio: si sta copiando l'orario incluso nell'app (un paio di secondi)
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Preparo l'orario…", color = Secondario)
+                        Text(tx("Preparo l'orario…"), color = Secondario)
                         LinearProgressIndicator(color = Accento, trackColor = AccentoFondo, modifier = Modifier.fillMaxWidth())
                     }
                 }
@@ -225,7 +226,7 @@ private fun rememberVicine(orario: Orario): Triple<StatoVicino, Boolean, () -> U
     // aggiornano man mano che arriva una posizione piu' precisa
     LaunchedEffect(permesso, stato.tentativo, orario) {
         if (!permesso) return@LaunchedEffect
-        if (stato.fermate.isEmpty()) stato.messaggio = "Cerco la tua posizione…"
+        if (stato.fermate.isEmpty()) stato.messaggio = tx("Cerco la tua posizione…")
         stato.affinando = true
         var usataLat = Double.NaN
         var usataLon = Double.NaN
@@ -246,13 +247,13 @@ private fun rememberVicine(orario: Orario): Triple<StatoVicino, Boolean, () -> U
                     stato.lat = p.latitude
                     stato.lon = p.longitude
                     stato.fermate = trovate
-                    stato.messaggio = if (trovate.isEmpty()) "Nessuna fermata entro 700 metri." else null
+                    stato.messaggio = if (trovate.isEmpty()) tx("Nessuna fermata entro 700 metri.") else null
                 }
             }
         } finally {
             stato.affinando = false
         }
-        if (usataLat.isNaN()) stato.messaggio = "Posizione non disponibile: attiva la localizzazione e riprova."
+        if (usataLat.isNaN()) stato.messaggio = tx("Posizione non disponibile: attiva la localizzazione e riprova.")
     }
     val chiedi: () -> Unit = { richiesta.launch(PERMESSI_POSIZIONE) }
     return Triple(stato, permesso, chiedi)
@@ -300,7 +301,7 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
         if (Archivio.daAggiornare() && aggiornamento !is StatoAggiornamento.InCorso) {
             item {
                 Text(
-                    "L'orario ha più di una settimana: tocca qui per aggiornarlo.",
+                    tx("L'orario ha più di una settimana: tocca qui per aggiornarlo."),
                     color = Testo,
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 4.dp)
@@ -314,8 +315,8 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
         if (arrivi.errore) {
             item {
                 AvvisoRete(
-                    if (arrivi.aggiornatoAlle > 0) "Non riesco ad aggiornare: i tempi sono quelli delle ${ora(arrivi.aggiornatoAlle)}."
-                    else "Non riesco a leggere i tempi d'attesa. Controlla la connessione.",
+                    if (arrivi.aggiornatoAlle > 0) tx("Non riesco ad aggiornare: i tempi sono quelli delle {0}.", ora(arrivi.aggiornatoAlle))
+                    else tx("Non riesco a leggere i tempi d'attesa. Controlla la connessione."),
                     riprova = { riprova++ },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
@@ -325,7 +326,7 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
         if (arrivi.romaFerma && !arrivi.errore && preferiteOrdinate.any { Rete.di(it.first.id) == Rete.ROMA }) {
             item {
                 AvvisoFonte(
-                    "Roma Mobilità ora non pubblica il tempo reale: i tempi di Roma sono calcolati sull'orario.",
+                    tx("Roma Mobilità ora non pubblica il tempo reale: i tempi di Roma sono calcolati sull'orario."),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
@@ -336,15 +337,15 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
             val primaRiga: List<Pair<Fermata, Double?>> = inEvidenza?.let { listOf(it.first to it.second) } ?: emptyList()
             val resto = preferiteOrdinate.filter { it.first.id != evidenza?.id }
             if (primaRiga.isNotEmpty()) {
-                item { TitoloConAggiornamento("Sei vicino a", arrivi.aggiornatoAlle, adessoMs) }
+                item { TitoloConAggiornamento(tx("Sei vicino a"), arrivi.aggiornatoAlle, adessoMs) }
                 items(primaRiga, key = { "e-" + it.first.id }) { (f, d) ->
                     SchedaPreferita(f, d, arrivi.perFermata[f.id], lineeFissate(f.id, chiaviFissate), adesso) { apriFermata(f.id) }
                 }
             }
             if (resto.isNotEmpty()) {
                 item {
-                    if (primaRiga.isEmpty()) TitoloConAggiornamento("Preferiti", arrivi.aggiornatoAlle, adessoMs)
-                    else Intestazione("Altri preferiti")
+                    if (primaRiga.isEmpty()) TitoloConAggiornamento(tx("Preferiti"), arrivi.aggiornatoAlle, adessoMs)
+                    else Intestazione(tx("Altri preferiti"))
                 }
                 items(resto, key = { "p-" + it.first.id }) { (f, d) ->
                     SchedaPreferita(f, d, arrivi.perFermata[f.id], lineeFissate(f.id, chiaviFissate), adesso) { apriFermata(f.id) }
@@ -354,13 +355,13 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
 
         item {
             Row(verticalAlignment = Alignment.Bottom) {
-                Intestazione("Vicino a te", Modifier.weight(1f))
+                Intestazione(tx("Vicino a te"), Modifier.weight(1f))
                 vicino.precisione?.let { metri ->
                     Text(
                         when {
-                            vicino.affinando && metri > 30 -> "posizione approssimativa (±${metri.toInt()} m)"
-                            metri > 150 -> "posizione poco precisa (±${metri.toInt()} m)"
-                            else -> "posizione precisa a ${metri.toInt()} m"
+                            vicino.affinando && metri > 30 -> tx("posizione approssimativa (±{0} m)", metri.toInt())
+                            metri > 150 -> tx("posizione poco precisa (±{0} m)", metri.toInt())
+                            else -> tx("posizione precisa a {0} m", metri.toInt())
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = Secondario,
@@ -372,16 +373,16 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
         if (!permessoPosizione) {
             item {
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Per mostrarti le fermate qui intorno serve la tua posizione. Resta sul telefono.")
+                    Text(tx("Per mostrarti le fermate qui intorno serve la tua posizione. Resta sul telefono."))
                     if (vicino.negatoPerSempre) {
                         // Android non mostra piu' la richiesta: il permesso si da' solo dalle impostazioni
                         Text(
-                            "Il permesso è stato negato: puoi darlo dalle impostazioni dell'app, alla voce Autorizzazioni.",
+                            tx("Il permesso è stato negato: puoi darlo dalle impostazioni dell'app, alla voce Autorizzazioni."),
                             color = Secondario,
                         )
-                        Button(onClick = { apriImpostazioniApp(context) }, colors = pulsanteOro()) { Text("Apri le impostazioni") }
+                        Button(onClick = { apriImpostazioniApp(context) }, colors = pulsanteOro()) { Text(tx("Apri le impostazioni")) }
                     } else {
-                        Button(onClick = chiediPermesso, colors = pulsanteOro()) { Text("Usa la mia posizione") }
+                        Button(onClick = chiediPermesso, colors = pulsanteOro()) { Text(tx("Usa la mia posizione")) }
                     }
                 }
             }
@@ -405,14 +406,14 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
             }
             item {
                 TextButton(onClick = { vicino.tentativo++ }, modifier = Modifier.padding(horizontal = 8.dp)) {
-                    Text("Aggiorna la posizione", color = Accento)
+                    Text(tx("Aggiorna la posizione"), color = Accento)
                 }
             }
         }
         if (preferiti.isEmpty()) {
             item {
                 Text(
-                    "Tocca il cuore in una fermata: la ritrovi qui in cima, con i suoi tempi.",
+                    tx("Tocca il cuore in una fermata: la ritrovi qui in cima, con i suoi tempi."),
                     style = MaterialTheme.typography.bodySmall,
                     color = Secondario,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
@@ -432,7 +433,7 @@ private fun TitoloConAggiornamento(titolo: String, aggiornatoAlle: Long, adessoM
         Intestazione(titolo, Modifier.weight(1f))
         if (aggiornatoAlle > 0) {
             Text(
-                "aggiornato " + testoAggiornato(aggiornatoAlle, adessoMs),
+                tx("aggiornato {0}", testoAggiornato(aggiornatoAlle, adessoMs)),
                 style = MaterialTheme.typography.bodySmall,
                 color = Secondario,
                 modifier = Modifier.padding(end = 20.dp, bottom = 8.dp),
@@ -451,14 +452,14 @@ private fun CampoCerca(apri: () -> Unit) {
             .heightIn(min = 50.dp)
             .background(Superficie, RoundedCornerShape(14.dp))
             .border(1.dp, Bordo, RoundedCornerShape(14.dp))
-            .clickable(onClickLabel = "cerca", onClick = apri)
+            .clickable(onClickLabel = tx("cerca"), onClick = apri)
             .testTag("cerca")
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Icon(Icons.Filled.Search, contentDescription = null, tint = Secondario)
-        Text("Fermata, palina, linea o luogo", color = Secondario)
+        Text(tx("Fermata, palina, linea o luogo"), color = Secondario)
     }
 }
 
@@ -479,7 +480,7 @@ private fun SchedaPreferita(
             .fillMaxWidth()
             .riquadroTabellone(FondoTabellone, Bordo)
             .testTag("preferita")
-            .clickable(onClickLabel = "apri la fermata", onClick = apri)
+            .clickable(onClickLabel = tx("apri la fermata"), onClick = apri)
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(bottom = 6.dp)) {
@@ -523,7 +524,7 @@ private fun SchedaPreferita(
                         itemVerticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(top = 8.dp),
                     ) {
-                        Text("Altre:", style = MaterialTheme.typography.bodySmall, color = Secondario)
+                        Text(tx("Altre:"), style = MaterialTheme.typography.bodySmall, color = Secondario)
                         resto.take(4).forEach { PillolaAttesa(it, adesso) }
                         if (resto.size > 4) Text("+${resto.size - 4}", style = MaterialTheme.typography.bodySmall, color = Secondario)
                     }
@@ -551,7 +552,7 @@ private fun RigaCompatta(arrivo: Arrivo, adesso: Long) {
             BadgeLinea(arrivo.nomeLinea, grande = true, colore = coloreRete(arrivo.lineaId))
             Column(Modifier.weight(1f)) {
                 Text(
-                    arrivo.capolinea.ifEmpty { "Direzione non indicata" },
+                    arrivo.capolinea.ifEmpty { tx("Direzione non indicata") },
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -562,7 +563,7 @@ private fun RigaCompatta(arrivo: Arrivo, adesso: Long) {
                 }
             }
             if (primo.avviso == "soppresso") {
-                Text("soppresso", color = Accento, fontWeight = FontWeight.Bold)
+                Text(tx("soppresso"), color = Accento, fontWeight = FontWeight.Bold)
             } else {
                 CifreAttesa(minutiAttesa(primo.orario, adesso), primo.tracciato, grandezza = 30)
             }
@@ -571,7 +572,7 @@ private fun RigaCompatta(arrivo: Arrivo, adesso: Long) {
     }
 }
 
-/** La ricerca: fermate, numeri di palina e linee dall'orario; per un luogo si passa a "Come arrivo". */
+/** La ricerca: fermate, numeri di palina e linee dall'orario; per un luogo si passa a tx("Come arrivo"). */
 @Composable
 private fun SchedaCerca(
     orario: Orario,
@@ -606,16 +607,16 @@ private fun SchedaCerca(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = chiudi) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Chiudi la ricerca")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tx("Chiudi la ricerca"))
             }
             OutlinedTextField(
                 value = testo,
                 onValueChange = { testo = it },
-                placeholder = { Text("Fermata, palina, linea o luogo") },
+                placeholder = { Text(tx("Fermata, palina, linea o luogo")) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = {
                     if (testo.isNotEmpty()) {
-                        IconButton(onClick = { testo = "" }) { Icon(Icons.Filled.Clear, contentDescription = "Cancella") }
+                        IconButton(onClick = { testo = "" }) { Icon(Icons.Filled.Clear, contentDescription = tx("Cancella")) }
                     }
                 },
                 singleLine = true,
@@ -626,8 +627,7 @@ private fun SchedaCerca(
         }
         if (testo.isBlank()) {
             Text(
-                "Scrivi il nome di una fermata, il numero della palina (è sul cartello, per esempio 70078), " +
-                    "il numero di una linea o un indirizzo.",
+                tx("Scrivi il nome di una fermata, il numero della palina (è sul cartello, per esempio 70078), il numero di una linea o un indirizzo."),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Secondario,
                 modifier = Modifier.padding(horizontal = 20.dp),
@@ -647,15 +647,15 @@ private fun SchedaCerca(
                     ) {
                         Icon(Icons.Filled.Place, contentDescription = null, tint = Accento)
                         Column(Modifier.weight(1f)) {
-                            Text("Come arrivo a «${testo.trim()}»", fontWeight = FontWeight.Medium)
-                            Text("cerca anche tra indirizzi e luoghi", style = MaterialTheme.typography.bodySmall, color = Secondario)
+                            Text(tx("Come arrivo a «{0}»", testo.trim()), fontWeight = FontWeight.Medium)
+                            Text(tx("cerca anche tra indirizzi e luoghi"), style = MaterialTheme.typography.bodySmall, color = Secondario)
                         }
                     }
                     HorizontalDivider(color = Divisore, modifier = Modifier.padding(horizontal = 20.dp))
                 }
             }
             if (linee.isNotEmpty()) {
-                item { Intestazione("Linee") }
+                item { Intestazione(tx("Linee")) }
                 item {
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -667,7 +667,7 @@ private fun SchedaCerca(
                                 l.nome,
                                 Modifier
                                     .testTag("linea")
-                                    .clickable(onClickLabel = "apri la linea") { apriLinea(l.id) },
+                                    .clickable(onClickLabel = tx("apri la linea")) { apriLinea(l.id) },
                                 grande = true,
                                 colore = coloreRete(l.id),
                             )
@@ -676,7 +676,7 @@ private fun SchedaCerca(
                 }
             }
             if (fermate.isNotEmpty()) {
-                item { Intestazione("Fermate") }
+                item { Intestazione(tx("Fermate")) }
                 items(fermate, key = { "f-" + it.fermata.id }) { f ->
                     RigaFermata(f.fermata, null, f.linee, onClick = { apriFermata(f.fermata.id) })
                 }
@@ -684,7 +684,7 @@ private fun SchedaCerca(
             if (testo.isNotBlank() && linee.isEmpty() && fermate.isEmpty()) {
                 item {
                     Text(
-                        "Nessuna fermata o linea per \"$testo\".",
+                        tx("Nessuna fermata o linea per \"{0}\".", testo),
                         color = Secondario,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                     )

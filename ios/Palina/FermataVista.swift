@@ -29,7 +29,7 @@ struct FermataVista: View {
                     Text(avviso).font(.footnote).foregroundStyle(Tavolozza.oro)
                 }
                 tempi
-                Section("Linee") {
+                Section(tx("Linee")) {
                     ForEach(linee, id: \.self) { l in
                         NavigationLink(value: Destinazione.linea(RichiestaLinea(lineaId: l.lineaId, direzione: Int(l.direzione), fermata: fermataId))) {
                             HStack(spacing: 10) {
@@ -38,17 +38,17 @@ struct FermataVista: View {
                             }
                         }
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("Linea \(l.nome) verso \(l.capolinea)")
+                        .accessibilityLabel(tx("Linea {0} verso {1}", l.nome, l.capolinea))
                     }
                 }
             } else if archivio.orario != nil {
-                Text("Fermata non trovata.").foregroundStyle(.secondary)
+                Text(tx("Fermata non trovata.")).foregroundStyle(.secondary)
             } else {
                 ProgressView()
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(voce?.nome ?? "Fermata")
+        .navigationTitle(voce?.nome ?? tx("Fermata"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -58,7 +58,7 @@ struct FermataVista: View {
                 } label: {
                     Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
                 }
-                .accessibilityLabel("Come arrivo qui")
+                .accessibilityLabel(tx("Come arrivo qui"))
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -66,7 +66,7 @@ struct FermataVista: View {
                 } label: {
                     Image(systemName: preferiti.eUnaPreferita(fermataId) ? "heart.fill" : "heart")
                 }
-                .accessibilityLabel(preferiti.eUnaPreferita(fermataId) ? "Togli dai preferiti" : "Aggiungi ai preferiti")
+                .accessibilityLabel(preferiti.eUnaPreferita(fermataId) ? tx("Togli dai preferiti") : tx("Aggiungi ai preferiti"))
             }
         }
         .task(id: archivio.orario != nil) { await segui() }
@@ -80,10 +80,10 @@ struct FermataVista: View {
     private var tempi: some View {
         let t = tabellone
         if let t, t.conFissate {
-            Section("Le tue linee") {
+            Section(tx("Le tue linee")) {
                 ForEach(t.fissate, id: \.self) { riga(for: $0) }
                 ForEach(t.fissateSenzaPassaggi, id: \.self) { nome in
-                    Text("\(nome) · non passa nei prossimi 90 minuti").foregroundStyle(.secondary)
+                    Text(tx("{0} · non passa nei prossimi 90 minuti", nome)).foregroundStyle(.secondary)
                 }
             }
         }
@@ -91,12 +91,12 @@ struct FermataVista: View {
             if let t, !t.altre.isEmpty {
                 ForEach(t.altre, id: \.self) { riga(for: $0) }
             } else if caricando {
-                HStack { ProgressView(); Text("Leggo i tempi…").foregroundStyle(.secondary) }
+                HStack { ProgressView(); Text(tx("Leggo i tempi…")).foregroundStyle(.secondary) }
             } else if t?.fissate.isEmpty ?? true {
-                Text("Nessun passaggio nei prossimi 90 minuti.").foregroundStyle(.secondary)
+                Text(tx("Nessun passaggio nei prossimi 90 minuti.")).foregroundStyle(.secondary)
             }
         } header: {
-            Text(t?.conFissate == true ? "Altre linee" : "Prossimi passaggi")
+            Text(t?.conFissate == true ? tx("Altre linee") : tx("Prossimi passaggi"))
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 if let suggerimento = t?.suggerimento { Text(suggerimento) }
@@ -120,13 +120,13 @@ struct FermataVista: View {
             Button {
                 if let chiave = motore?.chiaveDaFissare(lineaId: riga.lineaId) { preferiti.alternaFissata(chiave) }
             } label: {
-                Label(riga.fissata ? "Togli" : "Fissa", systemImage: riga.fissata ? "pin.slash" : "pin")
+                Label(riga.fissata ? tx("Togli") : tx("Fissa"), systemImage: riga.fissata ? "pin.slash" : "pin")
             }
             .tint(Tavolozza.oro)
             Button {
                 Task { await seguito.segui(fermataId: fermataId, lineaId: riga.lineaId, capolinea: riga.capolinea) }
             } label: {
-                Label("Segui", systemImage: "bell")
+                Label(tx("Segui"), systemImage: "bell")
             }
             .tint(Tavolozza.porpora)
         }
@@ -134,18 +134,18 @@ struct FermataVista: View {
             Button {
                 Task { await seguito.segui(fermataId: fermataId, lineaId: riga.lineaId, capolinea: riga.capolinea) }
             } label: {
-                Label("Segui il \(riga.nome): avviso 2 minuti prima", systemImage: "bell")
+                Label(tx("Segui il {0}: avviso 2 minuti prima", riga.nome), systemImage: "bell")
             }
             Button {
                 if let chiave = motore?.chiaveDaFissare(lineaId: riga.lineaId) { preferiti.alternaFissata(chiave) }
             } label: {
-                Label(riga.fissata ? "Togli dalle tue linee" : "Fissa in cima", systemImage: riga.fissata ? "pin.slash" : "pin")
+                Label(riga.fissata ? tx("Togli dalle tue linee") : tx("Fissa in cima"), systemImage: riga.fissata ? "pin.slash" : "pin")
             }
         }
-        .accessibilityAction(named: riga.fissata ? "Togli il \(riga.nome) dalle tue linee" : "Fissa il \(riga.nome) in cima") {
+        .accessibilityAction(named: riga.fissata ? tx("Togli il {0} dalle tue linee", riga.nome) : tx("Fissa il {0} in cima", riga.nome)) {
             if let chiave = motore?.chiaveDaFissare(lineaId: riga.lineaId) { preferiti.alternaFissata(chiave) }
         }
-        .accessibilityAction(named: "Segui il \(riga.nome)") {
+        .accessibilityAction(named: tx("Segui il {0}", riga.nome)) {
             Task { await seguito.segui(fermataId: fermataId, lineaId: riga.lineaId, capolinea: riga.capolinea) }
         }
     }

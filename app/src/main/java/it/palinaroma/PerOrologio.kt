@@ -6,6 +6,7 @@ import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.tx
 import it.palinaroma.dati.Punto
 import it.palinaroma.dati.haPermessoPosizione
 import it.palinaroma.dati.posizioneAttuale
@@ -44,7 +45,7 @@ class ServizioOrologio : WearableListenerService() {
             Ponte.RICHIESTA_CORSA -> runBlocking {
                 val treno = TrenoOrologio.leggi(String(evento.data, Charsets.UTF_8)) ?: return@runBlocking
                 val corsa = withTimeoutOrNull(40_000) { corsaOrologio(treno) }
-                    ?: CorsaOrologio(treno.chiave, System.currentTimeMillis(), "Treno", null, null, emptyList(), null, "Il telefono non ha trovato il treno in tempo: riprova.")
+                    ?: CorsaOrologio(treno.chiave, System.currentTimeMillis(), tx("Treno"), null, null, emptyList(), null, tx("Il telefono non ha trovato il treno in tempo: riprova."))
                 pubblica(Ponte.CORSA, CodificaCorsa.scrivi(corsa))
             }
         }

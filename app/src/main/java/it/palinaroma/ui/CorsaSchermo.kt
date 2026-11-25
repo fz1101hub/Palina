@@ -43,6 +43,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.tx
 import it.palinaroma.dati.CercaCorsa
 import it.palinaroma.dati.DettaglioCorsa
 import it.palinaroma.dati.FermataCorsa
@@ -113,7 +114,7 @@ fun CorsaSchermo(
 
     val d = dettaglio
     val nomeLinea = nomeLineaCorsa(d, lineaId, o)
-    val titolo = listOf(nomeLinea, d?.tratto?.numero.orEmpty()).filter { it.isNotBlank() }.joinToString(" ").ifEmpty { "Treno" }
+    val titolo = listOf(nomeLinea, d?.tratto?.numero.orEmpty()).filter { it.isNotBlank() }.joinToString(" ").ifEmpty { tx("Treno") }
 
     Scaffold(
         containerColor = Sfondo,
@@ -121,7 +122,7 @@ fun CorsaSchermo(
             BarraSuperiore(
                 titolo = titolo,
                 sottotitolo = d?.tratto?.direzione?.takeIf { it.isNotBlank() }?.let {
-                    "verso $it" + (d.tratto.gestore.takeIf { g -> g.isNotBlank() }?.let { g -> " · " + bellaScrittura(g) } ?: "")
+                    tx("verso {0}", it) + (d.tratto.gestore.takeIf { g -> g.isNotBlank() }?.let { g -> " · " + bellaScrittura(g) } ?: "")
                 },
                 indietro = indietro,
             )
@@ -134,7 +135,7 @@ fun CorsaSchermo(
         ) {
             if (d == null) {
                 Text(
-                    errore ?: "Cerco le fermate del treno…",
+                    errore ?: tx("Cerco le fermate del treno…"),
                     color = Secondario,
                     modifier = Modifier.padding(24.dp),
                 )
@@ -218,19 +219,19 @@ private fun RigaFermataCorsa(
     val cambiato = aggiornato != null && programmato != null && ora(aggiornato) != ora(programmato)
     val descrizione = buildString {
         append(fermata.nome)
-        if (fermata.soppressa) append(", fermata soppressa") else append(", ").append(orarioTesto)
-        fermata.ritardoMinuti?.takeIf { it > 0 }?.let { append(", ").append(it).append(" minuti di ritardo") }
-        if (fermata.stimato) append(", stimato")
-        fermata.binario?.let { append(", binario ").append(it) }
-        if (fermata.binarioCambiato) append(", binario cambiato")
-        if (qui) append(", la tua stazione")
+        if (fermata.soppressa) append(tx(", fermata soppressa")) else append(", ").append(orarioTesto)
+        fermata.ritardoMinuti?.takeIf { it > 0 }?.let { append(tx(", {0} minuti di ritardo", it)) }
+        if (fermata.stimato) append(tx(", stimato"))
+        fermata.binario?.let { append(tx(", binario {0}", it)) }
+        if (fermata.binarioCambiato) append(tx(", binario cambiato"))
+        if (qui) append(tx(", la tua stazione"))
     }
     Row(
         Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .background(if (qui) AccentoFondo else Color.Transparent)
-            .let { if (apri != null) it.clickable(onClickLabel = "vedi le partenze da questa stazione", onClick = apri) else it }
+            .let { if (apri != null) it.clickable(onClickLabel = tx("vedi le partenze da questa stazione"), onClick = apri) else it }
             .semantics(mergeDescendants = true) { contentDescription = descrizione }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -288,9 +289,9 @@ private fun RigaFermataCorsa(
                 textDecoration = if (fermata.soppressa) TextDecoration.LineThrough else null,
             )
             val sotto = listOfNotNull(
-                "soppressa".takeIf { fermata.soppressa },
-                "la tua stazione".takeIf { qui },
-                fermata.ritardoMinuti?.takeIf { it > 0 && !fermata.soppressa }?.let { "+$it min" + if (fermata.stimato) " (stima)" else "" },
+                tx("soppressa").takeIf { fermata.soppressa },
+                tx("la tua stazione").takeIf { qui },
+                fermata.ritardoMinuti?.takeIf { it > 0 && !fermata.soppressa }?.let { "+$it min" + if (fermata.stimato) " " + tx("(stima)") else "" },
             )
             if (sotto.isNotEmpty()) {
                 Text(sotto.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = if (qui) Accento else Secondario)
@@ -298,7 +299,7 @@ private fun RigaFermataCorsa(
         }
         fermata.binario?.let { b ->
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
-                Text("bin.", style = MaterialTheme.typography.labelSmall, color = Secondario)
+                Text(tx("bin."), style = MaterialTheme.typography.labelSmall, color = Secondario)
                 Text(
                     b,
                     fontWeight = FontWeight.Bold,

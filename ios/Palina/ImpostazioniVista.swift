@@ -6,6 +6,7 @@ struct ImpostazioniVista: View {
     @EnvironmentObject private var archivio: Archivio
     @AppStorage("aspetto") private var aspetto = "AUTOMATICO"
     @AppStorage("cifre_led") private var cifreLed = true
+    @AppStorage("lingua") private var lingua = ""
     @State private var provato = false
     private let testi = TestiImpostazioni.shared
 
@@ -39,7 +40,7 @@ struct ImpostazioniVista: View {
                 }
                 .tint(Tavolozza.oro)
                 HStack {
-                    Text("Esempio").foregroundStyle(.secondary)
+                    Text(tx("Esempio")).foregroundStyle(.secondary)
                     Spacer()
                     Text("7′").font(Tavolozza.cifre(26, aPunti: cifreLed)).foregroundStyle(Tavolozza.oro)
                 }
@@ -48,6 +49,30 @@ struct ImpostazioniVista: View {
                 Text(testi.ASPETTO)
             } footer: {
                 Text(testi.grandezzaTesto(sistema: "iOS"))
+            }
+
+            Section(testi.LINGUA) {
+                ForEach(testi.lingue, id: \.chiave) { scelta in
+                    Button {
+                        lingua = scelta.chiave
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(scelta.nome).foregroundStyle(Color.primary)
+                                if !scelta.descrizione.isEmpty {
+                                    Text(scelta.descrizione).font(.footnote).foregroundStyle(Color.secondary)
+                                }
+                            }
+                            Spacer()
+                            if lingua == scelta.chiave {
+                                Image(systemName: "checkmark").foregroundStyle(Tavolozza.oro).bold()
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(lingua == scelta.chiave ? .isSelected : [])
+                }
             }
 
             Section(testi.ORARIO) {
@@ -98,6 +123,6 @@ struct ImpostazioniVista: View {
 
     private var versione: String {
         let breve = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
-        return "\(breve) per iPhone"
+        return tx("{0} per iPhone", breve)
     }
 }

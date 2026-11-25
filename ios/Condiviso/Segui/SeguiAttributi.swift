@@ -20,4 +20,7 @@ struct SeguiAttributi: ActivityAttributes {
     var fermata: String
     /** Il colore della linea (ARGB). */
     var colore: Int64
+    /** I testi del widget nella lingua dell'app: "ora" e quello per i tempi vecchi. */
+    var testoOra: String
+    var testoScaduto: String
 }

@@ -29,6 +29,13 @@ jobs:
           distribution: temurin
           java-version: 25
       - uses: gradle/actions/setup-gradle@v6
+      - name: Traduzioni (ogni testo in it, en, fr, es, de, pt)
+        run: |
+          mkdir -p /tmp/esito
+          python3 strumenti/traduzioni.py controlla | tee /tmp/esito/traduzioni.txt
+          # i cataloghi generati devono essere quelli del TSV
+          python3 strumenti/traduzioni.py genera
+          git diff --exit-code --stat -- motore/src orologio/src ios || { echo "rigenera con: python3 strumenti/traduzioni.py genera"; exit 1; }
       - name: Compila l'app Android e l'orologio con il motore, test compresi
         run: |
           set -o pipefail
@@ -154,11 +161,22 @@ jobs:
           xcrun simctl boot "$dispositivo"
           xcrun simctl bootstatus "$dispositivo" -b
           xcrun simctl install "$dispositivo" ios/build/dd/Build/Products/Debug-iphonesimulator/Palina.app
-          # 1. Home vicino a piazza Venezia
-          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826
+          # 1. Home vicino a piazza Venezia (il simulatore e' in inglese: qui in italiano)
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -lingua it
           sleep 12
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-01-home.png
           xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 1b. Le altre lingue: Home e una fermata
+          for lingua in en fr es de pt; do
+            xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -lingua $lingua
+            sleep 8
+            xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-30-$lingua-home.png
+            xcrun simctl terminate "$dispositivo" it.palinaroma
+            xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -lingua $lingua -apri fermata:70078
+            sleep 8
+            xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-31-$lingua-fermata.png
+            xcrun simctl terminate "$dispositivo" it.palinaroma
+          done
           # 2. Una fermata di Roma (piazza Venezia)
           xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri fermata:70078
           sleep 8

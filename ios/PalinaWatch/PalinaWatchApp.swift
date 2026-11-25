@@ -7,6 +7,11 @@ struct PalinaWatchApp: App {
     @StateObject private var archivio = ArchivioWatch()
     @State private var percorso: [String] = []
 
+    init() {
+        // i testi del motore nella lingua dell'orologio
+        LinguaApp.imposta()
+    }
+
     var body: some Scene {
         WindowGroup {
             NavigationStack(path: $percorso) {
@@ -47,7 +52,7 @@ struct TabelloneWatch: View {
                             }
                         }
                         if fermata.righe.isEmpty {
-                            Text("Nessun passaggio a breve").font(.footnote).foregroundStyle(.secondary)
+                            Text(tx("Nessun passaggio a breve")).font(.footnote).foregroundStyle(.secondary)
                         }
                     } header: {
                         VStack(alignment: .leading, spacing: 1) {
@@ -57,16 +62,16 @@ struct TabelloneWatch: View {
                     }
                 }
                 if let aggiornato = stato.aggiornato {
-                    Text(stato.vecchio ? "iPhone non raggiungibile · \(aggiornato)" : aggiornato)
+                    Text(stato.vecchio ? tx("iPhone non raggiungibile · {0}", aggiornato) : aggiornato)
                         .font(.caption2)
                         .foregroundStyle(stato.vecchio ? ColoriWatch.oro : .secondary)
                 }
             } else if archivio.irraggiungibile {
-                Text("Apri Palina sull'iPhone: è lui che calcola i tempi.").foregroundStyle(.secondary)
+                Text(tx("Apri Palina sull'iPhone: è lui che calcola i tempi.")).foregroundStyle(.secondary)
             } else {
-                HStack { ProgressView(); Text("Chiedo i tempi all'iPhone…").font(.footnote) }
+                HStack { ProgressView(); Text(tx("Chiedo i tempi all'iPhone…")).font(.footnote) }
             }
-            Button("Aggiorna") { archivio.chiedi(forza: true) }
+            Button(tx("Aggiorna")) { archivio.chiedi(forza: true) }
                 .tint(ColoriWatch.oro)
         }
         .navigationTitle("Palina")
@@ -153,16 +158,16 @@ struct CorsaWatch: View {
                 } else if let errore {
                     Text(errore).foregroundStyle(.secondary)
                 } else {
-                    HStack { ProgressView(); Text("Chiedo il treno all'iPhone…").font(.footnote) }
+                    HStack { ProgressView(); Text(tx("Chiedo il treno all'iPhone…")).font(.footnote) }
                 }
             }
             .onChange(of: stato?.qui) { _, qui in
                 if let qui, qui >= 0 { scorri.scrollTo(Int(qui), anchor: .center) }
             }
         }
-        .navigationTitle("Treno")
+        .navigationTitle(tx("Treno"))
         .task {
-            if let s = await archivio.corsa(treno: treno) { stato = s } else { errore = "L'iPhone non risponde: riprova." }
+            if let s = await archivio.corsa(treno: treno) { stato = s } else { errore = tx("L'iPhone non risponde: riprova.") }
         }
     }
 }

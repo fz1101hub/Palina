@@ -53,7 +53,7 @@ struct Fornitore: TimelineProvider {
     static let esempio = VoceComplicazione(
         alle: 0, titolo: "Piazza Venezia",
         righe: [RigaComplicazione(linea: "64", colore: 0xFF862633, passaggi: "3' · 12'", tempoReale: true)],
-        nota: nil, linea: "64", tra: "3'", colore: 0xFF862633
+        nota: nil, linea: "64", tra: "3'", colore: 0xFF862633, inline: "64 · 3' · Piazza Venezia"
     )
 }
 
@@ -80,11 +80,7 @@ struct VistaComplicazione: View {
                 .foregroundStyle(Color.oroPalina)
                 .widgetLabel(v.map { ($0.linea ?? "") + " · " + $0.titolo } ?? "Palina")
         case .accessoryInline:
-            if let v, let linea = v.linea, let tra = v.tra {
-                Text("\(linea) tra \(tra) · \(v.titolo)")
-            } else {
-                Text("Palina")
-            }
+            Text(v?.inline ?? "Palina")
         default:
             VStack(alignment: .leading, spacing: 1) {
                 Text(v?.titolo ?? "Palina").font(.headline).lineLimit(1).widgetAccentable()
@@ -96,7 +92,7 @@ struct VistaComplicazione: View {
                         }
                     }
                 } else {
-                    Text(v?.nota ?? "Apri Palina per chiedere i tempi all'iPhone").font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                    Text(v?.nota ?? NSLocalizedString("Apri Palina per chiedere i tempi all'iPhone", comment: "")).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

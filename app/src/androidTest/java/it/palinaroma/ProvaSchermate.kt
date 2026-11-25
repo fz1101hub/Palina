@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import it.palinaroma.dati.Archivio
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.BySelector
@@ -57,6 +58,8 @@ class ProvaSchermate {
 
     @Before
     fun avvia() {
+        // l'emulatore e' in inglese: le prove guardano i testi italiani (a9 prova le altre lingue)
+        strumenti.runOnMainSync { Archivio.impostaLinguaScelta("it") }
         // l'app ha animazioni continue (indicatori, mappa): non aspettare ogni volta 10 secondi che si fermino
         Configurator.getInstance().waitForIdleTimeout = 1_000
         telefono.executeShellCommand("mkdir -p $CARTELLA")
@@ -291,6 +294,35 @@ class ProvaSchermate {
         }
         premi(By.desc("Chiudi la ricerca"), 10_000, "la ricerca")
         aspetta(By.res("cerca"), 10_000, "la Home")
+    }
+
+    /** Le altre lingue: inglese (tutte le schermate principali) e tedesco, scelte nelle impostazioni. */
+    @Test
+    fun a9_altreLingue() {
+        try {
+            for ((codice, home, fermata) in listOf(Triple("en", "Settings", "Updated"), Triple("de", "Einstellungen", "Aktualisiert"))) {
+                strumenti.runOnMainSync { Archivio.impostaLinguaScelta(codice) }
+                val intento = strumenti.targetContext.packageManager.getLaunchIntentForPackage(pacchetto)!!
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                strumenti.targetContext.startActivity(intento)
+                aspetta(By.desc(home), 30_000, "la Home in $codice")
+                aspetta(By.res("riga-fermata"), 60_000, "le fermate vicine")
+                attendi(6_000)
+                schermata("20-$codice-home")
+                apriFermataConITempi()
+                aspettaUnoDi(90_000, "i tempi d'attesa", By.textContains(fermata), By.res("arrivo"))
+                attendi(2_000)
+                schermata("21-$codice-fermata")
+                telefono.pressBack()
+                aspetta(By.desc(home), 15_000, "la Home")
+                tocca(By.desc(home))
+                attendi(2_000)
+                schermata("22-$codice-impostazioni")
+                telefono.pressBack()
+            }
+        } finally {
+            strumenti.runOnMainSync { Archivio.impostaLinguaScelta("it") }
+        }
     }
 
     /** Apre una fermata vicina: la seconda, perche' la prima in piazza Venezia ha solo una linea poco frequente. */

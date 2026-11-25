@@ -30,10 +30,10 @@ private fun conErrore(messaggio: String) = EsitoRicercaTragitti(emptyList(), nul
  */
 suspend fun cercaTragitti(partenza: Luogo?, arrivo: Luogo?, istante: Long?, arrivaEntro: Boolean): EsitoRicercaTragitti {
     if (partenza == null || arrivo == null || !partenza.haCoordinate || !arrivo.haCoordinate) {
-        return conErrore("Non riesco a leggere la tua posizione: attiva la localizzazione e riprova.")
+        return conErrore(tx("Non riesco a leggere la tua posizione: attiva la localizzazione e riprova."))
     }
     if (distanzaMetri(partenza.lat, partenza.lon, arrivo.lat, arrivo.lon) < 40) {
-        return conErrore("Partenza e arrivo sono nello stesso punto.")
+        return conErrore(tx("Partenza e arrivo sono nello stesso punto."))
     }
     return try {
         val r = Transitous.tragitti(partenza, arrivo, istante, arrivaEntro, null)
@@ -41,9 +41,9 @@ suspend fun cercaTragitti(partenza: Luogo?, arrivo: Luogo?, istante: Long?, arri
     } catch (e: CancellationException) {
         throw e
     } catch (e: ErroreTransitous) {
-        conErrore(e.message ?: "Transitous non ha risposto.")
+        conErrore(e.message ?: tx("Transitous non ha risposto."))
     } catch (_: Exception) {
-        conErrore("Non riesco a contattare Transitous. Controlla la connessione e riprova.")
+        conErrore(tx("Non riesco a contattare Transitous. Controlla la connessione e riprova."))
     }
 }
 
@@ -75,7 +75,7 @@ suspend fun altriTragitti(
 }
 
 /** Una fermata dell'app come luogo di partenza o arrivo. */
-fun luogoDaFermata(f: Fermata): Luogo = Luogo(f.nome, "Palina ${f.codice}", f.lat, f.lon, TipoLuogo.FERMATA)
+fun luogoDaFermata(f: Fermata): Luogo = Luogo(f.nome, tx("Palina {0}", f.codice), f.lat, f.lon, TipoLuogo.FERMATA)
 
 /** I luoghi recenti (dal piu' nuovo), con [luogo] in cima: al massimo 8. La posizione non si ricorda. */
 fun ricordaLuogo(recenti: List<Luogo>, luogo: Luogo): List<Luogo> {
@@ -90,7 +90,7 @@ fun giornoEOra(istante: Long, adesso: Long = adessoMs()): String {
     val domani = giornoARoma(adesso + 24 * 3600 * 1000L)
     val prefisso = when (giorno) {
         oggi -> ""
-        domani -> "domani "
+        domani -> return tx("domani {0}", oraARoma(istante))
         else -> "${giorno.day}/${giorno.month.number} "
     }
     return prefisso + oraARoma(istante)
@@ -129,16 +129,15 @@ fun cartaTragitto(t: Tragitto, adessoMs: Long): CartaTragitto {
     val primo = t.mezzi.firstOrNull()
     val testoPrimo = primo?.let {
         val tra = ((it.partenza - adessoMs) / 60_000).toInt()
-        val quando = when {
-            tra in 0..59 -> if (tra < 1) "in partenza" else "tra $tra min"
-            else -> "alle ${oraARoma(it.partenza)}"
+        when {
+            tra in 0..59 && tra < 1 -> tx("{0} {1} in partenza da {2}", it.nomeMezzo, it.linea, it.da.nome)
+            tra in 0..59 -> tx("{0} {1} tra {2} min da {3}", it.nomeMezzo, it.linea, tra, it.da.nome)
+            else -> tx("{0} {1} alle {2} da {3}", it.nomeMezzo, it.linea, oraARoma(it.partenza), it.da.nome)
         }
-        "${it.nomeMezzo} ${it.linea} $quando da ${it.da.nome}"
     }
     val cambi = when (t.cambi) {
-        0 -> "Nessun cambio"
-        1 -> "1 cambio"
-        else -> "${t.cambi} cambi"
+        0 -> tx("Nessun cambio")
+        else -> txn("{0} cambio", "{0} cambi", t.cambi)
     }
     val orari = "${oraARoma(t.partenza)} – ${oraARoma(t.arrivo)}"
     return CartaTragitto(
@@ -149,25 +148,25 @@ fun cartaTragitto(t: Tragitto, adessoMs: Long): CartaTragitto {
             else PezzoTragitto(false, it.linea.ifEmpty { it.nomeMezzo }, coloreTratto(it))
         },
         primoMezzo = testoPrimo,
-        cambiEPiedi = "$cambi · ${t.minutiAPiedi} min a piedi",
+        cambiEPiedi = cambi + " · " + tx("{0} min a piedi", t.minutiAPiedi),
         soppressa = t.mezzi.any { it.cancellato },
         tempoReale = t.mezzi.any { it.tempoReale },
-        perVoce = "Dalle ${orari.replace(" – ", " alle ")}, ${testoDurata(t.durata)}. " +
-            (testoPrimo?.let { "$it. " } ?: "") + "$cambi, ${t.minutiAPiedi} minuti a piedi." +
-            (if (t.mezzi.any { it.cancellato }) " Corsa soppressa." else ""),
+        perVoce = tx("Dalle {0} alle {1}, {2}.", oraARoma(t.partenza), oraARoma(t.arrivo), testoDurata(t.durata)) + " " +
+            (testoPrimo?.let { "$it. " } ?: "") + tx("{0}, {1} minuti a piedi.", cambi, t.minutiAPiedi) +
+            (if (t.mezzi.any { it.cancellato }) " " + tx("Corsa soppressa.") else ""),
     )
 }
 
 /** La carta "Tutto a piedi: 25 min". */
 fun cartaAPiedi(t: Tragitto): CartaTragitto = CartaTragitto(
-    orari = "Tutto a piedi: ${testoDurata(t.durata)}",
+    orari = tx("Tutto a piedi: {0}", testoDurata(t.durata)),
     durata = "",
     pezzi = emptyList(),
     primoMezzo = null,
     cambiEPiedi = if (t.metriAPiedi > 0) testoMetri(t.metriAPiedi) else "",
     soppressa = false,
     tempoReale = false,
-    perVoce = "Tutto a piedi, ${testoDurata(t.durata)}" + (if (t.metriAPiedi > 0) ", ${testoMetri(t.metriAPiedi)}" else "") + ".",
+    perVoce = tx("Tutto a piedi, {0}", testoDurata(t.durata)) + (if (t.metriAPiedi > 0) ", ${testoMetri(t.metriAPiedi)}" else "") + ".",
 )
 
 // --- il dettaglio di un tragitto
@@ -188,14 +187,14 @@ data class RigaTappa(
 fun rigaTappa(azione: String, tappa: Tappa, istante: Long, previsto: Long, tempoReale: Boolean): RigaTappa {
     val ritardo = ((istante - previsto) / 60_000).toInt()
     return RigaTappa(
-        testo = "$azione ${tappa.nome}",
-        dettagli = listOfNotNull(tappa.codice?.let { "Palina $it" }, tappa.binario?.let { "Binario $it" }).joinToString(" · "),
+        testo = tx(azione, tappa.nome),
+        dettagli = listOfNotNull(tappa.codice?.let { tx("Palina {0}", it) }, tappa.binario?.let { tx("Binario {0}", it) }).joinToString(" · "),
         ora = oraARoma(istante),
         stato = when {
-            !tempoReale -> "da orario"
+            !tempoReale -> tx("da orario")
             ritardo > 0 -> "+$ritardo min"
             ritardo < 0 -> "$ritardo min"
-            else -> "in orario"
+            else -> tx("in orario")
         },
         evidenzia = tempoReale && ritardo != 0,
         tempoReale = tempoReale,
@@ -244,19 +243,18 @@ data class DettaglioTragitto(
 fun dettaglioTragitto(t: Tragitto): DettaglioTragitto = DettaglioTragitto(
     titolo = "${oraARoma(t.partenza)} – ${oraARoma(t.arrivo)}",
     sottotitolo = testoDurata(t.durata) + when (t.cambi) {
-        0 -> if (t.mezzi.isEmpty()) " a piedi" else " · nessun cambio"
-        1 -> " · 1 cambio"
-        else -> " · ${t.cambi} cambi"
+        0 -> " " + if (t.mezzi.isEmpty()) tx("a piedi") else "· " + tx("nessun cambio")
+        else -> " · " + txn("{0} cambio", "{0} cambi", t.cambi)
     },
-    partenza = "Parti da " + t.tratti.first().da.nome,
+    partenza = tx("Parti da {0}", t.tratti.first().da.nome),
     oraPartenza = oraARoma(t.partenza),
-    arrivo = "Arrivi a " + t.tratti.last().a.nome,
+    arrivo = tx("Arrivi a {0}", t.tratti.last().a.nome),
     oraArrivo = oraARoma(t.arrivo),
     blocchi = t.tratti.map { tr ->
         if (tr.aPiedi) {
             BloccoTragitto(
                 aPiedi = true,
-                titolo = "A piedi · " + testoDurata(tr.durata) + (tr.metri?.takeIf { it > 0 }?.let { " · " + testoMetri(it) } ?: ""),
+                titolo = tx("A piedi") + " · " + testoDurata(tr.durata) + (tr.metri?.takeIf { it > 0 }?.let { " · " + testoMetri(it) } ?: ""),
                 linea = "", colore = Colori.PORPORA, gestore = "", soppresso = false, sali = null, scendi = null,
                 fermate = "", intermedie = emptyList(),
                 passi = if (tr.passi.size > 1) tr.passi.map { p -> p.testo + if (p.metri >= 10) " · " + testoMetri(p.metri) else "" } else emptyList(),
@@ -266,14 +264,14 @@ fun dettaglioTragitto(t: Tragitto): DettaglioTragitto = DettaglioTragitto(
             val n = tr.intermedie.size + 1
             BloccoTragitto(
                 aPiedi = false,
-                titolo = if (tr.direzione.isNotEmpty()) "${tr.nomeMezzo} per ${tr.direzione}" else tr.nomeMezzo,
+                titolo = if (tr.direzione.isNotEmpty()) tx("{0} per {1}", tr.nomeMezzo, tr.direzione) else tr.nomeMezzo,
                 linea = tr.linea.ifEmpty { tr.nomeMezzo },
                 colore = coloreTratto(tr),
                 gestore = tr.gestore,
                 soppresso = tr.cancellato,
-                sali = rigaTappa("Sali a", tr.da, tr.partenza, tr.partenzaPrevista, tr.tempoReale),
-                scendi = rigaTappa("Scendi a", tr.a, tr.arrivo, tr.arrivoPrevisto, tr.tempoReale),
-                fermate = (if (n == 1) "1 fermata" else "$n fermate") + " · " + testoDurata(tr.durata),
+                sali = rigaTappa(tx("Sali a {0}"), tr.da, tr.partenza, tr.partenzaPrevista, tr.tempoReale),
+                scendi = rigaTappa(tx("Scendi a {0}"), tr.a, tr.arrivo, tr.arrivoPrevisto, tr.tempoReale),
+                fermate = txn("{0} fermata", "{0} fermate", n) + " · " + testoDurata(tr.durata),
                 intermedie = tr.intermedie.map { TappaBreve(it.nome, it.orario?.let { o -> oraARoma(o) }.orEmpty()) },
                 passi = emptyList(),
                 avvisi = tr.avvisi,
@@ -287,12 +285,12 @@ fun dettaglioTragitto(t: Tragitto): DettaglioTragitto = DettaglioTragitto(
 fun testoVetturaTragitto(t: Tratto, vettura: MezzoRT, adesso: Long): String {
     val eta = etaRilevamento(vettura.rilevato, adesso)
     val dove = if (t.partenza / 1000 > adesso && !t.da.lat.isNaN()) {
-        "è a ${testoMetri(distanzaMetri(vettura.lat, vettura.lon, t.da.lat, t.da.lon))} dalla fermata"
+        tx("è a {0} dalla fermata", testoMetri(distanzaMetri(vettura.lat, vettura.lon, t.da.lat, t.da.lon)))
     } else {
-        "è in viaggio"
+        tx("è in viaggio")
     }
-    return "La vettura" + (if (vettura.etichetta.isNotBlank()) " ${vettura.etichetta}" else "") + " $dove" +
-        (eta?.let { " · rilevata $it" } ?: "")
+    return tx("La vettura {0} {1}", vettura.etichetta, dove).replace("  ", " ") +
+        (eta?.let { " · " + tx("rilevata {0}", it) } ?: "")
 }
 
 /** La fermata dell'app che corrisponde a una fermata di Transitous, per aprirne i tempi d'attesa. */
@@ -343,11 +341,10 @@ suspend fun vettureTragitto(t: Tragitto): Map<Int, MezzoRT> {
 
 /** Quando la posizione non e' permessa ma serve per la partenza o l'arrivo. */
 fun avvisoPermessoTragitti(negatoPerSempre: Boolean): String =
-    "Per partire o arrivare alla tua posizione serve il permesso di localizzazione. " +
-        "Le coordinate vengono inviate a Transitous solo per calcolare il tragitto." +
-        if (negatoPerSempre) " Il permesso è stato negato: puoi darlo dalle impostazioni dell'app." else ""
+    tx("Per partire o arrivare alla tua posizione serve il permesso di localizzazione. Le coordinate vengono inviate a Transitous solo per calcolare il tragitto.") +
+        if (negatoPerSempre) " " + tx("Il permesso è stato negato: puoi darlo dalle impostazioni dell'app.") else ""
 
 /** Il testo dell'attribuzione richiesta da Transitous, con il collegamento alle fonti. */
 fun attribuzioneTransitous(): String =
-    "Tragitti calcolati da Transitous con i dati di Roma Mobilità, Cotral, Trenitalia e OpenStreetMap. Tocca qui per tutte le fonti."
+    tx("Tragitti calcolati da Transitous con i dati di Roma Mobilità, Cotral, Trenitalia e OpenStreetMap. Tocca qui per tutte le fonti.")
 

@@ -19,6 +19,8 @@ struct VoceComplicazione: Codable {
     var linea: String?
     var tra: String?
     var colore: Int64?
+    /** "64 tra 3' · Piazza Venezia", per la complicazione su una riga. */
+    var inline: String?
 }
 
 struct RigaComplicazione: Codable, Hashable {

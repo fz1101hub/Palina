@@ -78,6 +78,10 @@ object Archivio {
     private val _cifreLed = MutableStateFlow(true)
     val cifreLed: StateFlow<Boolean> = _cifreLed.asStateFlow()
 
+    /** La lingua scelta nelle impostazioni di Palina: "" segue il telefono. */
+    private val _lingua = MutableStateFlow("")
+    val lingua: StateFlow<String> = _lingua.asStateFlow()
+
     private val impostazioni by lazy { app.getSharedPreferences("palina", Context.MODE_PRIVATE) }
 
     fun inizializza(context: Context) {
@@ -87,6 +91,8 @@ object Archivio {
         _aspetto.value = impostazioni.getString("aspetto", null)
             ?.let { nome -> Aspetto.entries.firstOrNull { it.name == nome } } ?: Aspetto.AUTOMATICO
         _cifreLed.value = impostazioni.getBoolean("cifre_led", true)
+        _lingua.value = impostazioni.getString("lingua", "").orEmpty()
+        impostaLingua(app, _lingua.value)
         ambito.launch {
             pulisciAvanzi()
             try {
@@ -224,7 +230,7 @@ object Archivio {
     @Synchronized
     fun aggiorna() {
         if (!_pronto.value || _aggiornamento.value is StatoAggiornamento.InCorso) return
-        _aggiornamento.value = StatoAggiornamento.InCorso("Avvio", 0f)
+        _aggiornamento.value = StatoAggiornamento.InCorso(tx("Avvio"), 0f)
         ambito.launch {
             try {
                 esegui()
@@ -244,7 +250,7 @@ object Archivio {
         val zip = File(app.cacheDir, "orario.zip")
         val nuovo = File(app.filesDir, "orario-nuovo.db")
         try {
-            scarica(zip) { stato("Scarico l'orario di Roma Mobilità", 0.4f * it) }
+            scarica(zip) { stato(tx("Scarico l'orario di Roma Mobilità"), 0.4f * it) }
             nuovo.delete()
             File(nuovo.path + "-journal").delete()
             val scrittore = ScrittoreDb(nuovo)
@@ -257,7 +263,7 @@ object Archivio {
                 runCatching { scrittore.annulla() }
                 throw e
             }
-            if (!nuovo.renameTo(fileDb())) throw IOException("Impossibile salvare l'orario")
+            if (!nuovo.renameTo(fileDb())) throw IOException(tx("Impossibile salvare l'orario"))
         } finally {
             // riuscito o no, non restano 45 MB di zip ne' un database a meta'
             zip.delete()
@@ -270,7 +276,7 @@ object Archivio {
     private fun scarica(destinazione: File, progresso: (Float) -> Unit) {
         val richiesta = Request.Builder().url(URL_ORARIO).header("User-Agent", agenteUtente).build()
         http.newCall(richiesta).execute().use { risposta ->
-            if (!risposta.isSuccessful) throw IOException("Il server ha risposto ${risposta.code}")
+            if (!risposta.isSuccessful) throw IOException(tx("Il server ha risposto {0}", risposta.code))
             val corpo = risposta.body
             val totale = corpo.contentLength()
             corpo.byteStream().use { ingresso ->
@@ -316,6 +322,18 @@ object Archivio {
     fun scegliCifreLed(attive: Boolean) {
         _cifreLed.value = attive
         impostazioni.edit().putBoolean("cifre_led", attive).apply()
+    }
+
+    /** Sceglie la lingua dei testi ("" per seguire il telefono): poi le schermate vanno ridisegnate. */
+    fun impostaLinguaScelta(codice: String) {
+        _lingua.value = codice
+        impostazioni.edit().putString("lingua", codice).apply()
+        impostaLingua(app, codice)
+    }
+
+    /** La lingua del telefono e' cambiata (o quella scelta per l'app in Android 13). */
+    fun linguaDelSistemaCambiata(context: Context) {
+        impostaLingua(context, _lingua.value)
     }
 
     /** Ultimi luoghi scelti per i tragitti, dal piu' recente. */

@@ -66,6 +66,8 @@ import it.palinaroma.ponte.FermataTreno
 import it.palinaroma.ponte.RigaOrologio
 import it.palinaroma.ponte.TabelloneOrologio
 import it.palinaroma.ponte.TrenoOrologio
+import it.palinaroma.dati.tx
+import it.palinaroma.dati.txn
 import it.palinaroma.ponte.Seguimento
 import it.palinaroma.ponte.seguimento
 import it.palinaroma.ponte.chiaveLinea
@@ -96,6 +98,7 @@ class Principale : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        impostaLinguaOrologio(this)
         ArchivioOrologio.carica(this)
         if (savedInstanceState == null) apertura.value = rottaDa(intent)
         setContent {
@@ -241,9 +244,9 @@ fun SchermataPalina(adesso: Long, apriRiga: (FermataOrologio, RigaOrologio) -> U
             item {
                 Nota(
                     if (telefono == StatoTelefono.NON_RAGGIUNGIBILE) {
-                        "Telefono non raggiungibile: apri Palina sul telefono e controlla il Bluetooth."
+                        tx("Telefono non raggiungibile: apri Palina sul telefono e controlla il Bluetooth.")
                     } else {
-                        "Chiedo i tempi al telefono…"
+                        tx("Chiedo i tempi al telefono…")
                     },
                 )
             }
@@ -257,7 +260,7 @@ fun SchermataPalina(adesso: Long, apriRiga: (FermataOrologio, RigaOrologio) -> U
                 onClick = { ambito.launch { ArchivioOrologio.richiedi(context, forza = true) } },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Aggiorna")
+                Text(tx("Aggiorna"))
             }
         }
     }
@@ -271,12 +274,12 @@ private fun SchedaSeguito(s: Seguimento, adesso: Long, apri: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .background(OroFondo, RoundedCornerShape(18.dp))
-            .clickable(onClickLabel = "apri la linea seguita", onClick = apri)
+            .clickable(onClickLabel = tx("apri la linea seguita"), onClick = apri)
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        Text("Stai seguendo", color = GrigioOrologio, style = MaterialTheme.typography.bodySmall)
+        Text(tx("Stai seguendo"), color = GrigioOrologio, style = MaterialTheme.typography.bodySmall)
         Text(
-            "${s.linea} · " + if (minuti == "ora") "in arrivo" else minuti,
+            "${s.linea} · " + if (s.obiettivo - adesso < 60) tx("in arrivo") else minuti,
             color = OroOrologio,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.titleMedium,
@@ -308,7 +311,7 @@ private fun SchedaFermata(f: FermataOrologio, adesso: Long, apriRiga: (RigaOrolo
         }
         val righe = f.righe.filter { it.prossimi(adesso).isNotEmpty() }
         if (righe.isEmpty()) {
-            Text("Nessun passaggio a breve", color = GrigioOrologio, style = MaterialTheme.typography.bodySmall)
+            Text(tx("Nessun passaggio a breve"), color = GrigioOrologio, style = MaterialTheme.typography.bodySmall)
         }
         righe.forEach { r -> RigaPassaggi(r, adesso) { apriRiga(r) } }
     }
@@ -327,23 +330,23 @@ private fun Distintivo(r: RigaOrologio) {
 }
 
 private fun minutiDaLeggere(o: Long, adesso: Long): String =
-    testoMinuti(o, adesso).let { if (it == "ora") "in arrivo" else it.removeSuffix("'") + " minuti" }
+    ((o - adesso) / 60).toInt().let { m -> if (m < 1) tx("in arrivo") else txn("{0} minuto", "{0} minuti", m) }
 
 /** "64 → Termini, 3' · 12'": oro se in tempo reale, come sul telefono. */
 @Composable
 private fun RigaPassaggi(r: RigaOrologio, adesso: Long, apri: () -> Unit) {
     val prossimi = r.prossimi(adesso)
     val descrizione = buildString {
-        append(if (r.diTreni) "Treno " else "Linea ").append(r.linea).append(" verso ").append(r.capolinea).append(": ")
+        append(if (r.diTreni) tx("Treno {0} verso {1}: ", r.linea, r.capolinea) else tx("Linea {0} verso {1}: ", r.linea, r.capolinea))
         append(prossimi.take(3).joinToString(", ") { minutiDaLeggere(it, adesso) })
-        if (r.tempoReale) append(", in tempo reale")
+        if (r.tempoReale) append(tx(", in tempo reale"))
         r.avviso?.let { append(", ").append(it) }
     }
     Row(
         Modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) { contentDescription = descrizione }
-            .clickable(onClickLabel = if (r.diTreni) "vedi i treni e le loro fermate" else "vedi i passaggi e seguila", onClick = apri)
+            .clickable(onClickLabel = if (r.diTreni) tx("vedi i treni e le loro fermate") else tx("vedi i passaggi e seguila"), onClick = apri)
             .padding(top = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -373,9 +376,9 @@ private fun RigaPassaggi(r: RigaOrologio, adesso: Long, apri: () -> Unit) {
 private fun TestoAggiornato(t: TabelloneOrologio, telefono: StatoTelefono, adesso: Long) {
     val ora = remember(t.creato) { oraBreve(t.creato) }
     val testo = when {
-        telefono == StatoTelefono.NON_RAGGIUNGIBILE -> "Telefono non raggiungibile: tempi delle $ora"
-        adesso * 1000 - t.creato > 3 * 60_000 -> "Tempi delle $ora"
-        else -> "Aggiornato alle $ora"
+        telefono == StatoTelefono.NON_RAGGIUNGIBILE -> tx("Telefono non raggiungibile: tempi delle {0}", ora)
+        adesso * 1000 - t.creato > 3 * 60_000 -> tx("Tempi delle {0}", ora)
+        else -> tx("Aggiornato alle {0}", ora)
     }
     Nota(testo)
 }
@@ -400,14 +403,14 @@ fun SchermataRiga(fermataId: String, chiaveLinea: String, capolinea: String, ade
     val segui = {
         val s = if (fermata != null && r != null) seguimento(fermata, r, t, System.currentTimeMillis() / 1000) else null
         if (s == null) {
-            avviso = "Nessun passaggio da seguire."
+            avviso = tx("Nessun passaggio da seguire.")
         } else {
             Seguito.avvia(context, s)
             avviso = null
         }
     }
     val permesso = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { concesso ->
-        if (concesso) segui() else avviso = "Per seguire la linea consenti a Palina le notifiche."
+        if (concesso) segui() else avviso = tx("Per seguire la linea consenti a Palina le notifiche.")
     }
 
     Schermo {
@@ -430,7 +433,7 @@ fun SchermataRiga(fermataId: String, chiaveLinea: String, capolinea: String, ade
         item { Nota(fermata?.nome.orEmpty()) }
         val prossimi = r?.prossimi(adesso).orEmpty()
         if (r == null || prossimi.isEmpty()) {
-            item { Nota("Nessun passaggio a breve per questa linea.") }
+            item { Nota(tx("Nessun passaggio a breve per questa linea.")) }
         } else {
             r.avviso?.let { a -> item { Nota(a, OroOrologio) } }
             itemsIndexed(prossimi) { i, o ->
@@ -442,7 +445,7 @@ fun SchermataRiga(fermataId: String, chiaveLinea: String, capolinea: String, ade
                         onClick = { apriTreno(treno) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .semantics { contentDescription = "Treno delle ${oraBreve(o * 1000)}, ${minutiDaLeggere(o, adesso)}: vedi le fermate" },
+                            .semantics { contentDescription = tx("Treno delle {0}, {1}: vedi le fermate", oraBreve(o * 1000), minutiDaLeggere(o, adesso)) },
                     ) {
                         Column {
                             Text(
@@ -450,7 +453,7 @@ fun SchermataRiga(fermataId: String, chiaveLinea: String, capolinea: String, ade
                                 color = if (oro) OroOrologio else Color.White,
                                 fontWeight = FontWeight.Bold,
                             )
-                            Text("Fermate del treno", color = GrigioOrologio, style = MaterialTheme.typography.bodySmall)
+                            Text(tx("Fermate del treno"), color = GrigioOrologio, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 } else {
@@ -459,7 +462,7 @@ fun SchermataRiga(fermataId: String, chiaveLinea: String, capolinea: String, ade
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp)
                             .semantics(mergeDescendants = true) {
-                                contentDescription = minutiDaLeggere(o, adesso) + ", alle " + oraBreve(o * 1000) + if (oro) ", in tempo reale" else ""
+                                contentDescription = minutiDaLeggere(o, adesso) + tx(", alle {0}", oraBreve(o * 1000)) + if (oro) tx(", in tempo reale") else ""
                             },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -474,12 +477,12 @@ fun SchermataRiga(fermataId: String, chiaveLinea: String, capolinea: String, ade
                     }
                 }
             }
-            if (r.tempoReale) item { Nota("In oro: in tempo reale", OroOrologio) }
+            if (r.tempoReale) item { Nota(tx("In oro: in tempo reale"), OroOrologio) }
         }
         item {
             if (questa) {
                 OutlinedButton(onClick = { Seguito.ferma(context) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Smetti di seguire")
+                    Text(tx("Smetti di seguire"))
                 }
             } else {
                 Button(
@@ -491,16 +494,16 @@ fun SchermataRiga(fermataId: String, chiaveLinea: String, capolinea: String, ade
                     enabled = prossimi.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Segui")
+                    Text(tx("Segui"))
                 }
             }
         }
         item {
             Nota(
                 avviso ?: if (questa) {
-                    "Il conto alla rovescia è sul quadrante; l'orologio vibra 2 minuti prima."
+                    tx("Il conto alla rovescia è sul quadrante; l'orologio vibra 2 minuti prima.")
                 } else {
-                    "Conto alla rovescia sul quadrante e una vibrazione 2 minuti prima."
+                    tx("Conto alla rovescia sul quadrante e una vibrazione 2 minuti prima.")
                 },
             )
         }
@@ -535,19 +538,19 @@ fun SchermataTreno(treno: TrenoOrologio, adesso: Long) {
     Schermo(lista) {
         item {
             Text(
-                corsa?.titolo ?: "Treno",
+                corsa?.titolo ?: tx("Treno"),
                 color = OroOrologio,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.titleMedium,
             )
         }
-        item { Nota(corsa?.verso ?: "delle ${oraBreve(treno.previsto * 1000)}") }
+        item { Nota(corsa?.verso ?: tx("delle {0}", oraBreve(treno.previsto * 1000))) }
         item {
             Nota(
                 when {
-                    corsa == null && telefono == StatoTelefono.NON_RAGGIUNGIBILE -> "Telefono non raggiungibile: non posso chiedere le fermate."
-                    corsa == null -> "Chiedo le fermate al telefono…"
+                    corsa == null && telefono == StatoTelefono.NON_RAGGIUNGIBILE -> tx("Telefono non raggiungibile: non posso chiedere le fermate.")
+                    corsa == null -> tx("Chiedo le fermate al telefono…")
                     corsa.errore != null -> corsa.errore!!
                     else -> corsa.fonte.orEmpty()
                 },
@@ -572,11 +575,11 @@ private fun RigaFermataTreno(f: FermataTreno, qui: Boolean, adesso: Long) {
     val cambiato = aggiornato != null && programmato != null && oraBreve(aggiornato) != oraBreve(programmato)
     val descrizione = buildString {
         append(f.nome)
-        if (f.soppressa) append(", fermata soppressa") else append(", ").append(orario)
-        f.ritardoMinuti?.takeIf { it > 0 }?.let { append(", ").append(it).append(" minuti di ritardo") }
-        if (f.stimato) append(", stimato")
-        f.binario?.let { append(", binario ").append(it) }
-        if (qui) append(", la tua stazione")
+        if (f.soppressa) append(tx(", fermata soppressa")) else append(", ").append(orario)
+        f.ritardoMinuti?.takeIf { it > 0 }?.let { append(tx(", {0} minuti di ritardo", it)) }
+        if (f.stimato) append(tx(", stimato"))
+        f.binario?.let { append(tx(", binario {0}", it)) }
+        if (qui) append(tx(", la tua stazione"))
     }
     Row(
         Modifier
@@ -618,9 +621,9 @@ private fun RigaFermataTreno(f: FermataTreno, qui: Boolean, adesso: Long) {
                 style = MaterialTheme.typography.bodySmall,
             )
             val sotto = listOfNotNull(
-                "soppressa".takeIf { f.soppressa },
-                f.binario?.let { "bin. $it" + if (f.binarioCambiato) " (cambiato)" else "" },
-                f.ritardoMinuti?.takeIf { it > 0 && !f.soppressa }?.let { "+$it min" + if (f.stimato) " (stima)" else "" },
+                tx("soppressa").takeIf { f.soppressa },
+                f.binario?.let { tx("bin.") + " $it" + if (f.binarioCambiato) " " + tx("(cambiato)") else "" },
+                f.ritardoMinuti?.takeIf { it > 0 && !f.soppressa }?.let { "+$it min" + if (f.stimato) " " + tx("(stima)") else "" },
             )
             if (sotto.isNotEmpty()) {
                 Text(sotto.joinToString(" · "), color = if (qui) OroOrologio else GrigioOrologio, style = MaterialTheme.typography.bodySmall)

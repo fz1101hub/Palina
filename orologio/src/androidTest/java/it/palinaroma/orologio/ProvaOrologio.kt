@@ -3,6 +3,7 @@ package it.palinaroma.orologio
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
@@ -21,6 +22,7 @@ import it.palinaroma.ponte.tabelloneDiEsempio
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.FixMethodOrder
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.MethodSorters
@@ -37,6 +39,17 @@ class ProvaOrologio {
     private val orologio = UiDevice.getInstance(strumenti)
     private val contesto = strumenti.targetContext
     private val prefisso = "wear${Build.VERSION.SDK_INT}"
+
+    /** L'emulatore e' in inglese: le prove guardano i testi italiani (una prova a parte e' in inglese). */
+    @Before
+    fun italiano() {
+        linguaDelleProve("it")
+    }
+
+    private fun linguaDelleProve(codice: String) {
+        contesto.getSharedPreferences("orologio", Context.MODE_PRIVATE).edit().putString("lingua", codice).commit()
+        impostaLinguaOrologio(contesto)
+    }
 
     /** La complicazione si costruisce (usa classi di Android: si prova qui, non sul computer). */
     @Test

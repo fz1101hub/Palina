@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import androidx.wear.ongoing.OngoingActivity
 import androidx.wear.ongoing.Status
 import it.palinaroma.ponte.AVVISO_SECONDI
+import it.palinaroma.dati.tx
 import it.palinaroma.ponte.Seguimento
 import it.palinaroma.ponte.ricalcola
 import it.palinaroma.ponte.testoAvvisoSegui
@@ -70,16 +71,16 @@ object NotificheSegui {
     fun preparaCanali(context: Context) {
         val gestore = context.getSystemService(NotificationManager::class.java) ?: return
         gestore.createNotificationChannel(
-            NotificationChannel(CANALE_SEGUI, context.getString(R.string.canale_segui), NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = context.getString(R.string.canale_segui_descrizione)
+            NotificationChannel(CANALE_SEGUI, tx("Linea seguita"), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = tx("Il conto alla rovescia del bus o del treno che stai seguendo")
                 setSound(null, null)
                 enableVibration(false)
                 setShowBadge(false)
             },
         )
         gestore.createNotificationChannel(
-            NotificationChannel(CANALE_ARRIVO, context.getString(R.string.canale_arrivo), NotificationManager.IMPORTANCE_HIGH).apply {
-                description = context.getString(R.string.canale_arrivo_descrizione)
+            NotificationChannel(CANALE_ARRIVO, tx("Arrivo imminente"), NotificationManager.IMPORTANCE_HIGH).apply {
+                description = tx("Una vibrazione quando il mezzo seguito arriva tra 2 minuti")
                 enableVibration(true)
                 setShowBadge(false)
             },
@@ -118,15 +119,15 @@ object NotificheSegui {
             .setWhen(s.obiettivo * 1000)
             .setShowWhen(true)
             .setRequestPromotedOngoing(true)
-            .setShortCriticalText(if (inArrivo) "ora" else null)
+            .setShortCriticalText(if (inArrivo) tx("ora§adesso") else null)
             .setContentIntent(apri)
-            .addAction(NotificationCompat.Action.Builder(null, "Smetti", smetti).build())
+            .addAction(NotificationCompat.Action.Builder(null, tx("Smetti"), smetti).build())
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         if (Build.VERSION.SDK_INT < 37) {
             val stato = Status.Builder()
                 .addTemplate("#linea# · #tempo#")
                 .addPart("linea", Status.TextPart(s.linea))
-                .addPart("tempo", if (inArrivo) Status.TextPart("ora") else Status.TimerPart(s.obiettivo * 1000))
+                .addPart("tempo", if (inArrivo) Status.TextPart(tx("ora§adesso")) else Status.TimerPart(s.obiettivo * 1000))
                 .build()
             OngoingActivity.Builder(context, ID, b)
                 .setStaticIcon(R.drawable.ic_notifica)

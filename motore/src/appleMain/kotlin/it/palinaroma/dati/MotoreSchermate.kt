@@ -148,10 +148,10 @@ class MotoreLinea(
 
     /** "verso Casaletto", o la descrizione della linea. */
     fun sottotitolo(): String =
-        percorso?.capolinea?.takeIf { it.isNotEmpty() }?.let { "verso $it" } ?: linea?.descrizione.orEmpty()
+        percorso?.capolinea?.takeIf { it.isNotEmpty() }?.let { tx("verso {0}", it) } ?: linea?.descrizione.orEmpty()
 
     fun direzioni(): List<VoceDirezione> = percorsi.map {
-        VoceDirezione(it.direzione, "→ " + it.capolinea.ifEmpty { "Direzione ${it.direzione + 1}" }, it.direzione == direzione)
+        VoceDirezione(it.direzione, "→ " + it.capolinea.ifEmpty { tx("Direzione {0}", it.direzione + 1) }, it.direzione == direzione)
     }
 
     fun scegli(direzione: Int) {
@@ -292,7 +292,7 @@ data class StatoCorsa(
 class MotoreCorsa(private val orario: Orario, private val treno: String) {
     suspend fun aggiorna(): StatoCorsa = withContext(Dispatchers.Main) {
         val richiesta = TrenoOrologio.leggi(treno)
-            ?: return@withContext StatoCorsa("Treno", null, null, emptyList(), -1, "Richiesta non valida.")
+            ?: return@withContext StatoCorsa(tx("Treno"), null, null, emptyList(), -1, tx("Richiesta non valida."))
         statoCorsa(calcolaCorsaOrologio(orario, richiesta), adessoMs())
     }
 }
@@ -311,7 +311,7 @@ fun statoCorsa(corsa: CorsaOrologio, adesso: Long): StatoCorsa = StatoCorsa(
             ora = ora,
             oraPrevista = prevista,
             ritardo = ritardo,
-            binario = f.binario?.let { "Binario $it" },
+            binario = f.binario?.let { tx("Binario {0}", it) },
             binarioCambiato = f.binarioCambiato,
             soppressa = f.soppressa,
             stimato = f.stimato,
@@ -319,10 +319,10 @@ fun statoCorsa(corsa: CorsaOrologio, adesso: Long): StatoCorsa = StatoCorsa(
             passata = (f.orario ?: f.previsto ?: Long.MAX_VALUE) < adesso - 60_000,
             perVoce = buildString {
                 append(f.nome)
-                if (f.soppressa) append(", fermata soppressa") else append(", alle $ora")
-                if (ritardo != null) append(", ritardo $ritardo minuti")
-                f.binario?.let { append(", binario $it") }
-                if (i == corsa.qui) append(", la tua stazione")
+                if (f.soppressa) append(tx(", fermata soppressa")) else append(tx(", alle {0}", ora))
+                if (ritardo != null) append(tx(", ritardo {0} minuti", ritardo))
+                f.binario?.let { append(tx(", binario {0}", it)) }
+                if (i == corsa.qui) append(tx(", la tua stazione"))
             },
         )
     },

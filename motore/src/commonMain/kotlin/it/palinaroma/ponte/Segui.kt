@@ -2,6 +2,7 @@ package it.palinaroma.ponte
 
 import it.palinaroma.dati.Json
 import it.palinaroma.dati.ScriviJson
+import it.palinaroma.dati.tx
 import kotlin.math.abs
 
 /*
@@ -98,18 +99,20 @@ fun titoloSegui(s: Seguimento): String = "${s.linea} → ${s.capolinea}"
 
 /** "Piazza Venezia · tra 4' (14:05) · tempo reale". [adesso] in secondi. */
 fun testoSegui(s: Seguimento, adesso: Long): String {
-    val minuti = testoMinuti(s.obiettivo, adesso)
-    val quando = if (minuti == "ora") "in arrivo" else "tra $minuti"
-    return "${s.fermata} · $quando (${oraBreve(s.obiettivo * 1000)}) · " + if (s.tempoReale) "tempo reale" else "da orario"
+    val quando = if (s.obiettivo - adesso < 60) tx("in arrivo") else tx("tra {0}", testoMinuti(s.obiettivo, adesso))
+    return "${s.fermata} · $quando (${oraBreve(s.obiettivo * 1000)}) · " + if (s.tempoReale) tx("tempo reale") else tx("da orario")
 }
 
 /** "64 in arrivo". */
-fun titoloAvvisoSegui(s: Seguimento): String = "${s.linea} in arrivo"
+fun titoloAvvisoSegui(s: Seguimento): String = tx("{0} in arrivo", s.linea)
 
 /** "Piazza Venezia: tra 2', verso Stazione San Pietro". [adesso] in secondi. */
 fun testoAvvisoSegui(s: Seguimento, adesso: Long): String {
-    val minuti = testoMinuti(s.obiettivo, adesso)
-    return "${s.fermata}: " + (if (minuti == "ora") "ora" else "tra $minuti") + ", verso ${s.capolinea}"
+    return if (s.obiettivo - adesso < 60) {
+        tx("{0}: ora, verso {1}", s.fermata, s.capolinea)
+    } else {
+        tx("{0}: tra {1}, verso {2}", s.fermata, testoMinuti(s.obiettivo, adesso), s.capolinea)
+    }
 }
 
 /** Il seguimento in JSON, per riprenderlo se l'app si riapre. */

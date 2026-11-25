@@ -45,6 +45,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.aggiornamentiPosizione
+import it.palinaroma.dati.tx
 import it.palinaroma.dati.haPermessoPosizione
 import it.palinaroma.dati.precisione
 import kotlinx.coroutines.delay
@@ -149,8 +150,8 @@ fun rememberSeiQui(): SeiQui {
     }
 
     val avviso = when {
-        !permesso && negatoPerSempre -> "Il permesso di posizione è negato: tocca qui per darlo dalle impostazioni"
-        permesso && posizione == null && attesaLunga -> "Non trovo la tua posizione: attiva la localizzazione del telefono"
+        !permesso && negatoPerSempre -> tx("Il permesso di posizione è negato: tocca qui per darlo dalle impostazioni")
+        permesso && posizione == null && attesaLunga -> tx("Non trovo la tua posizione: attiva la localizzazione del telefono")
         else -> null
     }
     return SeiQui(
@@ -211,7 +212,7 @@ fun disegnaMiaPosizione(mappa: MapView, posizione: Location, densita: Float) {
             setStroke((3 * densita).toInt(), android.graphics.Color.WHITE)
             setSize(lato, lato)
         }
-        title = "Sei qui"
+        title = tx("Sei qui")
         setOnMarkerClickListener { _, _ -> true }
     })
 }
@@ -230,7 +231,7 @@ fun PulsanteMiaPosizione(attivo: Boolean, onClick: () -> Unit, modifier: Modifie
         containerColor = Color.White,
         contentColor = if (attivo) BluPosizione else GrigioMappa,
         elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
-        modifier = modifier.semantics { contentDescription = "Mostra dove sono" },
+        modifier = modifier.semantics { contentDescription = tx("Mostra dove sono") },
     ) {
         val colore = if (attivo) BluPosizione else GrigioMappa
         Canvas(Modifier.size(22.dp)) {

@@ -50,7 +50,7 @@ final class Seguito: NSObject, ObservableObject, UNUserNotificationCenterDelegat
         let consentite = Prova.segui ? true
             : (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
         guard let nuovo = try? await motore.inizia(fermataId: fermataId, lineaId: lineaId, capolinea: capolinea) else {
-            messaggio = "Non trovo un prossimo passaggio da seguire per questa linea."
+            messaggio = tx("Non trovo un prossimo passaggio da seguire per questa linea.")
             return
         }
         await chiudi()
@@ -58,9 +58,9 @@ final class Seguito: NSObject, ObservableObject, UNUserNotificationCenterDelegat
         avvisoProgrammato = 0
         await mostra(nuovo)
         if !ActivityAuthorizationInfo().areActivitiesEnabled {
-            messaggio = "Le Live Activity di Palina sono spente: il conto alla rovescia si vede solo nell'app. Puoi attivarle nelle Impostazioni dell'iPhone."
+            messaggio = tx("Le Live Activity di Palina sono spente: il conto alla rovescia si vede solo nell'app. Puoi attivarle nelle Impostazioni dell'iPhone.")
         } else if !consentite {
-            messaggio = "Le notifiche di Palina sono spente: niente avviso 2 minuti prima. Puoi attivarle nelle Impostazioni dell'iPhone."
+            messaggio = tx("Le notifiche di Palina sono spente: niente avviso 2 minuti prima. Puoi attivarle nelle Impostazioni dell'iPhone.")
         }
     }
 
@@ -112,7 +112,10 @@ final class Seguito: NSObject, ObservableObject, UNUserNotificationCenterDelegat
                 await aperta.update(attivita)
             } else if ActivityAuthorizationInfo().areActivitiesEnabled {
                 for vecchia in Activity<SeguiAttributi>.activities { await vecchia.end(nil, dismissalPolicy: .immediate) }
-                let attributi = SeguiAttributi(linea: s.linea, capolinea: s.capolinea, fermata: s.fermata, colore: s.colore)
+                let attributi = SeguiAttributi(
+                    linea: s.linea, capolinea: s.capolinea, fermata: s.fermata, colore: s.colore,
+                    testoOra: tx("ora§adesso"), testoScaduto: tx("tempi da aggiornare: apri Palina")
+                )
                 _ = try? Activity.request(attributes: attributi, content: attivita, pushType: nil)
             }
         }

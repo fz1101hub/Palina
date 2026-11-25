@@ -37,7 +37,7 @@ object HttpApple : Http {
     ): RispostaHttp = suspendCancellableCoroutine { continua ->
         val indirizzo = NSURL.URLWithString(url)
         if (indirizzo == null) {
-            continua.resumeWithException(ErroreRete("Indirizzo non valido"))
+            continua.resumeWithException(ErroreRete(tx("Indirizzo non valido")))
             return@suspendCancellableCoroutine
         }
         val richiesta = NSMutableURLRequest(indirizzo, NSURLRequestReloadIgnoringLocalCacheData, secondi(attesa))
@@ -51,7 +51,7 @@ object HttpApple : Http {
             val http = risposta as? NSHTTPURLResponse
             when {
                 errore != null -> continua.resumeWithException(ErroreRete(errore.localizedDescription))
-                http == null -> continua.resumeWithException(ErroreRete("Nessuna risposta"))
+                http == null -> continua.resumeWithException(ErroreRete(tx("Nessuna risposta")))
                 else -> {
                     val campi = HashMap<String, String>()
                     http.allHeaderFields.forEach { (k, v) -> if (k != null && v != null) campi[k.toString()] = v.toString() }

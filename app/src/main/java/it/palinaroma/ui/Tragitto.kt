@@ -88,6 +88,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.tx
 import it.palinaroma.dati.EsitoRicercaTragitti
 import it.palinaroma.dati.altriTragitti
 import it.palinaroma.dati.attribuzioneTransitous
@@ -257,13 +258,13 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
     Scaffold(
         topBar = {
             BarraSuperiore(
-                titolo = "Tragitto",
-                sottotitolo = "Bus, tram, metro e treni",
+                titolo = tx("Tragitto"),
+                sottotitolo = tx("Bus, tram, metro e treni"),
                 indietro = indietro,
                 azioni = {
                     if (stato.da != null && stato.a != null) {
                         IconButton(onClick = { ambito.launch { stato.cerca(context) } }) {
-                            Icon(Icons.Filled.Refresh, contentDescription = "Calcola di nuovo")
+                            Icon(Icons.Filled.Refresh, contentDescription = tx("Calcola di nuovo"))
                         }
                     }
                 },
@@ -300,7 +301,7 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                                 if (negatoPerSempre) apriImpostazioniApp(context) else richiestaPermesso.launch(PERMESSI_POSIZIONE)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Oro, contentColor = Inchiostro),
-                        ) { Text(if (negatoPerSempre) "Apri le impostazioni" else "Usa la mia posizione") }
+                        ) { Text(if (negatoPerSempre) tx("Apri le impostazioni") else tx("Usa la mia posizione")) }
                     }
                 }
             }
@@ -308,7 +309,7 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                 EsitoTragitti.Vuoto -> if (stato.a == null) {
                     item {
                         Text(
-                            "Scegli dove vuoi andare: cerca un indirizzo, un luogo o una fermata.",
+                            tx("Scegli dove vuoi andare: cerca un indirizzo, un luogo o una fermata."),
                             color = Secondario,
                             modifier = Modifier.padding(8.dp),
                         )
@@ -317,12 +318,12 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                 EsitoTragitti.InCorso -> item {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
                         CircularProgressIndicator(color = Accento, modifier = Modifier.size(22.dp), strokeWidth = 3.dp)
-                        Text("Calcolo i tragitti…", color = Secondario, modifier = Modifier.padding(start = 12.dp))
+                        Text(tx("Calcolo i tragitti…"), color = Secondario, modifier = Modifier.padding(start = 12.dp))
                     }
                 }
                 is EsitoTragitti.Errore -> item {
                     Avviso(esito.messaggio) {
-                        TextButton(onClick = { ambito.launch { stato.cerca(context) } }) { Text("Riprova", color = Accento) }
+                        TextButton(onClick = { ambito.launch { stato.cerca(context) } }) { Text(tx("Riprova"), color = Accento) }
                     }
                 }
                 is EsitoTragitti.Pronto -> {
@@ -331,13 +332,13 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                             TextButton(
                                 onClick = { ambito.launch { stato.altri(dopo = false) } },
                                 enabled = !stato.caricandoAltri,
-                            ) { Text("Partenze precedenti", color = Accento) }
+                            ) { Text(tx("Partenze precedenti"), color = Accento) }
                         }
                     }
                     if (esito.tragitti.isEmpty()) {
                         item {
                             Text(
-                                "Nessun tragitto con i mezzi in questo orario. Prova a cambiare l'ora o il luogo.",
+                                tx("Nessun tragitto con i mezzi in questo orario. Prova a cambiare l'ora o il luogo."),
                                 color = Secondario,
                                 modifier = Modifier.padding(8.dp),
                             )
@@ -351,7 +352,7 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                             TextButton(
                                 onClick = { ambito.launch { stato.altri(dopo = true) } },
                                 enabled = !stato.caricandoAltri,
-                            ) { Text(if (stato.caricandoAltri) "Cerco…" else "Partenze successive", color = Accento) }
+                            ) { Text(if (stato.caricandoAltri) tx("Cerco…") else tx("Partenze successive"), color = Accento) }
                         }
                     }
                     esito.soloAPiedi?.let { piedi ->
@@ -359,7 +360,7 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                     }
                     item {
                         Text(
-                            "Calcolato alle ${ora(esito.calcolatoAlle)}. Tocca un tragitto per la mappa e le fermate.",
+                            tx("Calcolato alle {0}. Tocca un tragitto per la mappa e le fermate.", ora(esito.calcolatoAlle)),
                             style = MaterialTheme.typography.bodySmall,
                             color = Secondario,
                             modifier = Modifier.padding(horizontal = 8.dp),
@@ -407,13 +408,13 @@ private fun ModuloLuoghi(da: Luogo?, a: Luogo?, scegli: (String) -> Unit, invert
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                CampoLuogo("Da", da, "Scegli la partenza", partenza = true) { scegli("da") }
+                CampoLuogo(tx("Da§partenza"), da, tx("Scegli la partenza"), partenza = true) { scegli("da") }
                 HorizontalDivider(color = Divisore, modifier = Modifier.padding(start = 44.dp))
-                CampoLuogo("A", a, "Dove vuoi andare?", partenza = false) { scegli("a") }
+                CampoLuogo(tx("A§arrivo"), a, tx("Dove vuoi andare?"), partenza = false) { scegli("a") }
             }
             IconButton(
                 onClick = inverti,
-                modifier = Modifier.semantics { contentDescription = "Scambia partenza e arrivo" },
+                modifier = Modifier.semantics { contentDescription = tx("Scambia partenza e arrivo") },
             ) {
                 Text(
                     "⇅",
@@ -482,19 +483,19 @@ private fun SceltaQuando(quando: Quando, scegli: (Boolean?) -> Unit) {
         FilterChip(
             selected = quando == Quando.Adesso,
             onClick = { scegli(null) },
-            label = { Text("Adesso") },
+            label = { Text(tx("Adesso")) },
             colors = colori,
         )
         FilterChip(
             selected = quando is Quando.Partenza,
             onClick = { scegli(false) },
-            label = { Text(if (quando is Quando.Partenza) "Parti " + giornoEOra(quando.istante) else "Parti alle…") },
+            label = { Text(if (quando is Quando.Partenza) tx("Parti {0}", giornoEOra(quando.istante)) else tx("Parti alle…")) },
             colors = colori,
         )
         FilterChip(
             selected = quando is Quando.Arrivo,
             onClick = { scegli(true) },
-            label = { Text(if (quando is Quando.Arrivo) "Arriva " + giornoEOra(quando.istante) else "Arriva entro…") },
+            label = { Text(if (quando is Quando.Arrivo) tx("Arriva {0}", giornoEOra(quando.istante)) else tx("Arriva entro…")) },
             colors = colori,
         )
     }
@@ -515,22 +516,22 @@ private fun DialogoOrario(arrivo: Boolean, iniziale: Long, chiudi: () -> Unit, c
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    if (arrivo) "Vuoi arrivare entro le…" else "Vuoi partire alle…",
+                    if (arrivo) tx("Vuoi arrivare entro le…") else tx("Vuoi partire alle…"),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     val colori = FilterChipDefaults.filterChipColors(selectedContainerColor = Oro, selectedLabelColor = Inchiostro)
-                    FilterChip(selected = !domani, onClick = { domani = false }, label = { Text("Oggi") }, colors = colori)
-                    FilterChip(selected = domani, onClick = { domani = true }, label = { Text("Domani") }, colors = colori)
+                    FilterChip(selected = !domani, onClick = { domani = false }, label = { Text(tx("Oggi")) }, colors = colori)
+                    FilterChip(selected = domani, onClick = { domani = true }, label = { Text(tx("Domani")) }, colors = colori)
                 }
                 TimePicker(state = statoOra)
                 Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                    TextButton(onClick = chiudi) { Text("Annulla", color = Secondario) }
+                    TextButton(onClick = chiudi) { Text(tx("Annulla"), color = Secondario) }
                     TextButton(onClick = {
                         val giorno = LocalDate.now(zona).plusDays(if (domani) 1 else 0)
                         conferma(giorno.atTime(statoOra.hour, statoOra.minute).atZone(zona).toInstant().toEpochMilli())
-                    }) { Text("Conferma", color = Accento, fontWeight = FontWeight.Bold) }
+                    }) { Text(tx("Conferma"), color = Accento, fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -580,10 +581,10 @@ private fun CartaTragitto(t: Tragitto, adesso: Long, onClick: () -> Unit) {
                     modifier = Modifier.weight(1f),
                 )
                 when {
-                    t.mezzi.any { it.cancellato } -> Text("Corsa soppressa", style = MaterialTheme.typography.bodySmall, color = Accento, fontWeight = FontWeight.Bold)
+                    t.mezzi.any { it.cancellato } -> Text(tx("Corsa soppressa"), style = MaterialTheme.typography.bodySmall, color = Accento, fontWeight = FontWeight.Bold)
                     t.mezzi.any { it.tempoReale } -> Row(verticalAlignment = Alignment.CenterVertically) {
                         FonteTempo(true)
-                        Text(" tempo reale", style = MaterialTheme.typography.labelSmall, color = Accento)
+                        Text(" " + tx("tempo reale"), style = MaterialTheme.typography.labelSmall, color = Accento)
                     }
                     else -> FonteTempo(false)
                 }
@@ -605,7 +606,7 @@ private fun CartaAPiedi(t: Tragitto, onClick: () -> Unit) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             IconaPiedi(lato = 22.dp)
             Column(Modifier.padding(start = 12.dp)) {
-                Text("Tutto a piedi: ${testoDurata(t.durata)}", fontWeight = FontWeight.SemiBold)
+                Text(tx("Tutto a piedi: {0}", testoDurata(t.durata)), fontWeight = FontWeight.SemiBold)
                 if (t.metriAPiedi > 0) {
                     Text(testoMetri(t.metriAPiedi), style = MaterialTheme.typography.bodySmall, color = Secondario)
                 }
@@ -722,14 +723,14 @@ fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit, testoIniziale: Strin
             throw e
         } catch (_: Exception) {
             luoghi = emptyList()
-            errore = "La ricerca degli indirizzi non è disponibile: controlla la connessione."
+            errore = tx("La ricerca degli indirizzi non è disponibile: controlla la connessione.")
         } finally {
             cercando = false
         }
     }
 
     Scaffold(
-        topBar = { BarraSuperiore(if (campo == "da") "Da dove parti?" else "Dove vai?", indietro = indietro) },
+        topBar = { BarraSuperiore(if (campo == "da") tx("Da dove parti?") else tx("Dove vai?"), indietro = indietro) },
     ) { margini ->
         Column(
             Modifier
@@ -741,11 +742,11 @@ fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit, testoIniziale: Strin
             OutlinedTextField(
                 value = testo,
                 onValueChange = { testo = it },
-                placeholder = { Text("Indirizzo, luogo o fermata") },
+                placeholder = { Text(tx("Indirizzo, luogo o fermata")) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = {
                     if (testo.isNotEmpty()) {
-                        IconButton(onClick = { testo = "" }) { Icon(Icons.Filled.Clear, contentDescription = "Cancella") }
+                        IconButton(onClick = { testo = "" }) { Icon(Icons.Filled.Clear, contentDescription = tx("Cancella")) }
                     }
                 },
                 singleLine = true,
@@ -764,40 +765,40 @@ fun SceltaLuogoSchermo(campo: String, indietro: () -> Unit, testoIniziale: Strin
                     item {
                         RigaLuogo(
                             icona = { Icon(Icons.Filled.LocationOn, contentDescription = null, tint = Accento) },
-                            nome = "La mia posizione",
-                            dettaglio = "Dal telefono: va a Transitous solo per calcolare il tragitto",
+                            nome = tx("La mia posizione"),
+                            dettaglio = tx("Dal telefono: va a Transitous solo per calcolare il tragitto"),
                         ) { scegli(Luogo.posizione()) }
                     }
                     if (recenti.isNotEmpty()) {
-                        item { Intestazione("Recenti") }
+                        item { Intestazione(tx("Recenti")) }
                         items(recenti) { l -> RigaLuogo(icona = { IconaLuogo(l.tipo) }, nome = l.nome, dettaglio = l.dettaglio) { scegli(l) } }
                     }
                     if (fermatePreferite.isNotEmpty()) {
-                        item { Intestazione("Fermate preferite") }
+                        item { Intestazione(tx("Fermate preferite")) }
                         items(fermatePreferite) { f ->
                             RigaLuogo(
                                 icona = { Icon(Icons.Filled.Favorite, contentDescription = null, tint = Accento) },
                                 nome = f.nome,
-                                dettaglio = "Palina ${f.codice}",
+                                dettaglio = tx("Palina {0}", f.codice),
                             ) { scegli(f.comeLuogo()) }
                         }
                     }
                 } else {
                     if (fermate.isNotEmpty()) {
-                        item { Intestazione("Fermate") }
+                        item { Intestazione(tx("Fermate")) }
                         items(fermate) { f ->
-                            RigaLuogo(icona = { IconaLuogo(TipoLuogo.FERMATA) }, nome = f.nome, dettaglio = "Palina ${f.codice}") {
+                            RigaLuogo(icona = { IconaLuogo(TipoLuogo.FERMATA) }, nome = f.nome, dettaglio = tx("Palina {0}", f.codice)) {
                                 scegli(f.comeLuogo())
                             }
                         }
                     }
                     if (luoghi.isNotEmpty()) {
-                        item { Intestazione("Indirizzi e luoghi") }
+                        item { Intestazione(tx("Indirizzi e luoghi")) }
                         items(luoghi) { l -> RigaLuogo(icona = { IconaLuogo(l.tipo) }, nome = l.nome, dettaglio = l.dettaglio) { scegli(l) } }
                     }
                     errore?.let { e -> item { Text(e, color = Secondario, modifier = Modifier.padding(16.dp)) } }
                     if (!cercando && errore == null && luoghi.isEmpty() && fermate.isEmpty()) {
-                        item { Text("Nessun risultato per \"${testo.trim()}\".", color = Secondario, modifier = Modifier.padding(16.dp)) }
+                        item { Text(tx("Nessun risultato per \"{0}\".", testo.trim()), color = Secondario, modifier = Modifier.padding(16.dp)) }
                     }
                 }
             }

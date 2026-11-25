@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generato da strumenti/traduzioni.py: non modificare a mano. -->
+<resources>
+    <string name="riquadro">Palina: next departures</string>
+    <string name="riquadro_descrizione">The next buses and trains at the nearest favourite stop</string>
+    <string name="complicazione">Palina: next departure</string>
+</resources>

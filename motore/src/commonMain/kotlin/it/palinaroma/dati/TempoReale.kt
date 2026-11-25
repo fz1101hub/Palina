@@ -145,7 +145,7 @@ internal suspend fun scaricaFeed(
     val risposta = Collegamento.http.richiedi(url, campi, Attesa.MEDIA)
     return when {
         risposta.codice == 304 -> null
-        !risposta.riuscita -> throw ErroreRete("Il server ha risposto ${risposta.codice}")
+        !risposta.riuscita -> throw ErroreRete(tx("Il server ha risposto {0}", risposta.codice))
         else -> RispostaFeed(risposta.corpo, risposta.intestazione("ETag"), risposta.intestazione("Last-Modified"))
     }
 }
@@ -392,10 +392,10 @@ fun etaRilevamento(rilevato: Long, adesso: Long): String? {
     if (rilevato <= 0) return null
     val secondi = (adesso - rilevato).coerceAtLeast(0)
     return when {
-        secondi < 15 -> "adesso"
-        secondi < 60 -> "${secondi / 5 * 5} s fa"
-        secondi < 3600 -> "${secondi / 60} min fa"
-        else -> "oltre un'ora fa"
+        secondi < 15 -> tx("adesso")
+        secondi < 60 -> tx("{0} s fa", secondi / 5 * 5)
+        secondi < 3600 -> tx("{0} min fa", secondi / 60)
+        else -> tx("oltre un'ora fa")
     }
 }
 

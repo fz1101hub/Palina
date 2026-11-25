@@ -20,7 +20,7 @@ struct LineaVista: View {
     var body: some View {
         VStack(spacing: 0) {
             if let motore, !motore.haPercorso() {
-                Text("Per questa linea l'orario non ha un percorso.")
+                Text(tx("Per questa linea l'orario non ha un percorso."))
                     .foregroundStyle(.secondary)
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -64,12 +64,12 @@ struct LineaVista: View {
                 ProgressView().frame(maxHeight: .infinity)
             }
         }
-        .navigationTitle(motore.map { "Linea \($0.nome)" } ?? "Linea")
+        .navigationTitle(motore.map { tx("Linea {0}", $0.nome) } ?? tx("Linea"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if direzioni.count > 1 {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Cambia direzione", systemImage: "arrow.left.arrow.right") {
+                    Button(tx("Cambia direzione"), systemImage: "arrow.left.arrow.right") {
                         motore?.cambiaDirezione()
                         ricarica()
                     }
@@ -82,7 +82,7 @@ struct LineaVista: View {
 
     private func intestazione(_ motore: MotoreLinea) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("DIREZIONE").font(.caption2.bold()).foregroundStyle(.secondary)
+            Text(tx("Direzione").uppercased()).font(.caption2.bold()).foregroundStyle(.secondary)
             if direzioni.count > 2 {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
@@ -100,7 +100,7 @@ struct LineaVista: View {
             } else {
                 Text(direzioni.first(where: { $0.scelta })?.testo ?? motore.sottotitolo()).font(.headline).lineLimit(2)
                 if direzioni.count == 1 {
-                    Text("Nell'orario questa linea ha una sola direzione (per esempio è circolare).")
+                    Text(tx("Nell'orario questa linea ha una sola direzione (per esempio è circolare)."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -161,7 +161,7 @@ struct LineaVista: View {
             .padding(10)
         } else if let senzaGps = stato?.senzaGps {
             VStack(alignment: .leading, spacing: 3) {
-                Text("La tua corsa non ha una posizione GPS").font(.headline)
+                Text(tx("La tua corsa non ha una posizione GPS")).font(.headline)
                 Text(senzaGps).font(.caption).foregroundStyle(.secondary)
             }
             .padding(12)
@@ -236,7 +236,7 @@ struct IconaVettura: View {
                 .overlay(Circle().stroke(.white, lineWidth: 2))
         }
         .opacity(voce.fuoriPercorso || voce.vecchia ? 0.45 : 1)
-        .accessibilityLabel((voce.attesa ? "La tua vettura" : "Vettura") + " \(voce.etichetta)")
+        .accessibilityLabel(voce.attesa ? tx("La tua vettura {0}", voce.etichetta) : tx("Vettura {0}", voce.etichetta))
     }
 }
 

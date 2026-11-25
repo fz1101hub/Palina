@@ -97,6 +97,9 @@ jobs:
 
       # La password della firma arriva solo a questo passo: gli altri (e le azioni
       # di terzi) non la vedono. Agli altri passi dice solo se c'era.
+      - name: Traduzioni (ogni testo in it, en, fr, es, de, pt)
+        run: python3 strumenti/traduzioni.py controlla
+
       - name: Test e compilazione
         id: compila
         env:

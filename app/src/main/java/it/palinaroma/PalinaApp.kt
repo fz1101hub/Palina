@@ -1,10 +1,11 @@
 package it.palinaroma
 
 import android.app.Application
+import android.content.res.Configuration
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Collegamento
 import it.palinaroma.dati.HttpAndroid
-import org.osmdroid.config.Configuration
+import org.osmdroid.config.Configuration as ConfigurazioneMappe
 import java.io.File
 
 class PalinaApp : Application() {
@@ -13,7 +14,7 @@ class PalinaApp : Application() {
         // la rete del motore condiviso con l'app per iPhone
         Collegamento.http = HttpAndroid
         Collegamento.agenteUtente = Archivio.agenteUtente
-        val mappe = Configuration.getInstance()
+        val mappe = ConfigurazioneMappe.getInstance()
         mappe.load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
         mappe.userAgentValue = Archivio.agenteUtente
         mappe.osmdroidBasePath = File(cacheDir, "osmdroid")
@@ -22,5 +23,10 @@ class PalinaApp : Application() {
         mappe.tileFileSystemCacheMaxBytes = 120L * 1024 * 1024
         mappe.tileFileSystemCacheTrimBytes = 100L * 1024 * 1024
         Archivio.inizializza(this)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        Archivio.linguaDelSistemaCambiata(this)
     }
 }

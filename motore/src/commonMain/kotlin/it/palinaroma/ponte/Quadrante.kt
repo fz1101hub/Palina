@@ -1,5 +1,7 @@
 package it.palinaroma.ponte
 
+import it.palinaroma.dati.tx
+
 /*
  * Cosa mostrano riquadro, widget e complicazioni dell'orologio: lo stesso per
  * Wear OS e per Apple Watch (complicazioni e Smart Stack).
@@ -22,14 +24,14 @@ data class ContenutoWidget(val titolo: String, val righe: List<RigaWidget>, val 
  */
 fun contenutoWidget(t: TabelloneOrologio?, adesso: Long, piccolo: Boolean): ContenutoWidget {
     val fermata = fermataDelRiquadro(t, adesso)
-        ?: return ContenutoWidget("Palina", emptyList(), t?.nota ?: "Apri Palina per chiedere i tempi al telefono")
+        ?: return ContenutoWidget("Palina", emptyList(), t?.nota ?: tx("Apri Palina per chiedere i tempi al telefono"))
     val righe = fermata.righe.filter { it.prossimi(adesso).isNotEmpty() }
         .take(if (piccolo) 1 else 3)
         .map { RigaWidget(it.linea.take(10), it.colore, testoPassaggi(it, adesso, 2), it.tempoReale) }
     val nota = when {
-        righe.isEmpty() -> "Nessun passaggio a breve"
+        righe.isEmpty() -> tx("Nessun passaggio a breve")
         piccolo -> null
-        else -> "tempi delle ${oraBreve(t!!.creato)}"
+        else -> tx("tempi delle {0}", oraBreve(t!!.creato))
     }
     return ContenutoWidget(fermata.nome, righe, nota)
 }

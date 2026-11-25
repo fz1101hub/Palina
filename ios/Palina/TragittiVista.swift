@@ -96,18 +96,18 @@ struct TragittiVista: View {
                 if tragitti.motore?.servePosizione() == true && posizione.negata {
                     Section {
                         Text(TragittiKt.avvisoPermessoTragitti(negatoPerSempre: true)).foregroundStyle(Tavolozza.oro)
-                        Button("Apri le impostazioni") {
+                        Button(tx("Apri le impostazioni")) {
                             if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                         }
                     }
                 }
                 risultati(stato)
             } else {
-                HStack { ProgressView(); Text("Apro l'orario…").foregroundStyle(.secondary) }
+                HStack { ProgressView(); Text(tx("Apro l'orario…")).foregroundStyle(.secondary) }
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("Tragitto")
+        .navigationTitle(tx("Tragitto"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -116,7 +116,7 @@ struct TragittiVista: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .accessibilityLabel("Calcola di nuovo")
+                .accessibilityLabel(tx("Calcola di nuovo"))
                 .disabled(tragitti.stato?.a == nil)
             }
         }
@@ -151,20 +151,20 @@ struct TragittiVista: View {
     @ViewBuilder
     private func risultati(_ stato: StatoTragitti) -> some View {
         if tragitti.aspettoPosizione {
-            HStack { ProgressView(); Text("Cerco dove sei…").foregroundStyle(.secondary) }
+            HStack { ProgressView(); Text(tx("Cerco dove sei…")).foregroundStyle(.secondary) }
         } else if tragitti.inCorso || stato.inCorso {
-            HStack(spacing: 12) { ProgressView(); Text("Calcolo i tragitti…").foregroundStyle(.secondary) }
+            HStack(spacing: 12) { ProgressView(); Text(tx("Calcolo i tragitti…")).foregroundStyle(.secondary) }
         } else {
             if let messaggio = stato.messaggio {
                 Section {
                     Text(messaggio).foregroundStyle(stato.riprova ? Tavolozza.oro : .secondary)
                     if stato.riprova {
-                        Button("Riprova") { Task { await tragitti.cerca(posizione: posizione) } }
+                        Button(tx("Riprova")) { Task { await tragitti.cerca(posizione: posizione) } }
                     }
                 }
             }
             if stato.prima {
-                Button("Partenze precedenti") { Task { await tragitti.altri(dopo: false) } }
+                Button(tx("Partenze precedenti")) { Task { await tragitti.altri(dopo: false) } }
                     .disabled(tragitti.caricandoAltri)
             }
             if !stato.carte.isEmpty {
@@ -176,7 +176,7 @@ struct TragittiVista: View {
                 }
             }
             if stato.dopo {
-                Button(tragitti.caricandoAltri ? "Cerco…" : "Partenze successive") { Task { await tragitti.altri(dopo: true) } }
+                Button(tragitti.caricandoAltri ? tx("Cerco…") : tx("Partenze successive")) { Task { await tragitti.altri(dopo: true) } }
                     .disabled(tragitti.caricandoAltri)
             }
             if let aPiedi = stato.aPiedi {
@@ -225,12 +225,12 @@ private struct ModuloLuoghi: View {
         HStack {
             VStack(spacing: 0) {
                 NavigationLink(value: Destinazione.luogo(campo: "da", testo: "")) {
-                    CampoLuogo(etichetta: "Da", luogo: stato.da, vuoto: "Scegli la partenza", partenza: true)
+                    CampoLuogo(etichetta: tx("Da§partenza"), luogo: stato.da, vuoto: tx("Scegli la partenza"), partenza: true)
                 }
                 .accessibilityIdentifier("campo-da")
                 Divider().padding(.leading, 30)
                 NavigationLink(value: Destinazione.luogo(campo: "a", testo: "")) {
-                    CampoLuogo(etichetta: "A", luogo: stato.a, vuoto: "Dove vuoi andare?", partenza: false)
+                    CampoLuogo(etichetta: tx("A§arrivo"), luogo: stato.a, vuoto: tx("Dove vuoi andare?"), partenza: false)
                 }
                 .accessibilityIdentifier("campo-a")
             }
@@ -240,7 +240,7 @@ private struct ModuloLuoghi: View {
                 Image(systemName: "arrow.up.arrow.down").font(.title3.bold()).foregroundStyle(Tavolozza.oro)
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("Scambia partenza e arrivo")
+            .accessibilityLabel(tx("Scambia partenza e arrivo"))
         }
     }
 }
@@ -292,7 +292,7 @@ private struct SceltaQuando: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chip("Adesso", scelto: stato.quando == 0) { scegli(nil) }
+                chip(tx("Adesso"), scelto: stato.quando == 0) { scegli(nil) }
                 chip(stato.etichettaParti, scelto: stato.quando == 1) { scegli(false) }
                 chip(stato.etichettaArriva, scelto: stato.quando == 2) { scegli(true) }
             }
@@ -333,24 +333,24 @@ private struct DialogoOrario: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 14) {
-                Picker("Giorno", selection: $domani) {
-                    Text("Oggi").tag(false)
-                    Text("Domani").tag(true)
+                Picker(tx("Giorno"), selection: $domani) {
+                    Text(tx("Oggi")).tag(false)
+                    Text(tx("Domani")).tag(true)
                 }
                 .pickerStyle(.segmented)
-                DatePicker("Ora", selection: $ora, displayedComponents: .hourAndMinute)
+                DatePicker(tx("Ora"), selection: $ora, displayedComponents: .hourAndMinute)
                     .datePickerStyle(.wheel)
                     .labelsHidden()
-                    .environment(\.locale, Locale(identifier: "it_IT"))
+                    .environment(\.locale, Locale(identifier: Lingue.shared.attuale.codice))
                 Spacer()
             }
             .padding()
-            .navigationTitle(arrivo ? "Vuoi arrivare entro le…" : "Vuoi partire alle…")
+            .navigationTitle(arrivo ? tx("Vuoi arrivare entro le…") : tx("Vuoi partire alle…"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Annulla") { chiudi() } }
+                ToolbarItem(placement: .cancellationAction) { Button(tx("Annulla")) { chiudi() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Conferma") {
+                    Button(tx("Conferma")) {
                         let calendario = Calendar.current
                         let parti = calendario.dateComponents([.hour, .minute], from: ora)
                         let giorno = calendario.date(byAdding: .day, value: domani ? 1 : 0, to: calendario.startOfDay(for: Date())) ?? Date()
@@ -383,12 +383,12 @@ struct CartaTragittoVista: View {
                 Text(carta.cambiEPiedi).font(.footnote).foregroundStyle(.secondary)
                 Spacer()
                 if carta.soppressa {
-                    Text("Corsa soppressa").font(.footnote.bold()).foregroundStyle(Tavolozza.oro)
+                    Text(tx("Corsa soppressa")).font(.footnote.bold()).foregroundStyle(Tavolozza.oro)
                 } else if carta.tempoReale {
-                    Label("tempo reale", systemImage: "dot.radiowaves.up.forward")
+                    Label(tx("tempo reale"), systemImage: "dot.radiowaves.up.forward")
                         .font(.caption).foregroundStyle(Tavolozza.oro)
                 } else {
-                    Text("da orario").font(.caption).foregroundStyle(.secondary)
+                    Text(tx("da orario")).font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
@@ -450,38 +450,38 @@ struct SceltaLuogoVista: View {
             Section {
                 HStack {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Indirizzo, luogo o fermata", text: $testo)
+                    TextField(tx("Indirizzo, luogo o fermata"), text: $testo)
                         .focused($fuoco)
                         .autocorrectionDisabled()
                         .submitLabel(.search)
                     if !testo.isEmpty {
                         Button { testo = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
                             .buttonStyle(.borderless)
-                            .accessibilityLabel("Cancella")
+                            .accessibilityLabel(tx("Cancella"))
                     }
                 }
                 if cercando { ProgressView().frame(maxWidth: .infinity) }
             }
             if testo.trimmingCharacters(in: .whitespaces).count < 3 {
                 Section {
-                    riga(Luogo.companion.posizione(), icona: "location.fill", dettaglio: "Dal telefono: va a Transitous solo per calcolare il tragitto")
+                    riga(Luogo.companion.posizione(), icona: "location.fill", dettaglio: tx("Dal telefono: va a Transitous solo per calcolare il tragitto"))
                 }
                 let recenti = tragitti.recenti
                 if !recenti.isEmpty {
-                    Section("Recenti") { ForEach(Array(recenti.enumerated()), id: \.offset) { _, l in riga(l) } }
+                    Section(tx("Recenti")) { ForEach(Array(recenti.enumerated()), id: \.offset) { _, l in riga(l) } }
                 }
                 let preferite = tragitti.motore?.preferite(ids: preferiti.fermate) ?? []
                 if !preferite.isEmpty {
-                    Section("Fermate preferite") {
+                    Section(tx("Fermate preferite")) {
                         ForEach(Array(preferite.enumerated()), id: \.offset) { _, l in riga(l, icona: "heart.fill") }
                     }
                 }
             } else if let trovati {
                 if !trovati.fermate.isEmpty {
-                    Section("Fermate") { ForEach(Array(trovati.fermate.enumerated()), id: \.offset) { _, l in riga(l) } }
+                    Section(tx("Fermate")) { ForEach(Array(trovati.fermate.enumerated()), id: \.offset) { _, l in riga(l) } }
                 }
                 if !trovati.luoghi.isEmpty {
-                    Section("Indirizzi e luoghi") { ForEach(Array(trovati.luoghi.enumerated()), id: \.offset) { _, l in riga(l) } }
+                    Section(tx("Indirizzi e luoghi")) { ForEach(Array(trovati.luoghi.enumerated()), id: \.offset) { _, l in riga(l) } }
                 }
                 if let errore = trovati.errore { Text(errore).foregroundStyle(.secondary) }
                 if let nessuno = trovati.nessuno, !cercando { Text(nessuno).foregroundStyle(.secondary) }
@@ -573,19 +573,19 @@ struct DettaglioTragittoVista: View {
                 }
                 }
             } else {
-                Text("Questo tragitto non è più disponibile: torna indietro e cercalo di nuovo.")
+                Text(tx("Questo tragitto non è più disponibile: torna indietro e cercalo di nuovo."))
                     .foregroundStyle(.secondary)
                     .padding(24)
             }
         }
-        .navigationTitle(dettaglio?.titolo ?? "Tragitto")
+        .navigationTitle(dettaglio?.titolo ?? tx("Tragitto"))
         .navigationBarTitleDisplayMode(.inline)
         // sopra la mappa il titolo resta leggibile
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 0) {
-                    Text(dettaglio?.titolo ?? "Tragitto").font(.headline).monospacedDigit()
+                    Text(dettaglio?.titolo ?? tx("Tragitto")).font(.headline).monospacedDigit()
                     if let sotto = dettaglio?.sottotitolo {
                         Text(sotto).font(.caption).foregroundStyle(.secondary)
                     }
@@ -673,7 +673,7 @@ private struct BloccoAPiedi: View {
             VStack(alignment: .leading, spacing: 4) {
                 Label(blocco.titolo, systemImage: "figure.walk").foregroundStyle(.secondary)
                 if !blocco.passi.isEmpty {
-                    Button(aperto ? "Nascondi le indicazioni" : "Indicazioni a piedi") { aperto.toggle() }
+                    Button(aperto ? tx("Nascondi le indicazioni") : tx("Indicazioni a piedi")) { aperto.toggle() }
                         .buttonStyle(.borderless)
                         .foregroundStyle(Tavolozza.oro)
                     if aperto {
@@ -725,7 +725,7 @@ private struct BloccoMezzo: View {
                     }
                 }
                 if blocco.soppresso {
-                    Text("Corsa soppressa").bold().foregroundStyle(Tavolozza.oro)
+                    Text(tx("Corsa soppressa")).bold().foregroundStyle(Tavolozza.oro)
                 }
                 if let vettura {
                     Label(vettura.testo, systemImage: "dot.radiowaves.up.forward")
@@ -765,7 +765,7 @@ private struct BloccoMezzo: View {
                 }
                 if let salita {
                     NavigationLink(value: Destinazione.fermata(salita.id)) {
-                        Text("Tempi d'attesa a \(salita.nome) ›").bold().foregroundStyle(Tavolozza.oro)
+                        Text(tx("Tempi d'attesa a {0} ›", salita.nome)).bold().foregroundStyle(Tavolozza.oro)
                     }
                     .buttonStyle(.borderless)
                 }

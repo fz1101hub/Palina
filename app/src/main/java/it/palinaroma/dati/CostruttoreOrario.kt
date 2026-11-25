@@ -44,15 +44,15 @@ class CostruttoreOrario(
     private val posizioniFermate = HashMap<String, Punto>()
 
     fun costruisci() {
-        avanzamento("Linee", 0f)
+        avanzamento(tx("Linee"), 0f)
         leggiLinee()
-        avanzamento("Fermate", 0.03f)
+        avanzamento(tx("Fermate"), 0.03f)
         leggiFermate()
-        avanzamento("Corse", 0.08f)
+        avanzamento(tx("Corse"), 0.08f)
         leggiCorse()
 
         // 1. quante fermate ha ogni corsa, dove parte e dove arriva
-        avanzamento("Fermate delle linee (1/2)", 0.25f)
+        avanzamento(tx("Fermate delle linee (1/2)"), 0.25f)
         val n = corsaId.size
         val conteggi = IntArray(n)
         val primaPosizione = IntArray(n) { Int.MAX_VALUE }
@@ -99,7 +99,7 @@ class CostruttoreOrario(
         }
 
         // 3. le fermate di ogni linea e la sequenza del percorso tipico
-        avanzamento("Fermate delle linee (2/2)", 0.55f)
+        avanzamento(tx("Fermate delle linee (2/2)"), 0.55f)
         val fermateSchemi = HashMap<String, HashSet<Int>>()
         val sequenze = HashMap<Int, ArrayList<Pair<Int, String>>>()
         for (corsa in migliore) if (corsa >= 0) sequenze[corsa] = ArrayList()
@@ -125,10 +125,10 @@ class CostruttoreOrario(
             }
         }
 
-        avanzamento("Tracciati", 0.85f)
+        avanzamento(tx("Tracciati"), 0.85f)
         val forme = migliore.filter { it >= 0 }.map { corsaForma[it] }.filter { it.isNotEmpty() }.toHashSet()
         leggiForme(forme)
-        avanzamento("Fatto", 1f)
+        avanzamento(tx("Fatto"), 1f)
     }
 
     /**
@@ -249,7 +249,7 @@ class CostruttoreOrario(
                 righe++
                 if (righe % 250_000 == 0L) {
                     // stop_times di Roma ha alcuni milioni di righe: stima prudente
-                    avanzamento("Fermate delle linee", da + (a - da) * minOf(0.95f, righe / 9_000_000f))
+                    avanzamento(tx("Fermate delle linee"), da + (a - da) * minOf(0.95f, righe / 9_000_000f))
                 }
                 val corsa = indiceCorse[r.campo(iCorsa)] ?: continue
                 azione(corsa, r.campo(iFermata), r.campo(iPosizione).toIntOrNull())

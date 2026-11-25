@@ -25,7 +25,7 @@ data class Luogo(
 
     companion object {
         /** "La mia posizione": le coordinate si leggono al momento della ricerca. */
-        fun posizione() = Luogo("La mia posizione", "", Double.NaN, Double.NaN, TipoLuogo.POSIZIONE)
+        fun posizione() = Luogo(tx("La mia posizione"), "", Double.NaN, Double.NaN, TipoLuogo.POSIZIONE)
     }
 }
 
@@ -49,21 +49,21 @@ data class Passo(val svolta: String, val strada: String, val metri: Double) {
     /** "Gira a destra in Via Nazionale". */
     val testo: String
         get() {
-            val azione = when (svolta) {
-                "DEPART" -> "Parti"
-                "LEFT" -> "Gira a sinistra"
-                "RIGHT" -> "Gira a destra"
-                "SLIGHTLY_LEFT" -> "Tieni la sinistra"
-                "SLIGHTLY_RIGHT" -> "Tieni la destra"
-                "HARD_LEFT" -> "Svolta stretta a sinistra"
-                "HARD_RIGHT" -> "Svolta stretta a destra"
-                "UTURN_LEFT", "UTURN_RIGHT" -> "Torna indietro"
-                "CIRCLE_CLOCKWISE", "CIRCLE_COUNTERCLOCKWISE" -> "Alla rotonda prosegui"
-                "STAIRS" -> "Prendi le scale"
-                "ELEVATOR" -> "Prendi l'ascensore"
-                else -> "Prosegui"
+            val senza = strada.isBlank()
+            return when (svolta) {
+                "DEPART" -> if (senza) tx("Parti") else tx("Parti in {0}", strada)
+                "LEFT" -> if (senza) tx("Gira a sinistra") else tx("Gira a sinistra in {0}", strada)
+                "RIGHT" -> if (senza) tx("Gira a destra") else tx("Gira a destra in {0}", strada)
+                "SLIGHTLY_LEFT" -> if (senza) tx("Tieni la sinistra") else tx("Tieni la sinistra in {0}", strada)
+                "SLIGHTLY_RIGHT" -> if (senza) tx("Tieni la destra") else tx("Tieni la destra in {0}", strada)
+                "HARD_LEFT" -> if (senza) tx("Svolta stretta a sinistra") else tx("Svolta stretta a sinistra in {0}", strada)
+                "HARD_RIGHT" -> if (senza) tx("Svolta stretta a destra") else tx("Svolta stretta a destra in {0}", strada)
+                "UTURN_LEFT", "UTURN_RIGHT" -> if (senza) tx("Torna indietro") else tx("Torna indietro in {0}", strada)
+                "CIRCLE_CLOCKWISE", "CIRCLE_COUNTERCLOCKWISE" -> if (senza) tx("Alla rotonda prosegui") else tx("Alla rotonda prosegui in {0}", strada)
+                "STAIRS" -> if (senza) tx("Prendi le scale") else tx("Prendi le scale in {0}", strada)
+                "ELEVATOR" -> if (senza) tx("Prendi l'ascensore") else tx("Prendi l'ascensore in {0}", strada)
+                else -> if (senza) tx("Prosegui") else tx("Prosegui in {0}", strada)
             }
-            return if (strada.isBlank()) azione else "$azione in $strada"
         }
 }
 
@@ -102,11 +102,11 @@ data class Tratto(
             "TRAM" -> "Tram"
             "SUBWAY", "METRO" -> "Metro"
             "RAIL", "REGIONAL_RAIL", "REGIONAL_FAST_RAIL", "SUBURBAN", "HIGHSPEED_RAIL",
-            "LONG_DISTANCE", "NIGHT_RAIL" -> "Treno"
-            "FERRY" -> "Traghetto"
-            "COACH" -> "Pullman"
-            "FUNICULAR", "AERIAL_LIFT", "AREAL_LIFT", "CABLE_CAR" -> "Funivia"
-            "WALK" -> "A piedi"
+            "LONG_DISTANCE", "NIGHT_RAIL" -> tx("Treno")
+            "FERRY" -> tx("Traghetto")
+            "COACH" -> tx("Pullman")
+            "FUNICULAR", "AERIAL_LIFT", "AREAL_LIFT", "CABLE_CAR" -> tx("Funivia")
+            "WALK" -> tx("A piedi")
             else -> "Bus"
         }
 
@@ -214,7 +214,7 @@ private fun codifica(valore: String): String = codificaUrl(valore)
  */
 fun urlLuoghi(testo: String, vicino: Punto): String =
     Transitous.API + "/v1/geocode?text=" + codifica(testo.trim()) +
-        "&language=it&numResults=8&place=" +
+        "&language=" + Lingue.perServizi + "&numResults=8&place=" +
         codifica(decimali(vicino.lat, 2) + "," + decimali(vicino.lon, 2))
 
 fun urlTragitti(da: Luogo, a: Luogo, istante: Long?, arrivaEntro: Boolean, cursore: String?): String {
@@ -222,7 +222,7 @@ fun urlTragitti(da: Luogo, a: Luogo, istante: Long?, arrivaEntro: Boolean, curso
         "fromPlace" to da.coordinate,
         "toPlace" to a.coordinate,
         "numItineraries" to "5",
-        "language" to "it",
+        "language" to Lingue.perServizi,
     )
     if (istante != null) parametri += "time" to testoIstante(istante / 1000 * 1000)
     if (arrivaEntro) parametri += "arriveBy" to "true"
@@ -237,12 +237,12 @@ fun urlTragitti(da: Luogo, a: Luogo, istante: Long?, arrivaEntro: Boolean, curso
 fun urlPartenze(fermataId: String, lat: Double, lon: Double, da: Long? = null): String =
     Transitous.API + "/v5/stoptimes?stopId=" + codifica(fermataTransitous(fermataId)) +
         "&center=" + codifica(decimali(lat, 6) + "," + decimali(lon, 6)) +
-        "&radius=30&exactRadius=true&n=40&window=5400&language=it" +
+        "&radius=30&exactRadius=true&n=40&window=5400&language=" + Lingue.perServizi +
         (da?.let { "&time=" + codifica(testoIstante(it)) } ?: "")
 
 /** Una corsa intera, senza le fermate dove il treno passa senza fermarsi. */
 fun urlCorsa(corsaId: String): String =
-    Transitous.API + "/v5/trip?tripId=" + codifica(corsaId) + "&language=it"
+    Transitous.API + "/v5/trip?tripId=" + codifica(corsaId) + "&language=" + Lingue.perServizi
 
 /** Risposta di /trip: un itinerario con un solo tratto, la corsa da capolinea a capolinea. */
 fun leggiCorsa(json: String): Tratto? =
@@ -296,10 +296,10 @@ fun leggiPartenze(json: String, fermataId: String, lat: Double, lon: Double): Li
 fun messaggioErrore(codice: Int, corpo: String): String {
     val dettaglio = runCatching { Json.leggi(corpo).comeOggetto().testo("error") }.getOrNull()
     return when {
-        codice == 429 -> "Transitous ha ricevuto troppe richieste: riprova tra qualche minuto."
-        codice in 500..599 -> "Transitous non risponde in questo momento ($codice). Riprova più tardi."
-        dettaglio != null -> "Transitous non può calcolare il tragitto: $dettaglio"
-        else -> "Transitous ha risposto con un errore ($codice)."
+        codice == 429 -> tx("Transitous ha ricevuto troppe richieste: riprova tra qualche minuto.")
+        codice in 500..599 -> tx("Transitous non risponde in questo momento ({0}). Riprova più tardi.", codice)
+        dettaglio != null -> tx("Transitous non può calcolare il tragitto: {0}", dettaglio)
+        else -> tx("Transitous ha risposto con un errore ({0}).", codice)
     }
 }
 
@@ -496,7 +496,7 @@ fun testoDurata(secondi: Int): String {
 
 /** "meno di 10 m", "450 m", "3,2 km". */
 fun testoMetri(metri: Double): String = when {
-    metri < 10 -> "meno di 10 m"
+    metri < 10 -> tx("meno di 10 m")
     metri < 1000 -> "${(metri / 10).toInt() * 10} m"
-    else -> decimali(metri / 1000, 1, ',') + " km"
+    else -> decimali(metri / 1000, 1, separatoreDecimale()) + " km"
 }

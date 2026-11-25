@@ -2,6 +2,7 @@ package it.palinaroma.ponte
 
 import it.palinaroma.dati.Orario
 import it.palinaroma.dati.ScriviJson
+import it.palinaroma.dati.tx
 import it.palinaroma.dati.Punto
 import it.palinaroma.dati.StatoCorsa
 import it.palinaroma.dati.statoCorsa
@@ -39,7 +40,7 @@ class MotorePerWatch(private val orario: Orario) {
     suspend fun corsa(treno: String): String = withContext(Dispatchers.Main) {
         val richiesta = TrenoOrologio.leggi(treno)
             ?: return@withContext CodificaCorsa.scrivi(
-                CorsaOrologio("", adessoMs(), "Treno", null, null, emptyList(), null, "Richiesta non valida."),
+                CorsaOrologio("", adessoMs(), tx("Treno"), null, null, emptyList(), null, tx("Richiesta non valida.")),
             )
         CodificaCorsa.scrivi(calcolaCorsaOrologio(orario, richiesta))
     }
@@ -126,8 +127,7 @@ class MotoreWatch {
                         passaggi = passaggi,
                         tempoReale = r.tempoReale,
                         avviso = r.avviso,
-                        perVoce = "${r.linea} verso ${r.capolinea}: " + passaggi.replace("'", " minuti").replace(" · ", ", ") +
-                            (if (r.tempoReale) ", in tempo reale" else ", da orario") + (r.avviso?.let { ", $it" } ?: ""),
+                        perVoce = perVoceRigaOrologio(r, adesso),
                         treno = r.prossimi(adesso).firstOrNull()?.let { r.treno(it) }?.testoJson(),
                     )
                 },
@@ -136,7 +136,7 @@ class MotoreWatch {
         return StatoWatch(
             fermate = fermate,
             nota = t.nota,
-            aggiornato = "aggiornato " + testoAggiornato(t.creato, adessoMs),
+            aggiornato = tx("aggiornato {0}", testoAggiornato(t.creato, adessoMs)),
             vecchio = adessoMs - t.creato > 60_000,
         )
     }
@@ -170,6 +170,7 @@ internal fun complicazioniDi(t: TabelloneOrologio?, adessoMs: Long): String {
             if (primo != null) {
                 put("linea", primo.first.linea.take(7))
                 put("tra", testoMinuti(primo.second, adesso))
+                put("inline", tx("{0} tra {1} · {2}", primo.first.linea.take(7), testoMinuti(primo.second, adesso), c.titolo))
                 put("colore", primo.first.colore.toLong() and 0xFFFFFFFFL)
             }
         }

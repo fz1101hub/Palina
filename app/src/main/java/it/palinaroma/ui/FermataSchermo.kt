@@ -60,6 +60,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.legendaFermata
+import it.palinaroma.dati.testoAvviso
+import it.palinaroma.dati.tx
 import it.palinaroma.dati.Arrivo
 import it.palinaroma.dati.ArriviDivisi
 import it.palinaroma.dati.CorsaRT
@@ -207,9 +210,9 @@ fun FermataSchermo(
             throw e
         } catch (e: Exception) {
             errore = if (arrivi.isNullOrEmpty()) {
-                "Non riesco a leggere i passaggi. Controlla la connessione e riprova."
+                tx("Non riesco a leggere i passaggi. Controlla la connessione e riprova.")
             } else {
-                "Non riesco ad aggiornare: i tempi qui sotto sono quelli delle ${ora(aggiornatoAlle)}."
+                tx("Non riesco ad aggiornare: i tempi qui sotto sono quelli delle {0}.", ora(aggiornatoAlle))
             }
         } finally {
             aggiornando = false
@@ -240,20 +243,20 @@ fun FermataSchermo(
         containerColor = Sfondo,
         topBar = {
             BarraSuperiore(
-                titolo = fermata?.nome ?: "Fermata $fermataId",
+                titolo = fermata?.nome ?: tx("Fermata {0}", fermataId),
                 sottotitolo = fermata?.let { descrizioneFermata(it) },
                 indietro = indietro,
                 azioni = {
                     fermata?.let { f ->
                         IconButton(onClick = { comeArrivare(f) }) {
-                            Icon(Icons.Filled.Place, contentDescription = "Come arrivo qui")
+                            Icon(Icons.Filled.Place, contentDescription = tx("Come arrivo qui"))
                         }
                     }
                     val preferita = fermataId in preferiti
                     IconButton(onClick = { Archivio.alternaPreferito(fermataId) }) {
                         Icon(
                             if (preferita) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = if (preferita) "Togli dai preferiti" else "Aggiungi ai preferiti",
+                            contentDescription = if (preferita) tx("Togli dai preferiti") else tx("Aggiungi ai preferiti"),
                             tint = if (preferita) Accento else Testo,
                         )
                     }
@@ -280,15 +283,14 @@ fun FermataSchermo(
                 if (romaFerma && aggiornatoAlle > 0) {
                     item {
                         AvvisoFonte(
-                            "Roma Mobilità in questo momento non pubblica il tempo reale: nessuna vettura nel suo flusso. " +
-                                "I tempi qui sotto sono calcolati sull'orario.",
+                            tx("Roma Mobilità in questo momento non pubblica il tempo reale: nessuna vettura nel suo flusso. I tempi qui sotto sono calcolati sull'orario."),
                         )
                     }
                 }
                 if (soloTempoReale && aggiornatoAlle > 0) {
                     item {
                         Text(
-                            "Gli orari programmati non sono disponibili in questo momento: vedi solo i mezzi seguiti in tempo reale.",
+                            tx("Gli orari programmati non sono disponibili in questo momento: vedi solo i mezzi seguiti in tempo reale."),
                             style = MaterialTheme.typography.bodySmall,
                             color = Secondario,
                             modifier = Modifier.padding(horizontal = 8.dp),
@@ -305,9 +307,9 @@ fun FermataSchermo(
                             adesso = adesso,
                             testoVuoto = when {
                                 errore != null || aggiornatoAlle == 0L -> null
-                                soloTempoReale -> "Nessun mezzo seguito in tempo reale nei prossimi 90 minuti."
-                                rete.treni -> "Nessun treno nei prossimi 90 minuti."
-                                else -> "Nessun passaggio nei prossimi 90 minuti, né in tempo reale né da orario."
+                                soloTempoReale -> tx("Nessun mezzo seguito in tempo reale nei prossimi 90 minuti.")
+                                rete.treni -> tx("Nessun treno nei prossimi 90 minuti.")
+                                else -> tx("Nessun passaggio nei prossimi 90 minuti, né in tempo reale né da orario.")
                             },
                             // i treni: il dettaglio della corsa, con le sole fermate dove fermano;
                             // Roma, e i bus Cotral visti dal GPS: la vettura sulla mappa;
@@ -342,31 +344,8 @@ fun FermataSchermo(
                     }
                     item {
                         Text(
-                            when (rete) {
-                                Rete.ROMA ->
-                                    "Cifre oro con il pallino: vettura vista ora dal GPS. Grigie: tempo calcolato sull'orario. " +
-                                        "Tocca una riga per vedere la vettura sulla mappa, trascina giù per aggiornare."
-                                Rete.COTRAL ->
-                                    "Cifre oro con il pallino: in tempo reale (Cotral, tramite Transitous); «GPS»: il bus è visto " +
-                                        "ora dal GPS (BusOne). Grigie: orario programmato. Tocca una riga per vedere il bus o il percorso."
-                                Rete.COTRAL_TRENI -> when (conAstral) {
-                                    true -> "Orari, ritardi e soppressioni dei treni: ASTRAL. Cifre oro: ritardo già comunicato; " +
-                                        "grigie: orario programmato. Tocca un treno per vedere tutte le sue fermate."
-                                    else -> "Ritardi dei treni non disponibili ora (ASTRAL non risponde, o di notte " +
-                                        "non ha ancora l'orario del giorno): vedi l'orario programmato. " +
-                                        "Tocca un treno per vedere tutte le sue fermate."
-                                } + if (Rete.ROMA in retiMembri) {
-                                    " Qui ci sono anche le banchine della metro: i loro tempi sono da orario."
-                                } else {
-                                    ""
-                                }
-                                Rete.TRENITALIA ->
-                                    "Cifre oro con il pallino: in tempo reale (Trenitalia, tramite Transitous). " +
-                                        "Grigie: orario programmato. Tocca un treno per vedere tutte le sue fermate."
-                                else ->
-                                    "Cifre oro con il pallino: in tempo reale (${rete.etichetta}, tramite Transitous). " +
-                                        "Grigie: orario programmato. Tocca una riga per vedere il percorso della linea."
-                            },
+                            // la legenda e' nel motore, uguale sull'iPhone
+                            legendaFermata(rete, conAstral, Rete.ROMA in retiMembri),
                             style = MaterialTheme.typography.bodySmall,
                             color = Secondario,
                             modifier = Modifier.padding(horizontal = 8.dp),
@@ -374,7 +353,7 @@ fun FermataSchermo(
                     }
                 }
                 if (linee.isNotEmpty()) {
-                    item { Intestazione("Linee di questa fermata", rientro = 8.dp) }
+                    item { Intestazione(tx("Linee di questa fermata"), rientro = 8.dp) }
                     item {
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -390,7 +369,7 @@ fun FermataSchermo(
                                         .clip(RoundedCornerShape(8.dp))
                                         .then(
                                             if (apribile) {
-                                                Modifier.clickable(onClickLabel = "apri la linea") { apriLinea(lf.linea.id, lf.direzione) }
+                                                Modifier.clickable(onClickLabel = tx("apri la linea")) { apriLinea(lf.linea.id, lf.direzione) }
                                             } else {
                                                 Modifier
                                             },
@@ -425,7 +404,7 @@ fun RigaAggiornamento(aggiornatoAlle: Long, adessoMs: Long, modifier: Modifier =
             Spacer(Modifier.width(6.dp))
         }
         Text(
-            if (aggiornatoAlle > 0) "Aggiornato " + testoAggiornato(aggiornatoAlle, adessoMs) else "Carico i tempi d'attesa…",
+            if (aggiornatoAlle > 0) tx("Aggiornato {0}", testoAggiornato(aggiornatoAlle, adessoMs)) else tx("Carico i tempi d'attesa…"),
             style = MaterialTheme.typography.bodySmall,
             color = Secondario,
             modifier = Modifier.weight(1f),
@@ -471,7 +450,7 @@ fun AvvisoRete(testo: String, riprova: () -> Unit, modifier: Modifier = Modifier
     ) {
         Icon(Icons.Filled.Warning, contentDescription = null, tint = Accento)
         Text(testo, style = MaterialTheme.typography.bodyMedium, color = Testo, modifier = Modifier.weight(1f))
-        TextButton(onClick = riprova) { Text("Riprova", color = Accento, fontWeight = FontWeight.Bold) }
+        TextButton(onClick = riprova) { Text(tx("Riprova"), color = Accento, fontWeight = FontWeight.Bold) }
     }
 }
 
@@ -493,17 +472,17 @@ private fun TabelloneFermata(
             .padding(start = 12.dp, end = 2.dp, top = 4.dp, bottom = 4.dp),
     ) {
         if (conFissate) {
-            TitolettoTabellone("Le tue linee", Accento)
+            TitolettoTabellone(tx("Le tue linee"), Accento)
             diviso.fissate.forEach { a ->
                 RigaArrivo(a, adesso, fissata = true, apri = apri(a), fissa = { fissa(a.lineaId) })
             }
             diviso.senzaPassaggi.forEach { id ->
                 RigaFissataVuota(nomiLinee[id] ?: id, id, togli = { fissa(id) })
             }
-            if (diviso.altre.isNotEmpty()) TitolettoTabellone("Altre linee", Secondario)
+            if (diviso.altre.isNotEmpty()) TitolettoTabellone(tx("Altre linee"), Secondario)
         } else if (diviso.altre.isNotEmpty()) {
             Text(
-                "Tocca la puntina accanto a una linea: resta in cima qui e in Home.",
+                tx("Tocca la puntina accanto a una linea: resta in cima qui e in Home."),
                 style = MaterialTheme.typography.bodySmall,
                 color = Secondario,
                 modifier = Modifier.padding(top = 8.dp, bottom = 2.dp, end = 10.dp),
@@ -540,7 +519,7 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (()
                     .then(
                         if (apri != null) {
                             Modifier.clickable(
-                                onClickLabel = if (reteLinea == Rete.ROMA || primo.gps) "vedi la vettura sulla mappa" else "vedi la linea",
+                                onClickLabel = if (reteLinea == Rete.ROMA || primo.gps) tx("vedi la vettura sulla mappa") else tx("vedi la linea"),
                                 onClick = apri,
                             )
                         } else {
@@ -555,7 +534,7 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (()
                 BadgeLinea(arrivo.nomeLinea, grande = true, colore = coloreRete(arrivo.lineaId))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        arrivo.capolinea.ifEmpty { "Direzione non indicata" },
+                        arrivo.capolinea.ifEmpty { tx("Direzione non indicata") },
                         fontWeight = FontWeight.Medium,
                         fontSize = 15.sp,
                         color = if (arrivo.capolinea.isEmpty()) Secondario else Testo,
@@ -569,15 +548,15 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (()
                 }
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     if (primo.avviso == "soppresso") {
-                        Text("soppresso", color = Accento, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(tx("soppresso"), color = Accento, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Text(ora(primo.orario * 1000), style = MaterialTheme.typography.labelSmall, color = Secondario)
                     } else {
                         CifreAttesa(minutiAttesa(primo.orario, adesso), primo.tracciato)
                         val avviso = primo.avviso
                         if (avviso != null) {
-                            Text(avviso, style = MaterialTheme.typography.labelSmall, color = Accento, fontWeight = FontWeight.Bold)
+                            Text(testoAvviso(avviso), style = MaterialTheme.typography.labelSmall, color = Accento, fontWeight = FontWeight.Bold)
                         } else {
-                            FonteTempo(primo.tracciato, etichetta = if (reteLinea == Rete.ROMA || primo.gps) "GPS" else "tempo reale")
+                            FonteTempo(primo.tracciato, etichetta = if (reteLinea == Rete.ROMA || primo.gps) "GPS" else tx("tempo reale"))
                         }
                     }
                 }
@@ -585,7 +564,7 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (()
             IconButton(onClick = fissa) {
                 Icon(
                     if (fissata) PuntinaPiena else PuntinaVuota,
-                    contentDescription = if (fissata) "Togli il ${arrivo.nomeLinea} dalle tue linee" else "Fissa il ${arrivo.nomeLinea} in cima",
+                    contentDescription = if (fissata) tx("Togli il {0} dalle tue linee", arrivo.nomeLinea) else tx("Fissa il {0} in cima", arrivo.nomeLinea),
                     tint = if (fissata) Accento else Secondario,
                     modifier = Modifier.size(20.dp),
                 )
@@ -608,7 +587,7 @@ private fun RigaFissataVuota(nome: String, lineaId: String, togli: () -> Unit) {
         ) {
             BadgeLinea(nome, grande = true, colore = coloreRete(lineaId))
             Text(
-                "Nessun passaggio nei prossimi 90 minuti",
+                tx("Nessun passaggio nei prossimi 90 minuti"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Secondario,
                 modifier = Modifier.weight(1f),
@@ -616,7 +595,7 @@ private fun RigaFissataVuota(nome: String, lineaId: String, togli: () -> Unit) {
             IconButton(onClick = togli) {
                 Icon(
                     PuntinaPiena,
-                    contentDescription = "Togli il $nome dalle tue linee",
+                    contentDescription = tx("Togli il {0} dalle tue linee", nome),
                     tint = Accento,
                     modifier = Modifier.size(20.dp),
                 )
