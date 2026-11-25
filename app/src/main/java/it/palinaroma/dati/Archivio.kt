@@ -82,6 +82,17 @@ object Archivio {
     private val _lingua = MutableStateFlow("")
     val lingua: StateFlow<String> = _lingua.asStateFlow()
 
+    /** I tragitti salvati ("Lavoro → Casa"), per la Home, i widget e le scorciatoie. */
+    private val _salvati = MutableStateFlow<List<TragittoSalvato>>(emptyList())
+    val salvati: StateFlow<List<TragittoSalvato>> = _salvati.asStateFlow()
+
+    /** Le partenze calcolate dei tragitti salvati (id -> partenze), in memoria. */
+    private val _partenze = MutableStateFlow<Map<String, PartenzeTragitto>>(emptyMap())
+    val partenze: StateFlow<Map<String, PartenzeTragitto>> = _partenze.asStateFlow()
+
+    /** Chi deve sapere che preferiti, linee fissate o tragitti sono cambiati (widget e scorciatoie). */
+    var quandoCambia: ((Context) -> Unit)? = null
+
     private val impostazioni by lazy { app.getSharedPreferences("palina", Context.MODE_PRIVATE) }
 
     fun inizializza(context: Context) {
@@ -92,6 +103,7 @@ object Archivio {
             ?.let { nome -> Aspetto.entries.firstOrNull { it.name == nome } } ?: Aspetto.AUTOMATICO
         _cifreLed.value = impostazioni.getBoolean("cifre_led", true)
         _lingua.value = impostazioni.getString("lingua", "").orEmpty()
+        _salvati.value = CodificaTragittiSalvati.leggi(impostazioni.getString("tragitti_salvati", null))
         impostaLingua(app, _lingua.value)
         ambito.launch {
             pulisciAvanzi()
@@ -304,6 +316,7 @@ object Archivio {
         if (!nuovi.add(fermataId)) nuovi.remove(fermataId)
         _preferiti.value = nuovi
         impostazioni.edit().putStringSet("preferiti", nuovi).apply()
+        quandoCambia?.invoke(app)
     }
 
     fun alternaLineaFissata(fermataId: String, lineaId: String) {
@@ -312,6 +325,69 @@ object Archivio {
         if (!nuove.add(chiave)) nuove.remove(chiave)
         _fissate.value = nuove
         impostazioni.edit().putStringSet("linee_fissate", nuove).apply()
+        quandoCambia?.invoke(app)
+    }
+
+    // --- tragitti salvati
+
+    fun salvaTragitto(partenza: Luogo, arrivo: Luogo, nome: String) {
+        val nuovi = aggiungiTragittoSalvato(_salvati.value, partenza, arrivo, nome, "t" + System.currentTimeMillis().toString(36))
+        scriviSalvati(nuovi)
+    }
+
+    fun rimuoviTragitto(id: String) {
+        scriviSalvati(rimuoviTragittoSalvato(_salvati.value, id))
+        _partenze.value = _partenze.value - id
+    }
+
+    private fun scriviSalvati(nuovi: List<TragittoSalvato>) {
+        _salvati.value = nuovi
+        impostazioni.edit().putString("tragitti_salvati", CodificaTragittiSalvati.scrivi(nuovi)).apply()
+        quandoCambia?.invoke(app)
+    }
+
+    /**
+     * Le partenze del tragitto salvato [t] (Transitous): si richiedono solo se
+     * sono vecchie di 2 minuti o non ce ne sono piu' di future.
+     */
+    suspend fun aggiornaPartenze(t: TragittoSalvato, forza: Boolean = false) {
+        val prima = _partenze.value[t.id]
+        val adesso = System.currentTimeMillis()
+        if (!forza && prima != null && adesso - prima.calcolato < 120_000 && prima.partenze.any { it.partenza > adesso }) return
+        val posizione = if (t.partenza.tipo == TipoLuogo.POSIZIONE) posizioneAttuale(app)?.let { Punto(it.latitude, it.longitude) } else null
+        val nuove = partenzeTragittoSalvato(t, posizione)
+        // senza rete restano quelle di prima
+        _partenze.value = _partenze.value + (t.id to if (nuove.partenze.isEmpty() && prima != null && prima.partenze.any { it.partenza > adesso }) prima else nuove)
+    }
+
+    // --- l'ultima posizione, anche dopo che l'app si e' chiusa (per i widget)
+
+    fun ricordaPosizione(lat: Double, lon: Double) {
+        if (!::app.isInitialized) return
+        val ultima = impostazioni.getLong("posizione_ms", 0L)
+        val adesso = System.currentTimeMillis()
+        if (adesso - ultima < 30_000) return
+        impostazioni.edit()
+            .putString("posizione", "$lat,$lon")
+            .putLong("posizione_ms", adesso)
+            .apply()
+    }
+
+    /** L'ultima posizione salvata, se di meno di [etaMassimaMs]. */
+    fun posizioneRicordata(etaMassimaMs: Long = 6 * 3600_000L): Punto? {
+        if (!::app.isInitialized) return null
+        if (System.currentTimeMillis() - impostazioni.getLong("posizione_ms", 0L) > etaMassimaMs) return null
+        val parti = impostazioni.getString("posizione", null)?.split(',') ?: return null
+        val lat = parti.getOrNull(0)?.toDoubleOrNull() ?: return null
+        val lon = parti.getOrNull(1)?.toDoubleOrNull() ?: return null
+        return Punto(lat, lon)
+    }
+
+    /** I dati dei widget, salvati in JSON: si ridisegnano ogni minuto anche se l'app e' stata chiusa. */
+    fun datiWidget(): String? = if (::app.isInitialized) impostazioni.getString("widget", null) else null
+
+    fun salvaDatiWidget(json: String) {
+        impostazioni.edit().putString("widget", json).apply()
     }
 
     fun scegliAspetto(aspetto: Aspetto) {

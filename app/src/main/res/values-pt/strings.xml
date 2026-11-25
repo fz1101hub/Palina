@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generato da strumenti/traduzioni.py: non modificare a mano. -->
+<resources>
+    <string name="widget_tabellone_nome">Palina: sua parada</string>
+    <string name="widget_tabellone_descrizione">O favorito perto de você, com as linhas que você fixou</string>
+    <string name="widget_vicina_nome">Palina: parada mais próxima</string>
+    <string name="widget_vicina_descrizione">A parada mais próxima e as próximas duas linhas</string>
+    <string name="widget_tragitto_nome">Palina: saia em</string>
+    <string name="widget_tragitto_descrizione">Quando sair para o trajeto salvo</string>
+</resources>

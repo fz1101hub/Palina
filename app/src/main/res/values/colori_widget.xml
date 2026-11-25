@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- I colori dei widget: chiari (carta e ambra) di giorno, il tabellone nero e oro col tema scuro del telefono. -->
+<resources>
+    <color name="widget_fondo">#FFFFFFFF</color>
+    <color name="widget_bordo">#FFDDD4C9</color>
+    <color name="widget_divisore">#FFE6DFD6</color>
+    <color name="widget_testo">#FF1C1715</color>
+    <color name="widget_tenue">#FF5F5751</color>
+    <color name="widget_accento">#FF8A5A00</color>
+    <color name="widget_caldo">#FFFBEFD3</color>
+</resources>

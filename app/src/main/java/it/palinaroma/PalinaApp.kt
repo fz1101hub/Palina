@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Collegamento
 import it.palinaroma.dati.HttpAndroid
+import it.palinaroma.widget.Widget
 import org.osmdroid.config.Configuration as ConfigurazioneMappe
 import java.io.File
 
@@ -23,6 +24,12 @@ class PalinaApp : Application() {
         mappe.tileFileSystemCacheMaxBytes = 120L * 1024 * 1024
         mappe.tileFileSystemCacheTrimBytes = 100L * 1024 * 1024
         Archivio.inizializza(this)
+        // preferiti, linee fissate e tragitti salvati: scorciatoie dell'icona e widget
+        Archivio.quandoCambia = { context ->
+            Scorciatoie.aggiorna(context)
+            Widget.chiediDati(context, forza = true)
+        }
+        Scorciatoie.aggiorna(this)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

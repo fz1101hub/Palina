@@ -120,6 +120,8 @@ data class CartaTragitto(
     val soppressa: Boolean,
     val tempoReale: Boolean,
     val perVoce: String,
+    /** "parti tra 4 min", "parti ora", o null. */
+    val partiTra: String? = null,
 )
 
 /** Il colore di un tratto: quello della linea, se Transitous lo da', o porpora. */
@@ -152,8 +154,10 @@ fun cartaTragitto(t: Tragitto, adessoMs: Long): CartaTragitto {
         soppressa = t.mezzi.any { it.cancellato },
         tempoReale = t.mezzi.any { it.tempoReale },
         perVoce = tx("Dalle {0} alle {1}, {2}.", oraARoma(t.partenza), oraARoma(t.arrivo), testoDurata(t.durata)) + " " +
+            (testoPartiTra(t, adessoMs)?.let { "$it. " } ?: "") +
             (testoPrimo?.let { "$it. " } ?: "") + tx("{0}, {1} minuti a piedi.", cambi, t.minutiAPiedi) +
             (if (t.mezzi.any { it.cancellato }) " " + tx("Corsa soppressa.") else ""),
+        partiTra = testoPartiTra(t, adessoMs),
     )
 }
 

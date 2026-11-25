@@ -154,6 +154,7 @@ fun righeOrologio(
                 tempoReale = prossimi.first().tracciato,
                 avviso = prossimi.first().avviso?.let { testoAvviso(it) },
                 lineaId = a.lineaId,
+                corse = prossimi.map { it.corsaId },
                 treni = if (stazione == null) {
                     emptyList()
                 } else {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Il riquadro del tabellone: angoli tondi e bordo sottile. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/widget_fondo" />
+    <stroke android:width="2dp" android:color="@color/widget_bordo" />
+    <corners android:radius="28dp" />
+</shape>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generato da strumenti/traduzioni.py: non modificare a mano. -->
+<resources>
+    <string name="widget_tabellone_nome">Palina: deine Haltestelle</string>
+    <string name="widget_tabellone_descrizione">Der Favorit in deiner Nähe, mit deinen angehefteten Linien</string>
+    <string name="widget_vicina_nome">Palina: nächste Haltestelle</string>
+    <string name="widget_vicina_descrizione">Die nächste Haltestelle und die nächsten zwei Linien</string>
+    <string name="widget_tragitto_nome">Palina: Los in</string>
+    <string name="widget_tragitto_descrizione">Wann du für die gespeicherte Verbindung losmusst</string>
+</resources>

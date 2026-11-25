@@ -45,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -68,6 +69,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import it.palinaroma.dati.SchedaAvviso
+import it.palinaroma.dati.avvisiPerLinea
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.tx
 import it.palinaroma.dati.METRI_FUORI_PERCORSO
@@ -126,6 +129,7 @@ fun LineaSchermo(
     val orario by Archivio.orario.collectAsStateWithLifecycle()
     val o = orario
     val linea = remember(o, lineaId) { o?.linea(lineaId) }
+    val avvisiRoma by produceState(initialValue = emptyList<SchedaAvviso>(), lineaId) { value = avvisiPerLinea(lineaId) }
     val percorsi = remember(o, lineaId) { o?.percorsi(lineaId).orEmpty() }
     var direzione by rememberSaveable { mutableStateOf(direzioneIniziale) }
     val percorso = percorsi.firstOrNull { it.direzione == direzione } ?: percorsi.firstOrNull()
@@ -422,6 +426,9 @@ fun LineaSchermo(
                     .fillMaxWidth()
                     .weight(1f),
             ) {
+                if (avvisiRoma.isNotEmpty()) {
+                    item { SchedaAvvisiRoma(avvisiRoma, Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) }
+                }
                 itemsIndexed(fermate, key = { i, f -> "$i-${f.id}" }) { i, f ->
                     RigaPercorso(
                         f,

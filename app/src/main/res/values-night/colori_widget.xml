@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_fondo">#FF050404</color>
+    <color name="widget_bordo">#FF2B2323</color>
+    <color name="widget_divisore">#FF3A2E1A</color>
+    <color name="widget_testo">#FFF4EFEA</color>
+    <color name="widget_tenue">#FFB9B1AB</color>
+    <color name="widget_accento">#FFF2A900</color>
+    <color name="widget_caldo">#FF2A1F12</color>
+</resources>

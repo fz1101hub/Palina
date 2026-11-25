@@ -12,6 +12,10 @@ struct HomeVista: View {
     @State private var vicine: [VoceFermata] = []
     @State private var stato: StatoHome?
     @State private var trovate: [VoceFermata] = []
+    @EnvironmentObject private var salvati: Salvati
+    @EnvironmentObject private var tragitti: Tragitti
+    /** Il minuto attuale, per "esci tra". */
+    @State private var orologio = Date()
 
     var body: some View {
         List {
@@ -89,9 +93,42 @@ struct HomeVista: View {
     @ViewBuilder
     private var contenuto: some View {
         if let s = seguito.stato {
-            Section(tx("Stai seguendo")) {
-                SchedaSeguito(stato: s) { seguito.smetti() }
+            Section(s.quando.isEmpty ? tx("Stai seguendo") : tx("Avviso in corso")) {
+                SchedaSeguito(stato: s)
             }
+        }
+        if !salvati.elenco.isEmpty {
+            Section(tx("I tuoi tragitti")) {
+                ForEach(salvati.elenco, id: \.id) { t in
+                    Button {
+                        tragitti.scegliSalvato(t)
+                        navigazione.percorso.append(.tragitti)
+                    } label: {
+                        RigaTragittoSalvato(carta: salvati.carta(t, adesso: orologio))
+                    }
+                    .foregroundStyle(.primary)
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) { salvati.rimuovi(t.id) } label: { Label(tx("Elimina"), systemImage: "trash") }
+                        if t.partenza.tipo != .posizione {
+                            Button {
+                                tragitti.scegliRitorno(t)
+                                navigazione.percorso.append(.tragitti)
+                            } label: { Label(tx("Ritorno"), systemImage: "arrow.uturn.backward") }
+                            .tint(Tavolozza.oro)
+                        }
+                    }
+                    .contextMenu {
+                        if t.partenza.tipo != .posizione {
+                            Button {
+                                tragitti.scegliRitorno(t)
+                                navigazione.percorso.append(.tragitti)
+                            } label: { Label(tx("Ritorno"), systemImage: "arrow.uturn.backward") }
+                        }
+                        Button(role: .destructive) { salvati.rimuovi(t.id) } label: { Label(tx("Elimina"), systemImage: "trash") }
+                    }
+                }
+            }
+            .task(id: salvati.elenco.map(\.id)) { await seguiPartenze() }
         }
         if let avviso = stato?.avviso {
             Text(avviso).font(.footnote).foregroundStyle(Tavolozza.oro)
@@ -156,6 +193,17 @@ struct HomeVista: View {
                 stato = home.stato(vicine: vicine)
             }
             try? await Task.sleep(nanoseconds: 5_000_000_000)
+        }
+    }
+
+    /** Le partenze dei tragitti salvati: ogni minuto si guarda se servono di nuove (al massimo ogni 2 minuti). */
+    private func seguiPartenze() async {
+        while !Task.isCancelled {
+            orologio = Date()
+            let qui = posizione.lat.flatMap { lat in posizione.lon.map { (lat, $0) } }
+            for t in salvati.elenco { await salvati.aggiornaPartenze(t, posizione: qui) }
+            orologio = Date()
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
         }
     }
 
@@ -262,41 +310,3 @@ struct Pillola: View {
     }
 }
 
-/** La linea seguita: linea, capolinea, fermata e il conto alla rovescia, con "Smetti". */
-struct SchedaSeguito: View {
-    let stato: StatoSegui
-    let smetti: () -> Void
-
-    var body: some View {
-        let arrivo = Date(timeIntervalSince1970: Double(stato.arrivoMs) / 1000)
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                BadgeLinea(nome: stato.linea, colore: stato.colore, grande: true)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("→ " + stato.capolinea).font(.headline).lineLimit(1)
-                    Text(stato.fermata + " · " + stato.fonte).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
-                }
-                Spacer()
-                Group {
-                    if arrivo > Date() {
-                        Text(timerInterval: Date()...arrivo, countsDown: true)
-                    } else {
-                        Text(tx("ora§adesso"))
-                    }
-                }
-                .font(.title2.bold())
-                .monospacedDigit()
-                .foregroundStyle(stato.tempoReale ? Tavolozza.oro : .primary)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(stato.titolo + ". " + stato.testo)
-            Button(role: .destructive, action: smetti) {
-                Label(tx("Smetti di seguire"), systemImage: "bell.slash")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.red)
-        }
-        .padding(.vertical, 4)
-        .accessibilityIdentifier("seguito")
-    }
-}

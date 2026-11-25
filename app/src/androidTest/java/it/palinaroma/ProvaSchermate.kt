@@ -25,6 +25,13 @@ import org.junit.runner.Description
 import org.junit.runner.RunWith
 import org.junit.runners.MethodSorters
 import java.io.ByteArrayOutputStream
+import java.io.File
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.view.View
+import android.widget.FrameLayout
+import it.palinaroma.ponte.CodificaWidget
+import it.palinaroma.widget.Widget
 
 /**
  * Prova dell'app intera su un telefono simulato, come la userebbe una persona:
@@ -323,6 +330,86 @@ class ProvaSchermate {
             }
         } finally {
             strumenti.runOnMainSync { Archivio.impostaLinguaScelta("it") }
+        }
+    }
+
+    @Test
+    fun b1_avvisamiDallaFermata() {
+        telefono.executeShellCommand("pm grant $pacchetto android.permission.POST_NOTIFICATIONS")
+        apriFermataConITempi()
+        aspettaUnoDi(90_000, "i tempi d'attesa", By.textContains("Aggiornato"), By.textContains("Non riesco a leggere i passaggi"))
+        attendi(2_000)
+        // senza rete non ci sono righe: niente da avvisare
+        val pulsante = telefono.wait(Until.findObject(By.res("avvisami")), 20_000) ?: return
+        pulsante.click()
+        aspetta(By.res("foglio-avvisami"), 20_000, "il foglio Avvisami")
+        attendi(5_000)
+        schermata("30-avvisami")
+        val attiva = telefono.findObject(By.res("attiva-avviso"))
+        if (attiva != null && attiva.isEnabled) {
+            attiva.click()
+            attendi(4_000)
+            tornaA(By.res("cerca"), "la Home")
+            aspetta(By.res("avviso-in-corso"), 20_000, "l'avviso in corso in Home")
+            attendi(2_000)
+            schermata("31-home-avviso")
+            telefono.openNotification()
+            attendi(3_000)
+            schermata("32-notifica-avviso")
+            telefono.pressBack()
+            attendi(1_000)
+            telefono.findObject(By.text("Smetti"))?.click() ?: telefono.findObject(By.text("Fine viaggio"))?.click()
+        }
+    }
+
+    @Test
+    fun b2_tragittoSalvatoEWidget() {
+        tocca(By.res("come-arrivo"))
+        tocca(By.res("campo-a"))
+        scrivi("Colosseo")
+        aspettaUnoDi(30_000, "i luoghi trovati", By.text("FERMATE"), By.text("INDIRIZZI E LUOGHI"))
+        attendi(1_500)
+        premi(By.res("luogo"), 10_000, "un luogo da scegliere")
+        tocca(By.res("salva-tragitto"))
+        aspetta(By.text("Salva"), 10_000, "il dialogo per salvare il tragitto")
+        schermata("33-salva-tragitto")
+        tocca(By.text("Salva"))
+        aspettaUnoDi(90_000, "i tragitti", By.res("tragitto"), By.res("tragitto-a-piedi"), By.textContains("Transitous"), By.textContains("Nessun tragitto"))
+        attendi(2_000)
+        schermata("34-tragitti-ordine")
+        tornaA(By.res("cerca"), "la Home")
+        aspetta(By.res("tragitto-salvato"), 20_000, "il tragitto salvato in Home")
+        attendi(20_000)
+        schermata("35-home-tragitto-salvato")
+        disegnaWidget()
+    }
+
+    /** I widget non si possono aggiungere alla Home dalla prova: li si disegna in un'immagine con gli stessi dati. */
+    private fun disegnaWidget() {
+        val ctx = strumenti.targetContext
+        runCatching { kotlinx.coroutines.runBlocking { Widget.calcola(ctx, forza = true) } }
+        val dati = CodificaWidget.leggi(Archivio.datiWidget())
+        val densita = ctx.resources.displayMetrics.density
+        listOf(Triple("tabellone", 360, 190), Triple("vicina", 170, 170), Triple("tragitto", 170, 170)).forEach { (nome, larghezza, altezza) ->
+            runCatching {
+                val remota = Widget.vista(ctx, nome, dati, System.currentTimeMillis())
+                var immagine: Bitmap? = null
+                strumenti.runOnMainSync {
+                    val vista = remota.apply(ctx, FrameLayout(ctx))
+                    val w = (larghezza * densita).toInt()
+                    val h = (altezza * densita).toInt()
+                    vista.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
+                    vista.layout(0, 0, w, h)
+                    immagine = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { b ->
+                        val tela = Canvas(b)
+                        tela.drawColor(0xFF2B2A33.toInt())
+                        vista.draw(tela)
+                    }
+                }
+                val file = File(ctx.getExternalFilesDir(null), "widget-$nome.png")
+                file.outputStream().use { immagine!!.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                telefono.executeShellCommand("cp ${file.path} $CARTELLA/$prefisso-36-widget-$nome.png")
+            }.onFailure { Log.e("ProvaSchermate", "widget $nome", it) }
         }
     }
 

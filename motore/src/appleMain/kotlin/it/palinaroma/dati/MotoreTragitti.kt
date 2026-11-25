@@ -27,6 +27,10 @@ data class StatoTragitti(
     val dopo: Boolean,
     val caricandoAltri: Boolean,
     val calcolato: String?,
+    /** L'ordine dei risultati ("", "cambi", "piedi") e le scelte possibili (codici e nomi). */
+    val ordine: String,
+    val ordini: List<String>,
+    val nomiOrdini: List<String>,
 )
 
 /** Un pezzo della mappa del tragitto: a piedi (tratteggiato) o con un mezzo. */
@@ -128,6 +132,34 @@ class MotoreTragitti(private val orario: Orario) {
         stato()
     }
 
+    private var ordine = ""
+
+    /** L'ordine dei risultati: "" (prima le partenze piu' vicine), "cambi", "piedi". */
+    fun ordina(ordine: String) {
+        this.ordine = ordine
+    }
+
+    /** I tragitti nell'ordine scelto (l'elenco e il dettaglio usano questo). */
+    private fun ordinati(): List<Tragitto> = risultato?.let { ordinaTragitti(it.tragitti, ordine) }.orEmpty()
+
+    /** Il tragitto [indice] in testo semplice, da condividere. */
+    fun condividi(indice: Int): String? {
+        val t = tragitto(indice) ?: return null
+        return testoCondivisione(t, da?.nome ?: t.tratti.first().da.nome, a?.nome ?: t.tratti.last().a.nome)
+    }
+
+    /** Gli avvisi di Roma Mobilita' sulle linee e le fermate del tragitto [indice]. */
+    suspend fun avvisi(indice: Int): List<SchedaAvviso> = withContext(Dispatchers.Main) {
+        val t = tragitto(indice) ?: return@withContext emptyList()
+        if (t.mezzi.isEmpty()) emptyList() else avvisiPerTragitto(orario, t)
+    }
+
+    /** Parte e arriva come il tragitto salvato [t]. */
+    fun scegliSalvato(t: TragittoSalvato) {
+        da = t.partenza
+        a = t.arrivo
+    }
+
     fun stato(): StatoTragitti {
         val r = risultato
         val adesso = adessoMs()
@@ -148,19 +180,22 @@ class MotoreTragitti(private val orario: Orario) {
                 else -> null
             },
             riprova = !inCorso && r?.errore != null && a != null,
-            carte = if (pronto) r.tragitti.map { cartaTragitto(it, adesso) } else emptyList(),
+            carte = if (pronto) ordinati().map { cartaTragitto(it, adesso) } else emptyList(),
             aPiedi = if (pronto) r.soloAPiedi?.let { cartaAPiedi(it) } else null,
             prima = pronto && r.cursorePrima != null && r.tragitti.isNotEmpty(),
             dopo = pronto && r.cursoreDopo != null && r.tragitti.isNotEmpty(),
             caricandoAltri = caricandoAltri,
             calcolato = if (pronto) tx("Calcolato alle {0}. Tocca un tragitto per la mappa e le fermate.", oraARoma(r.calcolatoAlle)) else null,
+            ordine = ordine,
+            ordini = ordiniTragitti().map { it.first },
+            nomiOrdini = ordiniTragitti().map { it.second },
         )
     }
 
     /** Il tragitto [indice] dell'elenco (-1 = tutto a piedi). */
     private fun tragitto(indice: Int): Tragitto? {
         val r = risultato ?: return null
-        return if (indice < 0) r.soloAPiedi else r.tragitti.getOrNull(indice)
+        return if (indice < 0) r.soloAPiedi else ordinati().getOrNull(indice)
     }
 
     fun dettaglio(indice: Int): DettaglioTragitto? = tragitto(indice)?.let { dettaglioTragitto(it) }

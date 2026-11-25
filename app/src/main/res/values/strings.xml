@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Palina Roma</string>
+    <string name="widget_tabellone_nome">Palina: la tua fermata</string>
+    <string name="widget_tabellone_descrizione">La preferita a cui sei vicino, con le linee che hai fissato</string>
+    <string name="widget_vicina_nome">Palina: fermata più vicina</string>
+    <string name="widget_vicina_descrizione">La fermata più vicina e le prossime due linee</string>
+    <string name="widget_tragitto_nome">Palina: esci tra</string>
+    <string name="widget_tragitto_descrizione">Quando uscire per il tragitto salvato</string>
 </resources>

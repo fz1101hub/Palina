@@ -5,6 +5,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- "Avvisami": la notifica sulla schermata di blocco e gli avvisi per uscire e scendere -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:name=".PalinaApp"
@@ -28,6 +33,54 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- "Avvisami": tiene aggiornati i tempi e la notifica finche' dura l'attesa o il viaggio -->
+        <service
+            android:name=".avviso.ServizioAvviso"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- i widget: la tua fermata, la piu' vicina, "esci tra" -->
+        <receiver
+            android:name=".widget.WidgetTabellone"
+            android:exported="false"
+            android:label="@string/widget_tabellone_nome">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_tabellone" />
+        </receiver>
+        <receiver
+            android:name=".widget.WidgetVicina"
+            android:exported="false"
+            android:label="@string/widget_vicina_nome">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_vicina" />
+        </receiver>
+        <receiver
+            android:name=".widget.WidgetTragitto"
+            android:exported="false"
+            android:label="@string/widget_tragitto_nome">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_tragitto" />
+        </receiver>
+        <receiver
+            android:name=".widget.RicevitoreWidget"
+            android:exported="false" />
+        <service
+            android:name=".widget.LavoroWidget"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <!-- l'orologio Wear OS chiede i tabelloni: li calcola il telefono -->
         <service

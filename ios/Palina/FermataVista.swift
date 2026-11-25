@@ -14,6 +14,8 @@ struct FermataVista: View {
     @State private var linee: [VoceLinea] = []
     @State private var tabellone: TabelloneFermata?
     @State private var caricando = true
+    @State private var avvisami: RigaDaAvvisare?
+    @State private var avvisi: [SchedaAvviso] = []
 
     var body: some View {
         List {
@@ -28,6 +30,7 @@ struct FermataVista: View {
                 if let avviso = tabellone?.avviso {
                     Text(avviso).font(.footnote).foregroundStyle(Tavolozza.oro)
                 }
+                SezioneAvvisi(avvisi: avvisi)
                 tempi
                 Section(tx("Linee")) {
                     ForEach(linee, id: \.self) { l in
@@ -70,6 +73,13 @@ struct FermataVista: View {
             }
         }
         .task(id: archivio.orario != nil) { await segui() }
+        .task(id: archivio.orario != nil) {
+            if let orario = archivio.orario { avvisi = (try? await AvvisiServizioKt.avvisiPerFermata(orario: orario, fermataId: fermataId)) ?? [] }
+        }
+        .sheet(item: $avvisami) { r in
+            AvvisamiVista(fermataId: fermataId, lineaId: r.lineaId, capolinea: r.capolinea)
+                .presentationDetents([.large])
+        }
         .onChange(of: preferiti.fissate) { _, nuove in
             motore?.impostaFissate(chiavi: nuove)
             tabellone = motore?.tabellone()
@@ -124,17 +134,22 @@ struct FermataVista: View {
             }
             .tint(Tavolozza.oro)
             Button {
-                Task { await seguito.segui(fermataId: fermataId, lineaId: riga.lineaId, capolinea: riga.capolinea) }
+                avvisami = RigaDaAvvisare(lineaId: riga.lineaId, capolinea: riga.capolinea)
             } label: {
-                Label(tx("Segui"), systemImage: "bell")
+                Label(tx("Avvisami"), systemImage: "bell")
             }
             .tint(Tavolozza.porpora)
         }
         .contextMenu {
             Button {
+                avvisami = RigaDaAvvisare(lineaId: riga.lineaId, capolinea: riga.capolinea)
+            } label: {
+                Label(tx("Avvisami per il {0}", riga.nome), systemImage: "bell")
+            }
+            Button {
                 Task { await seguito.segui(fermataId: fermataId, lineaId: riga.lineaId, capolinea: riga.capolinea) }
             } label: {
-                Label(tx("Segui il {0}: avviso 2 minuti prima", riga.nome), systemImage: "bell")
+                Label(tx("Segui il {0}: avviso 2 minuti prima", riga.nome), systemImage: "bell.badge")
             }
             Button {
                 if let chiave = motore?.chiaveDaFissare(lineaId: riga.lineaId) { preferiti.alternaFissata(chiave) }
@@ -145,8 +160,8 @@ struct FermataVista: View {
         .accessibilityAction(named: riga.fissata ? tx("Togli il {0} dalle tue linee", riga.nome) : tx("Fissa il {0} in cima", riga.nome)) {
             if let chiave = motore?.chiaveDaFissare(lineaId: riga.lineaId) { preferiti.alternaFissata(chiave) }
         }
-        .accessibilityAction(named: tx("Segui il {0}", riga.nome)) {
-            Task { await seguito.segui(fermataId: fermataId, lineaId: riga.lineaId, capolinea: riga.capolinea) }
+        .accessibilityAction(named: tx("Avvisami per il {0}", riga.nome)) {
+            avvisami = RigaDaAvvisare(lineaId: riga.lineaId, capolinea: riga.capolinea)
         }
     }
 
@@ -167,9 +182,13 @@ struct FermataVista: View {
                    let treno = ((tabellone?.fissate ?? []) + (tabellone?.altre ?? [])).compactMap({ $0.treno }).first {
                     navigazione.percorso.append(.corsa(treno))
                 }
+                // prove: -provaAvvisami YES apre "Avvisami" per la prima linea del tabellone
+                if caricando, Prova.avvisami, let prima = ((tabellone?.fissate ?? []) + (tabellone?.altre ?? [])).first {
+                    avvisami = RigaDaAvvisare(lineaId: prima.lineaId, capolinea: prima.capolinea)
+                }
                 // prove: -provaSegui YES segue la prima linea del tabellone
                 if caricando, Prova.segui, let prima = ((tabellone?.fissate ?? []) + (tabellone?.altre ?? [])).first {
-                    await seguito.segui(fermataId: fermataId, lineaId: prima.lineaId, capolinea: prima.capolinea)
+                    await seguito.avvisami(fermataId: fermataId, lineaId: prima.lineaId, capolinea: prima.capolinea, quando: "cinque", scendi: true, posizione: nil)
                 }
                 caricando = false
             } else {
@@ -178,6 +197,13 @@ struct FermataVista: View {
             try? await Task.sleep(nanoseconds: 5_000_000_000)
         }
     }
+}
+
+/** La riga per cui si apre "Avvisami". */
+struct RigaDaAvvisare: Identifiable {
+    let lineaId: String
+    let capolinea: String
+    var id: String { lineaId + "|" + capolinea }
 }
 
 /** Una riga del tabellone: linea, direzione, "poi 12 · 25 min" e i minuti (in oro se in tempo reale). */

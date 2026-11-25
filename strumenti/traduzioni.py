@@ -37,6 +37,30 @@ RISORSE_OROLOGIO = {
     "riquadro_descrizione": "I prossimi bus e treni della fermata preferita più vicina",
     "complicazione": "Palina: prossimo passaggio",
 }
+# I nomi che Android mostra per i widget del telefono: risorsa -> testo italiano
+RISORSE_APP = {
+    "widget_tabellone_nome": "Palina: la tua fermata",
+    "widget_tabellone_descrizione": "La preferita a cui sei vicino, con le linee che hai fissato",
+    "widget_vicina_nome": "Palina: fermata più vicina",
+    "widget_vicina_descrizione": "La fermata più vicina e le prossime due linee",
+    "widget_tragitto_nome": "Palina: esci tra",
+    "widget_tragitto_descrizione": "Quando uscire per il tragitto salvato",
+}
+# I testi dei widget dell'iPhone scritti nell'estensione (il resto viene dal motore, tramite l'app)
+WIDGET_IPHONE = [
+    "La tua fermata",
+    "La preferita a cui sei vicino, con le linee che hai fissato.",
+    "Fermata più vicina",
+    "La fermata più vicina e le prossime due linee.",
+    "Esci tra",
+    "Quando uscire per il tragitto salvato.",
+    "Apri Palina per aggiornare",
+    "Salva un tragitto in «Come arrivo» per vedere quando uscire.",
+    "Sto uscendo",
+    "Prendo il successivo",
+    "Scegli dove scendi",
+    "Fine viaggio",
+]
 # Le voci di Info.plist delle app per iPhone e Apple Watch
 INFO_PLIST = {
     "Palina": {
@@ -75,7 +99,7 @@ def testi_nel_codice():
                 for m in TXN.finditer(s):
                     trovati.setdefault(unisci(m.group(1)), dove)
                     trovati.setdefault(unisci(m.group(2)), dove)
-    for testo in list(RISORSE_OROLOGIO.values()) + WIDGET_OROLOGIO + [v for d in INFO_PLIST.values() for v in d.values()]:
+    for testo in list(RISORSE_OROLOGIO.values()) + list(RISORSE_APP.values()) + WIDGET_OROLOGIO + WIDGET_IPHONE + [v for d in INFO_PLIST.values() for v in d.values()]:
         if testo:
             trovati.setdefault(testo, "risorse")
     return trovati
@@ -164,6 +188,15 @@ def genera(righe, trovati):
         voci.append("</resources>")
         open(os.path.join(cartella, "strings.xml"), "w", encoding="utf-8").write("\n".join(voci) + "\n")
 
+    for l in LINGUE[1:]:
+        cartella = os.path.join(RADICE, f"app/src/main/res/values-{l}")
+        os.makedirs(cartella, exist_ok=True)
+        voci = ['<?xml version="1.0" encoding="utf-8"?>', "<!-- Generato da strumenti/traduzioni.py: non modificare a mano. -->", "<resources>"]
+        for nome, testo in RISORSE_APP.items():
+            voci.append(f'    <string name="{nome}">{xml(righe[testo][l])}</string>')
+        voci.append("</resources>")
+        open(os.path.join(cartella, "strings.xml"), "w", encoding="utf-8").write("\n".join(voci) + "\n")
+
     def stringa_apple(t):
         return '"' + t.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'
 
@@ -181,6 +214,11 @@ def genera(righe, trovati):
             os.makedirs(cartella, exist_ok=True)
             open(os.path.join(cartella, "InfoPlist.strings"), "w", encoding="utf-8").write(
                 "/* Generato da strumenti/traduzioni.py: la lingua c'e', i testi vengono dal motore. */\n")
+        cartella = os.path.join(RADICE, "ios", "PalinaWidget", f"{l}.lproj")
+        testo = "/* Generato da strumenti/traduzioni.py: non modificare a mano. */\n"
+        for it in WIDGET_IPHONE:
+            testo += f"{stringa_apple(it)} = {stringa_apple(righe[it][l] if l != 'it' else it)};\n"
+        open(os.path.join(cartella, "Localizable.strings"), "w", encoding="utf-8").write(testo)
         cartella = os.path.join(RADICE, "ios", "PalinaWatchWidget", f"{l}.lproj")
         os.makedirs(cartella, exist_ok=True)
         testo = "/* Generato da strumenti/traduzioni.py: non modificare a mano. */\n"

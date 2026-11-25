@@ -1,5 +1,6 @@
 package it.palinaroma
 
+import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
@@ -40,12 +41,25 @@ import it.palinaroma.ui.TemaPalina
 import it.palinaroma.ui.TragittoSchermo
 import it.palinaroma.ui.comeLuogo
 import it.palinaroma.ui.rotta
+import it.palinaroma.ui.SceltaDiscesaSchermo
+import it.palinaroma.avviso.Avvisatore
+import it.palinaroma.dati.Punto
+import it.palinaroma.dati.posizioneAttuale
+import it.palinaroma.widget.Widget
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // la lingua dei testi (del motore): quella del telefono o quella scelta in Palina
         Archivio.linguaDelSistemaCambiata(this)
+        // da una scorciatoia, da un widget o da una notifica
+        if (savedInstanceState == null) Richieste.da(intent)
         enableEdgeToEdge()
         setContent {
             val aspetto by Archivio.aspetto.collectAsStateWithLifecycle()
@@ -72,6 +86,23 @@ class MainActivity : ComponentActivity() {
                 TemaPalina(scuro = scuro, cifreLed = cifreLed) { Navigazione() }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        Richieste.da(intent)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // uscendo da Palina i widget prendono i dati piu' recenti
+        Widget.chiediDati(this, forza = false)
+    }
+
+    companion object {
+        /** Cosa aprire: "vicina", "palina", "tragitto:<id>", "fermata:<id>", "scendi", "home". */
+        const val APRI = "apri"
     }
 }
 
@@ -103,6 +134,55 @@ private fun Navigazione() {
         vai("luogo/a?testo=" + Uri.encode(testo))
     }
 
+    val context = LocalContext.current
+    val richiesta by Richieste.apri.collectAsStateWithLifecycle()
+    val tornaAllaHome: () -> Unit = { nav.popBackStack("home", inclusive = false) }
+    // un "Avvisami" lasciato in corso quando Android ha chiuso l'app riparte
+    LaunchedEffect(Unit) {
+        withTimeoutOrNull(30_000) { Archivio.orario.first { it != null } }
+        runCatching { Avvisatore.riprendiSeServe(context) }
+    }
+    LaunchedEffect(richiesta) {
+        val cosa = richiesta ?: return@LaunchedEffect
+        Richieste.fatta()
+        when {
+            cosa == "home" -> tornaAllaHome()
+            cosa == "palina" -> {
+                tornaAllaHome()
+                Richieste.cercaPalina(true)
+            }
+            cosa == "scendi" -> vai("scendi")
+            cosa == "tragitto" -> {
+                tornaAllaHome()
+                apriTragitto()
+            }
+            cosa.startsWith("tragitto:") -> {
+                val salvato = Archivio.salvati.value.firstOrNull { it.id == cosa.removePrefix("tragitto:") }
+                tornaAllaHome()
+                if (salvato != null) {
+                    StatoTragitto.da = salvato.partenza
+                    StatoTragitto.a = salvato.arrivo
+                }
+                apriTragitto()
+            }
+            cosa.startsWith("fermata:") -> {
+                tornaAllaHome()
+                apriFermata(cosa.removePrefix("fermata:"))
+            }
+            cosa == "vicina" -> {
+                tornaAllaHome()
+                val orario = withTimeoutOrNull(20_000) { Archivio.orario.first { it != null } }
+                val qui = posizioneAttuale(context)?.let { Punto(it.latitude, it.longitude) } ?: Archivio.posizioneRicordata()
+                val vicina = if (orario != null && qui != null) {
+                    withContext(Dispatchers.IO) { orario.fermateVicineUnite(qui.lat, qui.lon, 1500.0).firstOrNull()?.first }
+                } else {
+                    null
+                }
+                if (vicina != null) apriFermata(vicina.id)
+            }
+        }
+    }
+
     NavHost(
         navController = nav,
         startDestination = "home",
@@ -119,6 +199,7 @@ private fun Navigazione() {
                 apriOrario = { vai("orario") },
                 apriTragitto = apriTragitto,
                 apriTragittoVerso = apriTragittoVerso,
+                apriScendi = { vai("scendi") },
             )
         }
         composable(
@@ -199,6 +280,9 @@ private fun Navigazione() {
         }
         composable("orario") {
             OrarioSchermo(indietro = indietro)
+        }
+        composable("scendi") {
+            SceltaDiscesaSchermo(indietro = indietro)
         }
         composable("tragitto") {
             TragittoSchermo(

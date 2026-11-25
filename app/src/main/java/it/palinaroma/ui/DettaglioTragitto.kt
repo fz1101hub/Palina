@@ -63,7 +63,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import android.content.Intent
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.IconButton
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.SchedaAvviso
+import it.palinaroma.dati.avvisiPerTragitto
+import it.palinaroma.dati.testoCondivisione
 import it.palinaroma.dati.BusOne
 import it.palinaroma.dati.Rete
 import it.palinaroma.dati.corsaApp
@@ -103,7 +109,13 @@ import org.osmdroid.views.overlay.Polyline
 @Composable
 fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (String) -> Unit) {
     val esito = StatoTragitto.esito as? EsitoTragitti.Pronto
-    val tragitto = esito?.let { if (indice < 0) it.soloAPiedi else it.tragitti.getOrNull(indice) }
+    val tragitto = esito?.let { if (indice < 0) it.soloAPiedi else StatoTragitto.ordinati().getOrNull(indice) }
+    val context = LocalContext.current
+    val orarioAperto by Archivio.orario.collectAsStateWithLifecycle()
+    val avvisiRoma by produceState(initialValue = emptyList<SchedaAvviso>(), tragitto, orarioAperto) {
+        val o = orarioAperto
+        value = if (tragitto != null && o != null && tragitto.mezzi.isNotEmpty()) avvisiPerTragitto(o, tragitto) else emptyList()
+    }
 
     // le vetture dei bus e tram del tragitto, se Roma Mobilita' (o BusOne per Cotral) le segue via GPS
     var vetture by remember { mutableStateOf<Map<Int, MezzoRT>>(emptyMap()) }
@@ -136,6 +148,21 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
                 // gli stessi testi del dettaglio sull'iPhone, dal motore
                 sottotitolo = tragitto?.let { dettaglioTragitto(it).sottotitolo },
                 indietro = indietro,
+                azioni = {
+                    if (tragitto != null) {
+                        IconButton(onClick = {
+                            val testo = testoCondivisione(
+                                tragitto,
+                                StatoTragitto.da?.nome ?: tragitto.tratti.first().da.nome,
+                                StatoTragitto.a?.nome ?: tragitto.tratti.last().a.nome,
+                            )
+                            val invio = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, testo)
+                            runCatching { context.startActivity(Intent.createChooser(invio, tx("Condividi il tragitto"))) }
+                        }) {
+                            Icon(Icons.Filled.Share, contentDescription = tx("Condividi il tragitto"))
+                        }
+                    }
+                },
             )
         },
     ) { margini ->
@@ -175,6 +202,7 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
                     .weight(1.1f),
                 contentPadding = PaddingValues(vertical = 8.dp),
             ) {
+                if (avvisiRoma.isNotEmpty()) item { SchedaAvvisiRoma(avvisiRoma) }
                 item { RigaEstremo(true, tragitto.tratti.first().da.nome, tragitto.partenza) }
                 tragitto.tratti.forEachIndexed { i, tratto ->
                     item(key = "tratto-$i") {

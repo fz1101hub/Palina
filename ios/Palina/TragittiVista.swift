@@ -63,6 +63,25 @@ final class Tragitti: ObservableObject {
         stato = nuovo ?? motore.stato()
     }
 
+    /** Parte e arriva come il tragitto salvato [t] (o al contrario, per il ritorno). */
+    func scegliSalvato(_ t: TragittoSalvato) {
+        motore?.scegliSalvato(t: t)
+        aggiorna()
+    }
+
+    func scegliRitorno(_ t: TragittoSalvato) {
+        guard let ritorno = TragittiSalvatiKt.tragittoDiRitorno(t: t) else { return }
+        motore?.scegliDa(luogo: ritorno.first!)
+        motore?.scegliA(luogo: ritorno.second!)
+        aggiorna()
+    }
+
+    /** L'ordine dei risultati: "" (prima le partenze), "cambi", "piedi". */
+    func ordina(_ ordine: String) {
+        motore?.ordina(ordine: ordine)
+        aggiorna()
+    }
+
     func altri(dopo: Bool) async {
         guard let motore, !caricandoAltri else { return }
         caricandoAltri = true
@@ -79,6 +98,8 @@ struct TragittiVista: View {
     @EnvironmentObject private var tragitti: Tragitti
     @EnvironmentObject private var navigazione: Navigazione
     @State private var sceltaOrario: Bool? = nil
+    @State private var nomeDaSalvare: String? = nil
+    @EnvironmentObject private var salvati: Salvati
 
     var body: some View {
         List {
@@ -111,6 +132,18 @@ struct TragittiVista: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                if let da = tragitti.stato?.da, let a = tragitti.stato?.a {
+                    let salvato = salvati.salvato(da: da, a: a)
+                    Button {
+                        if let salvato { salvati.rimuovi(salvato.id) } else { nomeDaSalvare = TragittiSalvatiKt.nomeTragittoSalvato(partenza: da, arrivo: a) }
+                    } label: {
+                        Image(systemName: salvato != nil ? "star.fill" : "star")
+                    }
+                    .accessibilityLabel(salvato != nil ? tx("Togli dai tragitti salvati") : tx("Salva il tragitto"))
+                    .accessibilityIdentifier("salva-tragitto")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     Task { await tragitti.cerca(posizione: posizione) }
                 } label: {
@@ -119,6 +152,16 @@ struct TragittiVista: View {
                 .accessibilityLabel(tx("Calcola di nuovo"))
                 .disabled(tragitti.stato?.a == nil)
             }
+        }
+        .alert(tx("Salva il tragitto"), isPresented: Binding(get: { nomeDaSalvare != nil }, set: { if !$0 { nomeDaSalvare = nil } })) {
+            TextField(tx("Nome"), text: Binding(get: { nomeDaSalvare ?? "" }, set: { nomeDaSalvare = String($0.prefix(40)) }))
+            Button(tx("Salva")) {
+                if let da = tragitti.stato?.da, let a = tragitti.stato?.a { salvati.salva(da: da, a: a, nome: nomeDaSalvare ?? "") }
+                nomeDaSalvare = nil
+            }
+            Button(tx("Annulla"), role: .cancel) { nomeDaSalvare = nil }
+        } message: {
+            Text(tx("Lo ritrovi in Home con «esci tra», nel widget e tenendo premuta l'icona di Palina."))
         }
         .onAppear {
             if let orario = archivio.orario { tragitti.prepara(orario: orario) }
@@ -166,6 +209,16 @@ struct TragittiVista: View {
             if stato.prima {
                 Button(tx("Partenze precedenti")) { Task { await tragitti.altri(dopo: false) } }
                     .disabled(tragitti.caricandoAltri)
+            }
+            if stato.carte.count > 1 {
+                Picker(tx("Ordine"), selection: Binding(get: { stato.ordine }, set: { tragitti.ordina($0) })) {
+                    ForEach(stato.ordini.indices, id: \.self) { i in
+                        Text(stato.nomiOrdini[i]).tag(stato.ordini[i])
+                    }
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .accessibilityIdentifier("ordine")
             }
             if !stato.carte.isEmpty {
                 Section {
@@ -375,6 +428,9 @@ struct CartaTragittoVista: View {
                 Spacer()
                 Text(carta.durata).font(.title3.bold())
             }
+            if let parti = carta.partiTra {
+                Text(parti).font(.subheadline.bold()).foregroundStyle(Tavolozza.oro)
+            }
             SequenzaPezzi(pezzi: carta.pezzi)
             if let primo = carta.primoMezzo {
                 Text(primo).font(.subheadline).lineLimit(2)
@@ -548,6 +604,7 @@ struct DettaglioTragittoVista: View {
     @EnvironmentObject private var tragitti: Tragitti
     @State private var vetture: [VetturaTragitto] = []
     @State private var camera: MapCameraPosition = .automatic
+    @State private var avvisi: [SchedaAvviso] = []
 
     var body: some View {
         let dettaglio = tragitti.motore?.dettaglio(indice: Int32(indice))
@@ -558,6 +615,7 @@ struct DettaglioTragittoVista: View {
                     mappa
                         .frame(height: g.size.height * 0.45)
                     List {
+                        SezioneAvvisi(avvisi: avvisi)
                         RigaEstremo(partenza: true, testo: dettaglio.partenza, ora: dettaglio.oraPartenza)
                         ForEach(Array(dettaglio.blocchi.enumerated()), id: \.offset) { i, blocco in
                             if blocco.aPiedi {
@@ -592,7 +650,14 @@ struct DettaglioTragittoVista: View {
                 }
                 .accessibilityElement(children: .combine)
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                if let testo = tragitti.motore?.condividi(indice: Int32(indice)) {
+                    ShareLink(item: testo) { Image(systemName: "square.and.arrow.up") }
+                        .accessibilityLabel(tx("Condividi il tragitto"))
+                }
+            }
         }
+        .task { avvisi = (try? await tragitti.motore?.avvisi(indice: Int32(indice))) ?? [] }
         .task { await seguiVetture() }
     }
 

@@ -1,4 +1,6 @@
+import BackgroundTasks
 import SwiftUI
+import UIKit
 import Motore
 
 @main
@@ -8,6 +10,9 @@ struct PalinaApp: App {
     @StateObject private var preferiti = Preferiti()
     @StateObject private var tragitti = Tragitti()
     @StateObject private var seguito = Seguito()
+    @StateObject private var salvati = Salvati()
+    @UIApplicationDelegateAdaptor(DelegatoApp.self) private var delegato
+    @Environment(\.scenePhase) private var fase
     @AppStorage("aspetto") private var aspetto = "AUTOMATICO"
     /** La lingua scelta in Palina ("" come il telefono): cambiandola si ridisegna tutto. */
     @AppStorage("lingua") private var lingua = ""
@@ -28,6 +33,7 @@ struct PalinaApp: App {
                 .environmentObject(preferiti)
                 .environmentObject(tragitti)
                 .environmentObject(seguito)
+                .environmentObject(salvati)
                 .tint(Tavolozza.oro)
                 .onAppear {
                     // l'Apple Watch chiede il tabellone all'iPhone
@@ -40,6 +46,20 @@ struct PalinaApp: App {
                     tragitti.prepara(orario: orario)
                     seguito.prepara(orario: orario)
                     if primo, let fermata = Prova.tragittoVerso { tragitti.versoFermata(fermata) }
+                    // prove: -provaSalvato YES salva il tragitto da piazza Venezia a Termini
+                    if primo, Prova.salvato, let t = tragitti.stato, let da = t.da, let a = t.a { salvati.salva(da: da, a: a, nome: "") }
+                    // i widget e le scorciatoie dell'icona
+                    DatiWidgetIphone.condiviso.prepara(orario: orario, preferiti: preferiti, posizione: posizione, salvati: salvati)
+                    DatiWidgetIphone.condiviso.chiedi(forza: false)
+                    Scorciatoie.aggiorna(salvati: salvati.elenco)
+                }
+                .onChange(of: preferiti.fermate) { DatiWidgetIphone.condiviso.chiedi(forza: true) }
+                .onChange(of: preferiti.fissate) { DatiWidgetIphone.condiviso.chiedi(forza: true) }
+                .onChange(of: fase) { _, nuova in
+                    if nuova == .background {
+                        DatiWidgetIphone.condiviso.chiedi(forza: false)
+                        PalinaApp.programmaWidget()
+                    }
                 }
                 .task { await seguito.ciclo() }
                 .alert(tx("Segui"), isPresented: Binding(get: { seguito.messaggio != nil }, set: { if !$0 { seguito.messaggio = nil } })) {
@@ -52,8 +72,63 @@ struct PalinaApp: App {
                 .onChange(of: lingua) {
                     LinguaApp.imposta()
                     tragitti.aggiorna()
+                    Scorciatoie.aggiorna(salvati: salvati.elenco)
+                    DatiWidgetIphone.condiviso.chiedi(forza: true)
                 }
         }
+        // i widget si aggiornano anche con Palina chiusa, quando iOS lo permette
+        .backgroundTask(.appRefresh(PalinaApp.idWidget)) {
+            await DatiWidgetIphone.condiviso.calcolaInSfondo()
+            PalinaApp.programmaWidget()
+        }
+    }
+
+    static let idWidget = "it.palinaroma.widget"
+
+    /** Il prossimo aggiornamento dei widget in sottofondo, tra un quarto d'ora o quando iOS decide. */
+    static func programmaWidget() {
+        let richiesta = BGAppRefreshTaskRequest(identifier: idWidget)
+        richiesta.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
+        try? BGTaskScheduler.shared.submit(richiesta)
+    }
+}
+
+/** Le scorciatoie dell'icona arrivano qui (all'avvio o con l'app gia' aperta). */
+final class DelegatoApp: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        configurationForConnecting sessione: UISceneSession,
+        options: UIScene.ConnectionOptions
+    ) -> UISceneConfiguration {
+        if let azione = options.shortcutItem {
+            Task { @MainActor in Richieste.condivise.apri = azione.type }
+        }
+        let configurazione = UISceneConfiguration(name: nil, sessionRole: sessione.role)
+        configurazione.delegateClass = DelegatoScena.self
+        return configurazione
+    }
+}
+
+final class DelegatoScena: NSObject, UIWindowSceneDelegate {
+    func windowScene(_ windowScene: UIWindowScene, performActionFor shortcutItem: UIApplicationShortcutItem, completionHandler: @escaping (Bool) -> Void) {
+        Task { @MainActor in Richieste.condivise.apri = shortcutItem.type }
+        completionHandler(true)
+    }
+}
+
+/**
+ * Cosa aprire: da una scorciatoia ("vicina", "palina", "tragitto:<id>"), da
+ * un widget o dalla Live Activity (palina://...).
+ */
+@MainActor
+final class Richieste: ObservableObject {
+    static let condivise = Richieste()
+    @Published var apri: String?
+
+    func da(_ url: URL) {
+        guard url.scheme == "palina", let host = url.host else { return }
+        let resto = url.pathComponents.filter { $0 != "/" }.joined(separator: "/")
+        apri = resto.isEmpty ? host : host + ":" + resto
     }
 }
 
@@ -69,6 +144,10 @@ enum Destinazione: Hashable {
     /** Un tragitto dell'elenco (-1 = tutto a piedi). */
     case dettaglioTragitto(Int)
     case impostazioni
+    /** Dove scendi (da "Avvisami"). */
+    case scendi
+    /** Il numero della palina (dalla scorciatoia). */
+    case cercaPalina
 }
 
 /** Una linea da aprire: la direzione e, se si arriva da una fermata, la corsa da evidenziare. */
@@ -88,6 +167,12 @@ final class Navigazione: ObservableObject {
 /** La navigazione: la Home e, sopra, fermate, linee e treni aperti. */
 struct Principale: View {
     @StateObject private var navigazione = Navigazione()
+    @ObservedObject private var richieste = Richieste.condivise
+    @EnvironmentObject private var seguito: Seguito
+    @EnvironmentObject private var salvati: Salvati
+    @EnvironmentObject private var tragitti: Tragitti
+    @EnvironmentObject private var archivio: Archivio
+    @EnvironmentObject private var posizione: Posizione
 
     var body: some View {
         NavigationStack(path: $navigazione.percorso) {
@@ -101,10 +186,78 @@ struct Principale: View {
                     case .luogo(let campo, let testo): SceltaLuogoVista(campo: campo, testo: testo)
                     case .dettaglioTragitto(let indice): DettaglioTragittoVista(indice: indice)
                     case .impostazioni: ImpostazioniVista()
+                    case .scendi: ScendiVista()
+                    case .cercaPalina: CercaPalinaVista()
                     }
                 }
         }
         .environmentObject(navigazione)
+        .onOpenURL { url in
+            if AzioneSegui.da(url) != nil { seguito.apri(url) } else { richieste.da(url) }
+        }
+        .onChange(of: seguito.apriScendi) { _, apri in
+            if apri {
+                seguito.apriScendi = false
+                navigazione.percorso = [.scendi]
+            }
+        }
+        .task(id: richieste.apri) { await esegui() }
+    }
+
+    /** Apre quello che chiede una scorciatoia o un widget. */
+    private func esegui() async {
+        guard let cosa = richieste.apri else { return }
+        richieste.apri = nil
+        if cosa == "home" {
+            navigazione.percorso = []
+        } else if cosa == "palina" {
+            navigazione.percorso = [.cercaPalina]
+        } else if cosa == "tragitto" {
+            navigazione.percorso = [.tragitti]
+        } else if cosa.hasPrefix("tragitto:") {
+            let id = String(cosa.dropFirst("tragitto:".count))
+            if let t = salvati.elenco.first(where: { $0.id == id }) { tragitti.scegliSalvato(t) }
+            navigazione.percorso = [.tragitti]
+        } else if cosa.hasPrefix("fermata:") {
+            navigazione.percorso = [.fermata(String(cosa.dropFirst("fermata:".count)))]
+        } else if cosa == "vicina" {
+            posizione.avvia()
+            // la posizione e l'orario arrivano tra poco
+            for _ in 0..<20 {
+                if let home = archivio.home, let lat = posizione.lat, let lon = posizione.lon {
+                    if let prima = home.vicine(lat: lat, lon: lon).first { navigazione.percorso = [.fermata(prima.id)] }
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+        }
+    }
+}
+
+/** Il numero della palina (dalla scorciatoia): la ricerca con la tastiera dei numeri. */
+struct CercaPalinaVista: View {
+    @EnvironmentObject private var archivio: Archivio
+    @State private var testo = ""
+    @FocusState private var fuoco: Bool
+
+    var body: some View {
+        List {
+            Section {
+                TextField(tx("Numero della palina"), text: $testo)
+                    .keyboardType(.numberPad)
+                    .focused($fuoco)
+                    .font(.title2.monospacedDigit())
+            } footer: {
+                Text(tx("Il numero è sul cartello della fermata, per esempio 70078."))
+            }
+            let trovate = testo.count >= 2 ? (archivio.home?.cerca(testo: testo) ?? []) : []
+            ForEach(trovate, id: \.id) { voce in
+                NavigationLink(value: Destinazione.fermata(voce.id)) { RigaFermata(voce: voce) }
+            }
+        }
+        .navigationTitle(tx("Numero della palina"))
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { fuoco = true }
     }
 }
 
@@ -123,6 +276,7 @@ enum Prova {
         case "tragitto": return [.tragitti]
         case "luogo": return [.tragitti, .luogo(campo: "a", testo: parti[1])]
         case "impostazioni": return [.impostazioni]
+        case "palina": return [.cercaPalina]
         case "linea":
             // la direzione a parte (-direzione 0): gli id Cotral hanno gia' i due punti ("C:12")
             let dir = UserDefaults.standard.object(forKey: "direzione") != nil ? UserDefaults.standard.integer(forKey: "direzione") : -1
@@ -151,6 +305,12 @@ enum Prova {
 
     /** `-provaSegui YES`: nella fermata aperta segue la prima linea (senza chiedere le notifiche). */
     static var segui: Bool { UserDefaults.standard.bool(forKey: "provaSegui") }
+
+    /** `-provaSalvato YES`: salva il tragitto aperto con `-apri tragitto:...` (Home e widget). */
+    static var salvato: Bool { UserDefaults.standard.bool(forKey: "provaSalvato") }
+
+    /** `-provaAvvisami YES`: nella fermata aperta apre "Avvisami" per la prima linea. */
+    static var avvisami: Bool { UserDefaults.standard.bool(forKey: "provaAvvisami") }
 
     /** `-apriPrimoTragitto YES`: apre il primo tragitto appena c'e'. */
     static var apriPrimoTragitto: Bool { UserDefaults.standard.bool(forKey: "apriPrimoTragitto") }

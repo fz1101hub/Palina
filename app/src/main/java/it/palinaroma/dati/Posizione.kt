@@ -96,6 +96,7 @@ fun posizioni(context: Context, durataMs: Long = 15_000): Flow<Location> = callb
         if (posizione.etaMs() > ETA_MASSIMA_MS || !meglioDi(posizione, migliore)) return
         migliore = posizione
         memoria = posizione
+        Archivio.ricordaPosizione(posizione.latitude, posizione.longitude)
         trySend(posizione)
         if (posizione.precisione() <= PRECISIONE_OTTIMA && posizione.etaMs() < 30_000) close()
     }
@@ -203,6 +204,7 @@ fun aggiornamentiPosizione(context: Context, intervalloMs: Long = 4_000): Flow<L
     fun nuova(posizione: Location?) {
         if (posizione == null || (posizione.latitude == 0.0 && posizione.longitude == 0.0)) return
         memoria = posizione
+        Archivio.ricordaPosizione(posizione.latitude, posizione.longitude)
         trySend(posizione)
     }
     memoria?.takeIf { it.etaMs() < 2 * 60_000L }?.let { trySend(it) }

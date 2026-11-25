@@ -13,8 +13,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.22"
-    CURRENT_PROJECT_VERSION: "23"
+    MARKETING_VERSION: "0.23"
+    CURRENT_PROJECT_VERSION: "24"
 targets:
   Palina:
     type: application
@@ -24,6 +24,7 @@ targets:
       - path: Condiviso/Colore.swift
       - path: Condiviso/Motore
       - path: Condiviso/Segui
+      - path: Condiviso/Widget
       - path: Risorse
         type: folder
         buildPhase: resources
@@ -33,12 +34,24 @@ targets:
       - sdk: libsqlite3.tbd
       # l'app per Apple Watch va dentro quella per iPhone
       - target: PalinaWatch
-      # la Live Activity di "Segui"
+      # la Live Activity di "Segui" e i widget della schermata Home
       - target: PalinaWidget
         embed: true
+    # il gruppo condiviso con i widget (come per le complicazioni dell'Apple Watch)
+    entitlements:
+      path: Palina/Palina.entitlements
+      properties:
+        com.apple.security.application-groups: [group.it.palinaroma]
     info:
       path: Palina/Info.plist
       properties:
+        # palina://... dai widget e dai pulsanti della Live Activity
+        CFBundleURLTypes:
+          - CFBundleURLName: it.palinaroma
+            CFBundleURLSchemes: [palina]
+        # i widget si aggiornano anche con Palina chiusa, quando iOS lo permette
+        UIBackgroundModes: [fetch]
+        BGTaskSchedulerPermittedIdentifiers: [it.palinaroma.widget]
         CFBundleDisplayName: Palina
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -109,6 +122,11 @@ targets:
       - path: PalinaWidget
       - path: Condiviso/Colore.swift
       - path: Condiviso/Segui
+      - path: Condiviso/Widget
+    entitlements:
+      path: PalinaWidget/PalinaWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [group.it.palinaroma]
     info:
       path: PalinaWidget/Info.plist
       properties:

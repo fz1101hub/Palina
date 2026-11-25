@@ -88,6 +88,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.nomeTragittoSalvato
+import it.palinaroma.dati.ordinaTragitti
+import it.palinaroma.dati.ordiniTragitti
+import it.palinaroma.dati.tragittoGiaSalvato
+import androidx.compose.material.icons.filled.Star
 import it.palinaroma.dati.tx
 import it.palinaroma.dati.EsitoRicercaTragitti
 import it.palinaroma.dati.altriTragitti
@@ -147,6 +152,11 @@ object StatoTragitto {
     var quando by mutableStateOf<Quando>(Quando.Adesso)
     var esito by mutableStateOf<EsitoTragitti>(EsitoTragitti.Vuoto)
     var caricandoAltri by mutableStateOf(false)
+    /** L'ordine dei risultati: "" (prima le partenze piu' vicine), "cambi", "piedi". */
+    var ordine by mutableStateOf("")
+
+    /** I tragitti nell'ordine scelto: l'elenco e il dettaglio usano questo. */
+    fun ordinati(): List<Tragitto> = (esito as? EsitoTragitti.Pronto)?.let { ordinaTragitti(it.tragitti, ordine) }.orEmpty()
 
     private data class Richiesta(val da: Luogo, val a: Luogo, val istante: Long?, val arrivaEntro: Boolean)
 
@@ -236,6 +246,8 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
         if (!permesso) negatoPerSempre = permessoNegatoPerSempre(context)
     }
     var sceltaOrario by remember { mutableStateOf<Boolean?>(null) } // false = partenza, true = arrivo
+    var daSalvare by remember { mutableStateOf(false) }
+    val salvati by Archivio.salvati.collectAsStateWithLifecycle()
     var adesso by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val serveLaPosizione = stato.da?.tipo == TipoLuogo.POSIZIONE || stato.a?.tipo == TipoLuogo.POSIZIONE
 
@@ -262,7 +274,20 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                 sottotitolo = tx("Bus, tram, metro e treni"),
                 indietro = indietro,
                 azioni = {
-                    if (stato.da != null && stato.a != null) {
+                    val da = stato.da
+                    val a = stato.a
+                    if (da != null && a != null) {
+                        val salvato = tragittoGiaSalvato(salvati, da, a)
+                        IconButton(
+                            onClick = { if (salvato != null) Archivio.rimuoviTragitto(salvato.id) else daSalvare = true },
+                            modifier = Modifier.testTag("salva-tragitto"),
+                        ) {
+                            Icon(
+                                Icons.Filled.Star,
+                                contentDescription = if (salvato != null) tx("Togli dai tragitti salvati") else tx("Salva il tragitto"),
+                                tint = if (salvato != null) Accento else Secondario,
+                            )
+                        }
                         IconButton(onClick = { ambito.launch { stato.cerca(context) } }) {
                             Icon(Icons.Filled.Refresh, contentDescription = tx("Calcola di nuovo"))
                         }
@@ -344,7 +369,21 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                             )
                         }
                     }
-                    itemsIndexed(esito.tragitti, key = { _, t -> t.chiave }) { i, t ->
+                    if (esito.tragitti.size > 1) {
+                        item {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                ordiniTragitti().forEach { (codice, nome) ->
+                                    FilterChip(
+                                        selected = stato.ordine == codice,
+                                        onClick = { stato.ordine = codice },
+                                        label = { Text(nome) },
+                                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AccentoFondo, selectedLabelColor = Accento),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    itemsIndexed(stato.ordinati(), key = { _, t -> t.chiave }) { i, t ->
                         CartaTragitto(t, adesso) { apriDettaglio(i) }
                     }
                     if (esito.cursoreDopo != null && esito.tragitti.isNotEmpty()) {
@@ -369,6 +408,23 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                 }
             }
             item { Attribuzione() }
+        }
+    }
+
+    if (daSalvare) {
+        val da = stato.da
+        val a = stato.a
+        if (da != null && a != null) {
+            DialogoSalvaTragitto(
+                nomeIniziale = nomeTragittoSalvato(da, a),
+                chiudi = { daSalvare = false },
+                salva = { nome ->
+                    Archivio.salvaTragitto(da, a, nome)
+                    daSalvare = false
+                },
+            )
+        } else {
+            daSalvare = false
         }
     }
 
@@ -564,6 +620,7 @@ private fun CartaTragitto(t: Tragitto, adesso: Long, onClick: () -> Unit) {
                 )
                 Text(carta.durata, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
+            carta.partiTra?.let { Text(it, color = Accento, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium) }
             SequenzaTratti(t.tratti)
             carta.primoMezzo?.let { testo ->
                 Text(

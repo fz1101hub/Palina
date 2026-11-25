@@ -40,6 +40,20 @@ data class Seguimento(
     val aggiornato: Long,
     /** Ha gia' vibrato per l'arrivo. */
     val avvisato: Boolean = false,
+    /** Quanti secondi prima del passaggio avvisare (sull'orologio 2 minuti; con "Avvisami" dipende dalla scelta). */
+    val anticipo: Long = AVVISO_SECONDI,
+    /** La scelta di "Avvisami": "uscire", "cinque", "due" (vuoto per "Segui" sull'orologio). */
+    val quando: String = "",
+    /** I minuti a piedi fino alla fermata (0 se non si sanno). */
+    val aPiedi: Int = 0,
+    /** Ha detto "Sto uscendo": niente piu' "Esci ora". */
+    val uscito: Boolean = false,
+    /** La corsa del passaggio seguito, per seguire lo stesso mezzo fino a dove si scende. */
+    val corsaId: String = "",
+    /** "Poi avvisami quando scendere": dopo il passaggio si chiede dove si scende. */
+    val scendiAttivo: Boolean = false,
+    /** Dove si scende, una volta scelto. */
+    val discesa: Discesa? = null,
 ) {
     /** Da chiedere al telefono, perche' la tenga nel tabellone anche lontano dalla fermata. */
     val lineaSeguita: LineaSeguita? get() = lineaId.takeIf { it.isNotEmpty() }?.let { LineaSeguita(fermataId, it) }
@@ -47,6 +61,31 @@ data class Seguimento(
     fun stessaRiga(fermataId: String, chiaveLinea: String, capolinea: String): Boolean =
         this.fermataId == fermataId && this.chiaveLinea == chiaveLinea && this.capolinea == capolinea
 }
+
+/**
+ * Dove si scende: la fermata, quando ci si arriva (secondi) e quando avvisare
+ * ("Scendi alla prossima": quando il mezzo lascia la fermata prima).
+ */
+data class Discesa(
+    val fermataId: String,
+    val nome: String,
+    val arrivo: Long,
+    val avvisoAlle: Long,
+    val tempoReale: Boolean,
+    val avvisato: Boolean = false,
+)
+
+/** Il seguimento in corso e' finito (o va chiuso): passato da un minuto, arrivati, o dopo [DURATA_MASSIMA_MS]. */
+fun finito(s: Seguimento, adesso: Long): Boolean = when {
+    adesso * 1000 - s.inizio > DURATA_MASSIMA_MS -> true
+    s.discesa != null -> s.discesa.arrivo < adesso - 60
+    // si aspetta un quarto d'ora che si scelga dove scendere
+    s.scendiAttivo -> s.obiettivo < adesso - 15 * 60
+    else -> s.obiettivo < adesso - 60
+}
+
+/** La corsa del passaggio delle [orario] (secondi), se si sa. */
+fun RigaOrologio.corsa(orario: Long): String = corse.getOrNull(orari.indexOf(orario)).orEmpty()
 
 /** Si comincia a seguire il prossimo passaggio della riga [r]; null se non ne ha. [adesso] in secondi. */
 fun seguimento(f: FermataOrologio, r: RigaOrologio, t: TabelloneOrologio, adesso: Long): Seguimento? {
@@ -63,6 +102,7 @@ fun seguimento(f: FermataOrologio, r: RigaOrologio, t: TabelloneOrologio, adesso
         tempoReale = r.tempoReale,
         inizio = adesso * 1000,
         aggiornato = t.creato,
+        corsaId = r.corsa(primo),
     )
 }
 
@@ -75,23 +115,26 @@ fun seguimento(f: FermataOrologio, r: RigaOrologio, t: TabelloneOrologio, adesso
 fun ricalcola(s: Seguimento, t: TabelloneOrologio?, adesso: Long): Seguimento? {
     if (adesso * 1000 - s.inizio > DURATA_MASSIMA_MS) return null
     var nuovo = s
-    if (t != null && t.creato > s.aggiornato && s.obiettivo > adesso + 30) {
+    if (t != null && t.creato > s.aggiornato && s.obiettivo > adesso + 30 && s.discesa == null) {
         val riga = t.riga(s.fermataId, s.chiaveLinea, s.capolinea)
         val prossimi = riga?.prossimi(adesso).orEmpty()
-        val scelto = prossimi.minByOrNull { abs(it - s.obiettivo) }
+        // la stessa corsa, se si riconosce; altrimenti il passaggio piu' vicino a quello di prima
+        val stessaCorsa = if (s.corsaId.isNotEmpty()) prossimi.firstOrNull { riga?.corsa(it) == s.corsaId } else null
+        val scelto = stessaCorsa ?: prossimi.minByOrNull { abs(it - s.obiettivo) }
         nuovo = if (riga != null && scelto != null) {
             s.copy(
                 obiettivo = scelto,
                 tempoReale = riga.tempoReale && scelto == prossimi.first(),
                 aggiornato = t.creato,
                 // se il mezzo e' in ritardo si vibra di nuovo quando si avvicina
-                avvisato = s.avvisato && scelto - adesso <= AVVISO_SECONDI + 30,
+                avvisato = s.avvisato && scelto - adesso <= s.anticipo + 30,
+                corsaId = riga.corsa(scelto).ifEmpty { s.corsaId },
             )
         } else {
             s.copy(aggiornato = t.creato)
         }
     }
-    return nuovo.takeIf { it.obiettivo >= adesso - 60 }
+    return nuovo.takeIf { !finito(it, adesso) }
 }
 
 /** "64 → Stazione San Pietro". */
@@ -121,6 +164,14 @@ fun Seguimento.testoJson(): String = ScriviJson.testo(
         "fermataId" to fermataId, "fermata" to fermata, "chiaveLinea" to chiaveLinea, "lineaId" to lineaId,
         "linea" to linea, "capolinea" to capolinea, "colore" to colore, "obiettivo" to obiettivo,
         "tempoReale" to tempoReale, "inizio" to inizio, "aggiornato" to aggiornato, "avvisato" to avvisato,
+        "anticipo" to anticipo, "quando" to quando, "aPiedi" to aPiedi, "uscito" to uscito, "corsaId" to corsaId,
+        "scendiAttivo" to scendiAttivo,
+        "discesa" to discesa?.let {
+            mapOf(
+                "fermataId" to it.fermataId, "nome" to it.nome, "arrivo" to it.arrivo, "avvisoAlle" to it.avvisoAlle,
+                "tempoReale" to it.tempoReale, "avvisato" to it.avvisato,
+            )
+        },
     ),
 )
 
@@ -142,6 +193,24 @@ fun seguimentoDaJson(testo: String?): Seguimento? {
             inizio = o.lungo("inizio") ?: 0L,
             aggiornato = o.lungo("aggiornato") ?: 0L,
             avvisato = o["avvisato"] == true,
+            anticipo = o.lungo("anticipo") ?: AVVISO_SECONDI,
+            quando = o.testoO("quando"),
+            aPiedi = o.intero("aPiedi") ?: 0,
+            uscito = o["uscito"] == true,
+            corsaId = o.testoO("corsaId"),
+            scendiAttivo = o["scendiAttivo"] == true,
+            discesa = (o["discesa"] as? Map<*, *>)?.let { d ->
+                @Suppress("UNCHECKED_CAST")
+                val m = d as Map<String, Any?>
+                Discesa(
+                    fermataId = m.testoO("fermataId"),
+                    nome = m.testoO("nome"),
+                    arrivo = m.lungo("arrivo") ?: return@let null,
+                    avvisoAlle = m.lungo("avvisoAlle") ?: 0L,
+                    tempoReale = m["tempoReale"] == true,
+                    avvisato = m["avvisato"] == true,
+                ).takeIf { it.fermataId.isNotEmpty() }
+            },
         ).takeIf { it.fermataId.isNotEmpty() }
     } catch (_: Exception) {
         null

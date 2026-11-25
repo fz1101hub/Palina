@@ -16,6 +16,7 @@ struct LineaVista: View {
     @State private var scelta: String?
     @State private var camera: MapCameraPosition = .automatic
     @State private var giro = 0
+    @State private var avvisi: [SchedaAvviso] = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,6 +51,7 @@ struct LineaVista: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 List {
+                    SezioneAvvisi(avvisi: avvisi)
                     ForEach(Array(fermate.enumerated()), id: \.offset) { i, f in
                         NavigationLink(value: Destinazione.fermata(f.id)) {
                             RigaPercorso(nome: f.nome, prima: i == 0, ultima: i == fermate.count - 1,
@@ -78,6 +80,7 @@ struct LineaVista: View {
         }
         .task(id: archivio.orario != nil) { prepara() }
         .task(id: giro) { await seguiVetture() }
+        .task { avvisi = (try? await AvvisiServizioKt.avvisiPerLinea(lineaId: richiesta.lineaId)) ?? [] }
     }
 
     private func intestazione(_ motore: MotoreLinea) -> some View {

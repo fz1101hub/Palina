@@ -41,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -62,6 +63,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.legendaFermata
 import it.palinaroma.dati.testoAvviso
+import it.palinaroma.dati.SchedaAvviso
+import it.palinaroma.dati.avvisiPerFermata
 import it.palinaroma.dati.tx
 import it.palinaroma.dati.Arrivo
 import it.palinaroma.dati.ArriviDivisi
@@ -238,6 +241,11 @@ fun FermataSchermo(
     // Se l'aggiornamento non riesce (per esempio senza rete) i mezzi gia' passati spariscono da soli.
     val visibili = remember(arrivi, adesso) { arrivi?.let { ancoraAttesi(it, adesso) } }
     val diviso = remember(visibili, fissate) { visibili?.let { dividiArrivi(it, fissate) } }
+    // "Avvisami" per una riga: fermata (la banchina giusta negli scambi), linea e capolinea
+    var avvisami by remember { mutableStateOf<Triple<String, String, String>?>(null) }
+    val avvisiRoma by produceState(initialValue = emptyList<SchedaAvviso>(), o, fermataId) {
+        value = o?.let { avvisiPerFermata(it, fermataId) }.orEmpty()
+    }
 
     Scaffold(
         containerColor = Sfondo,
@@ -277,6 +285,7 @@ fun FermataSchermo(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 item { RigaAggiornamento(aggiornatoAlle, adessoMs) }
+                if (avvisiRoma.isNotEmpty()) item { SchedaAvvisiRoma(avvisiRoma) }
                 errore?.let { testo ->
                     item { AvvisoRete(testo, riprova = { ambito.launch { carica(forza = true) } }) }
                 }
@@ -340,6 +349,7 @@ fun FermataSchermo(
                                 }
                             },
                             fissa = { lineaId -> Archivio.alternaLineaFissata(fermataId, lineaId) },
+                            avvisa = { a -> avvisami = Triple(membroDi(a), a.lineaId, a.capolinea) },
                         )
                     }
                     item {
@@ -383,6 +393,9 @@ fun FermataSchermo(
                 }
             }
         }
+    }
+    avvisami?.let { (f, l, c) ->
+        FoglioAvvisami(fermataId = f, lineaId = l, capolinea = c, chiudi = { avvisami = null })
     }
 }
 
@@ -464,6 +477,7 @@ private fun TabelloneFermata(
     testoVuoto: String?,
     apri: (Arrivo) -> (() -> Unit)?,
     fissa: (String) -> Unit,
+    avvisa: (Arrivo) -> Unit,
 ) {
     Column(
         Modifier
@@ -474,7 +488,7 @@ private fun TabelloneFermata(
         if (conFissate) {
             TitolettoTabellone(tx("Le tue linee"), Accento)
             diviso.fissate.forEach { a ->
-                RigaArrivo(a, adesso, fissata = true, apri = apri(a), fissa = { fissa(a.lineaId) })
+                RigaArrivo(a, adesso, fissata = true, apri = apri(a), fissa = { fissa(a.lineaId) }, avvisa = { avvisa(a) })
             }
             diviso.senzaPassaggi.forEach { id ->
                 RigaFissataVuota(nomiLinee[id] ?: id, id, togli = { fissa(id) })
@@ -489,7 +503,7 @@ private fun TabelloneFermata(
             )
         }
         diviso.altre.forEach { a ->
-            RigaArrivo(a, adesso, fissata = false, apri = apri(a), fissa = { fissa(a.lineaId) })
+            RigaArrivo(a, adesso, fissata = false, apri = apri(a), fissa = { fissa(a.lineaId) }, avvisa = { avvisa(a) })
         }
         if (diviso.fissate.isEmpty() && diviso.altre.isEmpty() && testoVuoto != null) {
             Text(testoVuoto, color = Secondario, modifier = Modifier.padding(vertical = 16.dp))
@@ -504,7 +518,7 @@ private fun TitolettoTabellone(testo: String, colore: androidx.compose.ui.graphi
 
 /** Una linea alla fermata: numero, direzione, prossimi passaggi, minuti grandi e puntina. */
 @Composable
-private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (() -> Unit)?, fissa: () -> Unit) {
+private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (() -> Unit)?, fissa: () -> Unit, avvisa: () -> Unit) {
     val primo = arrivo.passaggi.first()
     val frase = fraseArrivo(arrivo, adesso)
     val reteLinea = Rete.di(arrivo.lineaId)
@@ -561,6 +575,7 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (()
                     }
                 }
             }
+            if (primo.avviso != "soppresso") PulsanteAvvisami(arrivo.nomeLinea, avvisa)
             IconButton(onClick = fissa) {
                 Icon(
                     if (fissata) PuntinaPiena else PuntinaVuota,

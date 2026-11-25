@@ -70,6 +70,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import it.palinaroma.Richieste
+import it.palinaroma.avviso.Avvisatore
+import it.palinaroma.dati.Luogo
+import it.palinaroma.dati.cartaTragittoSalvato
+import it.palinaroma.dati.tragittoDiRitorno
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.tx
 import it.palinaroma.dati.Arrivo
@@ -119,11 +126,19 @@ fun HomeSchermo(
     apriOrario: () -> Unit,
     apriTragitto: () -> Unit,
     apriTragittoVerso: (String) -> Unit,
+    apriScendi: () -> Unit = {},
 ) {
     val orario by Archivio.orario.collectAsStateWithLifecycle()
     val pronto by Archivio.pronto.collectAsStateWithLifecycle()
     var cercando by rememberSaveable { mutableStateOf(false) }
-    BackHandler(enabled = cercando) { cercando = false }
+    // dalla scorciatoia "Numero della palina": la ricerca con la tastiera dei numeri
+    val cercaPalina by Richieste.cercaPalina.collectAsStateWithLifecycle()
+    LaunchedEffect(cercaPalina) { if (cercaPalina) cercando = true }
+    val chiudiRicerca = {
+        cercando = false
+        Richieste.cercaPalina(false)
+    }
+    BackHandler(enabled = cercando) { chiudiRicerca() }
 
     Scaffold(
         containerColor = Sfondo,
@@ -171,9 +186,9 @@ fun HomeSchermo(
                 return@Column
             }
             if (cercando) {
-                SchedaCerca(o, apriFermata, apriLinea, apriTragittoVerso, chiudi = { cercando = false })
+                SchedaCerca(o, apriFermata, apriLinea, apriTragittoVerso, chiudi = chiudiRicerca, numeri = cercaPalina)
             } else {
-                Tabellone(o, apriFermata, apriCerca = { cercando = true }, apriOrario = apriOrario)
+                Tabellone(o, apriFermata, apriCerca = { cercando = true }, apriOrario = apriOrario, apriTragitto = apriTragitto, apriScendi = apriScendi)
             }
         }
     }
@@ -261,8 +276,30 @@ private fun rememberVicine(orario: Orario): Triple<StatoVicino, Boolean, () -> U
 
 /** La Home: la preferita a cui sei vicino in cima, poi le altre preferite e le fermate vicine, tutte con i minuti. */
 @Composable
-private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: () -> Unit, apriOrario: () -> Unit) {
+private fun Tabellone(
+    orario: Orario,
+    apriFermata: (String) -> Unit,
+    apriCerca: () -> Unit,
+    apriOrario: () -> Unit,
+    apriTragitto: () -> Unit,
+    apriScendi: () -> Unit,
+) {
     val context = LocalContext.current
+    val avvisoInCorso by Avvisatore.stato.collectAsStateWithLifecycle()
+    val salvati by Archivio.salvati.collectAsStateWithLifecycle()
+    val partenze by Archivio.partenze.collectAsStateWithLifecycle()
+    // le partenze dei tragitti salvati: ogni minuto si guarda se servono di nuove (al massimo ogni 2 minuti)
+    LaunchedEffect(salvati) {
+        while (true) {
+            salvati.forEach { t -> runCatching { Archivio.aggiornaPartenze(t) } }
+            delay(60_000)
+        }
+    }
+    val apriSalvato: (Luogo, Luogo) -> Unit = { da, a ->
+        StatoTragitto.da = da
+        StatoTragitto.a = a
+        apriTragitto()
+    }
     val preferiti by Archivio.preferiti.collectAsStateWithLifecycle()
     val chiaviFissate by Archivio.fissate.collectAsStateWithLifecycle()
     val aggiornamento by Archivio.aggiornamento.collectAsStateWithLifecycle()
@@ -298,6 +335,23 @@ private fun Tabellone(orario: Orario, apriFermata: (String) -> Unit, apriCerca: 
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = SOTTO_IL_PULSANTE) {
         item { CampoCerca(apriCerca) }
+        avvisoInCorso?.let { s ->
+            item(key = "avviso") { SchedaAvvisoInCorso(s, apriScendi, Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
+        }
+        if (salvati.isNotEmpty()) {
+            item(key = "titolo-tragitti") { Intestazione(tx("I tuoi tragitti")) }
+            items(salvati, key = { "t-" + it.id }) { t ->
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    CartaTragittoSalvato(
+                        t,
+                        cartaTragittoSalvato(t, partenze[t.id], adessoMs),
+                        apri = { apriSalvato(t.partenza, t.arrivo) },
+                        ritorno = tragittoDiRitorno(t)?.let { (da, a) -> { apriSalvato(da, a) } },
+                        rimuovi = { Archivio.rimuoviTragitto(t.id) },
+                    )
+                }
+            }
+        }
         if (Archivio.daAggiornare() && aggiornamento !is StatoAggiornamento.InCorso) {
             item {
                 Text(
@@ -580,6 +634,7 @@ private fun SchedaCerca(
     apriLinea: (String) -> Unit,
     apriTragittoVerso: (String) -> Unit,
     chiudi: () -> Unit,
+    numeri: Boolean = false,
 ) {
     var testo by rememberSaveable { mutableStateOf("") }
     var linee by remember { mutableStateOf<List<Linea>>(emptyList()) }
@@ -620,6 +675,7 @@ private fun SchedaCerca(
                     }
                 },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = if (numeri) KeyboardType.Number else KeyboardType.Text),
                 modifier = Modifier
                     .weight(1f)
                     .focusRequester(fuoco),

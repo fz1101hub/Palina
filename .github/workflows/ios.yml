@@ -265,6 +265,34 @@ jobs:
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-14-home-segui.png
           xcrun simctl terminate "$dispositivo" it.palinaroma
           ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i palina > /tmp/esito/crash.txt || true
+          # 12. "Avvisami" per la prima linea di piazza Venezia (il foglio con le scelte)
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri fermata:70078 -provaAvvisami YES
+          sleep 16
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-15-avvisami.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 13. Un tragitto salvato (piazza Venezia -> Termini), poi la Home con "esci tra"
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri "tragitto:$termini" -provaSalvato YES
+          sleep 20
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-16-tragitto-salvato.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826
+          sleep 20
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-17-home-tragitti.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 14. La scorciatoia "Numero della palina"
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri palina:1
+          sleep 8
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-18-palina.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 15. In inglese: Avvisami e la Home con il tragitto salvato
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -apri fermata:70078 -provaAvvisami YES -lingua en
+          sleep 16
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-32-en-avvisami.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -lingua en
+          sleep 16
+          xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-33-en-home.png
+          xcrun simctl terminate "$dispositivo" it.palinaroma
           # 7. Apple Watch con il tabellone di esempio del motore (senza iPhone collegato)
           orologio=$(xcrun simctl create prova-watch "Apple Watch Series 11 (46mm)" 2>/dev/null || xcrun simctl create prova-watch "Apple Watch Series 10 (46mm)")
           xcrun simctl boot "$orologio"
@@ -300,10 +328,11 @@ jobs:
           for orologio in "$app"/Watch/*.app; do
             [ -d "$orologio" ] && codesign -f -s - --entitlements PalinaWatch/PalinaWatch.entitlements "$orologio"
           done
+          # i widget dell'iPhone leggono dal gruppo condiviso con l'app
           for estensione in "$app"/PlugIns/*.appex; do
-            [ -d "$estensione" ] && codesign -f -s - "$estensione"
+            [ -d "$estensione" ] && codesign -f -s - --entitlements PalinaWidget/PalinaWidget.entitlements "$estensione"
           done
-          codesign -f -s - "$app"
+          codesign -f -s - --entitlements Palina/Palina.entitlements "$app"
           codesign -d --entitlements - "$app"/Watch/*.app 2>&1 | tee /tmp/esito/firma.txt || true
           find "$app" -maxdepth 4 -name "*.appex" -o -maxdepth 4 -name "*.app" | tee -a /tmp/esito/firma.txt
           (cd /tmp/ipa && zip -qr PalinaRoma-iOS.ipa Payload)

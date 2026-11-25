@@ -71,6 +71,12 @@ final class Archivio: ObservableObject {
         }
     }
 
+    /** L'orario per i widget quando l'app e' stata avviata in sottofondo (aggiornamento dei widget). */
+    nonisolated static func orarioPerSfondo() -> Orario? {
+        guard let scelta = scegliFile(memoria: UserDefaults.standard) else { return nil }
+        return BaseIosKt.orarioDaFile(roma: scelta.roma, reti: scelta.reti)
+    }
+
     /** I file da aprire: per Roma e per le reti, il piu' nuovo tra incluso e scaricato. */
     nonisolated private static func scegliFile(memoria: UserDefaults) -> Scelta? {
         func incluso(_ nome: String) -> (String, Int64)? {

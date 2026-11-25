@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generato da strumenti/traduzioni.py: non modificare a mano. -->
+<resources>
+    <string name="widget_tabellone_nome">Palina: your stop</string>
+    <string name="widget_tabellone_descrizione">The favourite you\'re near, with your pinned lines</string>
+    <string name="widget_vicina_nome">Palina: nearest stop</string>
+    <string name="widget_vicina_descrizione">The nearest stop and the next two lines</string>
+    <string name="widget_tragitto_nome">Palina: leave in</string>
+    <string name="widget_tragitto_descrizione">When to leave for your saved journey</string>
+</resources>

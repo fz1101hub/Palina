@@ -230,6 +230,8 @@ data class RigaOrologio(
     val lineaId: String = "",
     /** Per i treni: come chiedere al telefono le fermate di ciascun passaggio (uno per orario). */
     val treni: List<TrenoOrologio> = emptyList(),
+    /** Le corse dei passaggi (come [orari]), per seguire lo stesso mezzo fino a dove si scende. */
+    val corse: List<String> = emptyList(),
 ) {
     /** E' una riga di treni: se ne possono vedere le fermate. */
     val diTreni: Boolean get() = treni.isNotEmpty()
@@ -285,6 +287,7 @@ object CodificaOrologio {
                                     r.avviso?.let { put("avviso", it) }
                                     if (r.lineaId.isNotEmpty()) put("lineaId", r.lineaId)
                                     if (r.treni.isNotEmpty()) put("treni", r.treni.map { it.json() })
+                                    if (r.corse.any { it.isNotEmpty() }) put("corse", r.corse)
                                 }
                             },
                         )
@@ -319,6 +322,7 @@ object CodificaOrologio {
                                 avviso = r.testoO("avviso").ifEmpty { null },
                                 lineaId = r.testoO("lineaId"),
                                 treni = oggetti(r["treni"]).map { TrenoOrologio.da(it) },
+                                corse = (r["corse"] as? List<*>).orEmpty().map { it as? String ?: "" },
                             )
                         },
                     )
