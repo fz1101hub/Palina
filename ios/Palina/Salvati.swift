@@ -58,6 +58,7 @@ final class Salvati: ObservableObject {
 }
 
 /** Le scorciatoie tenendo premuta l'icona (testi dal motore, come su Android). */
+@MainActor
 enum Scorciatoie {
     static func aggiorna(salvati: [TragittoSalvato]) {
         UIApplication.shared.shortcutItems = WidgetTelefonoKt.scorciatoie(salvati: salvati).map { s in

@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 
 package it.palinaroma.ui
 
@@ -67,7 +67,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -139,6 +141,8 @@ fun FoglioAvvisami(fermataId: String, lineaId: String, capolinea: String, chiudi
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 20.dp)
                 .navigationBarsPadding()
+                // il foglio e' una finestra a parte: anche qui le etichette per le prove
+                .semantics { testTagsAsResourceId = true }
                 .testTag("foglio-avvisami"),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {

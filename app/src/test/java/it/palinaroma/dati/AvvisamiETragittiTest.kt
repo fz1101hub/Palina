@@ -306,7 +306,7 @@ class AvvisamiETragittiTest {
         assertEquals("ESCI TRA", c.esci)
         assertEquals("4", c.numero)
         assertEquals("60 alle " + oraARoma(adesso + 7 * 60_000) + " · arrivi " + oraARoma(adesso + 30 * 60_000), c.sotto)
-        assertEquals("poi alle " + oraARoma(adesso + 16 * 60_000), c.poi)
+        assertEquals("oppure esci alle " + oraARoma(adesso + 16 * 60_000), c.poi)
         assertEquals("ESCI ORA", cartaTragittoSalvato(t, partenze, adesso + 4 * 60_000 - 10_000).esci)
         // dopo la prima partenza si passa alla seconda
         assertEquals("85", cartaTragittoSalvato(t, partenze, adesso + 5 * 60_000).linea)

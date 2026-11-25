@@ -157,7 +157,8 @@ object FeedAvvisi {
                     else -> tr.salta(tt and 7)
                 }
             }
-            if (testo.isNotBlank()) testi.putIfAbsent(lingua.trim().lowercase().take(2), testo)
+            val chiave = lingua.trim().lowercase().take(2)
+            if (testo.isNotBlank() && chiave !in testi) testi[chiave] = testo
         }
         return testi
     }

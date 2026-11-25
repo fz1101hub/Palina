@@ -166,7 +166,7 @@ data class CartaSalvato(
     val sotto: String,
     val linea: String,
     val colore: Long,
-    /** La partenza dopo: "poi alle 18:53". */
+    /** La partenza dopo: "oppure esci alle 18:53". */
     val poi: String?,
     val perVoce: String,
 )
@@ -187,7 +187,7 @@ fun cartaTragittoSalvato(t: TragittoSalvato, partenze: PartenzeTragitto?, adesso
         tx("{0} alle {1} · arrivi {2}", p.linea, oraARoma(p.oraMezzo), oraARoma(p.arrivo))
     }
     val ora = minuti < 1
-    val poi = prossime.getOrNull(1)?.let { tx("poi alle {0}", oraARoma(it.partenza)) }
+    val poi = prossime.getOrNull(1)?.let { tx("oppure esci alle {0}", oraARoma(it.partenza)) }
     return CartaSalvato(
         id = t.id,
         nome = t.nome,
