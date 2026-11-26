@@ -778,7 +778,7 @@ struct VistaEsciTra: View {
                         Text(t?.nome ?? NSLocalizedString("Esci tra", comment: "")).font(.system(size: 13, weight: .bold)).foregroundStyle(colori.testo).lineLimit(2)
                         Spacer(minLength: 0)
                         if let t {
-                            Text(t.esci).font(.system(size: 12, weight: .bold)).tracking(1).foregroundStyle(colori.accento)
+                            Text(t.esci).font(.system(size: 12, weight: .bold)).tracking(1).foregroundStyle(colori.accento).lineLimit(2)
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
                                 Text(t.numero).font(cifreDoto(52)).foregroundStyle(colori.accento)
                                 Text(t.unita).font(.system(size: 14)).foregroundStyle(colori.accento)
@@ -805,7 +805,7 @@ struct VistaEsciTra: View {
                     Text(t?.nome ?? NSLocalizedString("Esci tra", comment: "")).font(.system(size: 13, weight: .bold)).foregroundStyle(colori.testo).lineLimit(1)
                     Spacer(minLength: 0)
                     if let t {
-                        Text(t.esci).font(.system(size: 12, weight: .bold)).tracking(1).foregroundStyle(colori.accento)
+                        Text(t.esci).font(.system(size: 12, weight: .bold)).tracking(1).foregroundStyle(colori.accento).lineLimit(2)
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text(t.numero).font(cifreDoto(52)).foregroundStyle(colori.accento).lineLimit(1).minimumScaleFactor(0.7)
                             Text(t.unita).font(.system(size: 14)).foregroundStyle(colori.accento)

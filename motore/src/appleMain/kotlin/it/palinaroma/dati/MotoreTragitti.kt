@@ -114,6 +114,7 @@ class MotoreTragitti(private val orario: Orario) {
         val partenza = if (daScelto.tipo == TipoLuogo.POSIZIONE) qui.takeIf { it.haCoordinate } else daScelto
         val arrivo = if (aScelto.tipo == TipoLuogo.POSIZIONE) qui.takeIf { it.haCoordinate } else aScelto
         val ist = if (quando == 0) null else istante
+        ultime = emptyMap()
         val r = cercaTragitti(partenza, arrivo, ist, quando == 2)
         risultato = r
         if (r.errore == null && partenza != null && arrivo != null) richiesta = Richiesta(partenza, arrivo, ist, quando == 2)
@@ -133,6 +134,25 @@ class MotoreTragitti(private val orario: Orario) {
     }
 
     private var ordine = ""
+
+    /** Dalla sera: per ogni tragitto "64: ultima corsa" (dopo i risultati, con [ultimeCorse]). */
+    private var ultime: Map<String, String> = emptyMap()
+
+    /** Da chiamare dopo [cerca] e [altri]: segna i mezzi che sono l'ultima o la penultima corsa. */
+    suspend fun ultimeCorse(): StatoTragitti = withContext(Dispatchers.Main) {
+        val r = risultato
+        if (r != null && r.errore == null) {
+            val trovate = try {
+                ultimeCorseTragitti(r.tragitti)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyMap()
+            }
+            ultime = ultime + trovate
+        }
+        stato()
+    }
 
     /** L'ordine dei risultati: "" (prima le partenze piu' vicine), "cambi", "piedi". */
     fun ordina(ordine: String) {
@@ -180,7 +200,7 @@ class MotoreTragitti(private val orario: Orario) {
                 else -> null
             },
             riprova = !inCorso && r?.errore != null && a != null,
-            carte = if (pronto) ordinati().map { cartaTragitto(it, adesso) } else emptyList(),
+            carte = if (pronto) ordinati().map { cartaTragitto(it, adesso, ultime) } else emptyList(),
             aPiedi = if (pronto) r.soloAPiedi?.let { cartaAPiedi(it) } else null,
             prima = pronto && r.cursorePrima != null && r.tragitti.isNotEmpty(),
             dopo = pronto && r.cursoreDopo != null && r.tragitti.isNotEmpty(),

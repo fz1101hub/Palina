@@ -248,6 +248,14 @@ struct RigaTabellone: View {
                 if !riga.poi.isEmpty {
                     Text(riga.poi).font(.caption).foregroundStyle(.secondary)
                 }
+                // dalla sera: e' l'ultimo (o il penultimo) di oggi
+                if !riga.ultima.isEmpty {
+                    Text(riga.ultima.uppercased())
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(1)
+                        .foregroundStyle(Tavolozza.oro)
+                        .accessibilityIdentifier("ultima-corsa")
+                }
             }
             Spacer(minLength: 4)
             if riga.fissata {

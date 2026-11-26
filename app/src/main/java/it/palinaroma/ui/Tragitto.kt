@@ -100,6 +100,7 @@ import it.palinaroma.dati.attribuzioneTransitous
 import it.palinaroma.dati.avvisoPermessoTragitti
 import it.palinaroma.dati.cartaTragitto
 import it.palinaroma.dati.cercaTragitti
+import it.palinaroma.dati.ultimeCorseTragitti
 import it.palinaroma.dati.giornoEOra
 import it.palinaroma.dati.luogoDaFermata
 import it.palinaroma.dati.ErroreTransitous
@@ -154,6 +155,8 @@ object StatoTragitto {
     var caricandoAltri by mutableStateOf(false)
     /** L'ordine dei risultati: "" (prima le partenze piu' vicine), "cambi", "piedi". */
     var ordine by mutableStateOf("")
+    /** Dalla sera: per ogni tragitto ([Tragitto.chiave]) "64: ultima corsa" (si aggiungono dopo i risultati). */
+    var ultime by mutableStateOf<Map<String, String>>(emptyMap())
 
     /** I tragitti nell'ordine scelto: l'elenco e il dettaglio usano questo. */
     fun ordinati(): List<Tragitto> = (esito as? EsitoTragitti.Pronto)?.let { ordinaTragitti(it.tragitti, ordine) }.orEmpty()
@@ -188,6 +191,7 @@ object StatoTragitto {
         val aScelto = a ?: return
         chiaveUltima = chiave()
         esito = EsitoTragitti.InCorso
+        ultime = emptyMap()
         val partenza = risolvi(context, daScelto)
         val arrivo = risolvi(context, aScelto)
         val (istante, arrivaEntro) = when (val q = quando) {
@@ -203,6 +207,13 @@ object StatoTragitto {
         }
         richiesta = Richiesta(partenza!!, arrivo!!, istante, arrivaEntro)
         esito = EsitoTragitti.Pronto(r)
+        segnaUltime(r.tragitti)
+    }
+
+    /** Dopo i risultati (che si vedono subito): quali mezzi sono l'ultima o la penultima corsa. */
+    private suspend fun segnaUltime(tragitti: List<Tragitto>) {
+        val trovate = seRiesce { ultimeCorseTragitti(tragitti) } ?: return
+        ultime = ultime + trovate
     }
 
     /** Partenze precedenti o successive, aggiunte all'elenco. */
@@ -219,6 +230,7 @@ object StatoTragitto {
         } finally {
             caricandoAltri = false
         }
+        (esito as? EsitoTragitti.Pronto)?.let { segnaUltime(it.tragitti) }
     }
 
     private suspend fun risolvi(context: Context, luogo: Luogo): Luogo? {
@@ -384,7 +396,7 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                         }
                     }
                     itemsIndexed(stato.ordinati(), key = { _, t -> t.chiave }) { i, t ->
-                        CartaTragitto(t, adesso) { apriDettaglio(i) }
+                        CartaTragitto(t, adesso, stato.ultime) { apriDettaglio(i) }
                     }
                     if (esito.cursoreDopo != null && esito.tragitti.isNotEmpty()) {
                         item {
@@ -599,7 +611,7 @@ private fun DialogoOrario(arrivo: Boolean, iniziale: Long, chiudi: () -> Unit, c
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun CartaTragitto(t: Tragitto, adesso: Long, onClick: () -> Unit) {
+private fun CartaTragitto(t: Tragitto, adesso: Long, ultime: Map<String, String>, onClick: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Superficie),
         shape = RoundedCornerShape(12.dp),
@@ -609,8 +621,19 @@ private fun CartaTragitto(t: Tragitto, adesso: Long, onClick: () -> Unit) {
             .clickable(onClick = onClick),
     ) {
         // i testi della carta vengono dal motore, uguali sull'iPhone
-        val carta = cartaTragitto(t, adesso)
+        val carta = cartaTragitto(t, adesso, ultime)
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // ultima o penultima corsa della giornata: in cima, perche' cambia la scelta
+            carta.ultimaCorsa?.let {
+                Text(
+                    it.uppercase(),
+                    color = Accento,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.testTag("ultima-corsa"),
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     carta.orari,

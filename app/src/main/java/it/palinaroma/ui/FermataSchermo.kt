@@ -62,6 +62,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.chiaveArrivo
+import it.palinaroma.dati.ultimeDelleRighe
+import it.palinaroma.dati.corseRimasteFermata
+import it.palinaroma.dati.CorseRimaste
 import it.palinaroma.dati.legendaFermata
 import it.palinaroma.dati.testoAvviso
 import it.palinaroma.dati.SchedaAvviso
@@ -157,6 +161,9 @@ fun FermataSchermo(
     val rete = Rete.di(membri.first())
     val retiMembri = remember(membri) { membri.map { Rete.di(it) }.toSet() }
 
+    // dalla sera: le corse rimaste oggi, per "ultima corsa" e "penultima corsa"
+    var rimaste by remember(fermataId) { mutableStateOf<CorseRimaste?>(null) }
+
     suspend fun componi(corse: List<CorsaRT>?, mezzi: List<MezzoRT>, fonti: Map<String, FontiFermata>?): List<Arrivo> =
         withContext(Dispatchers.IO) {
             arriviStazione(membri, o, corse, mezzi, fonti.orEmpty(), System.currentTimeMillis() / 1000)
@@ -220,6 +227,16 @@ fun FermataSchermo(
             }
         } finally {
             aggiornando = false
+        }
+    }
+
+    // Dalla sera, ogni 5 minuti: quali righe sono l'ultima o la penultima corsa (il motore le tiene 10 minuti)
+    LaunchedEffect(fermataId, o, fermateMembri) {
+        ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                fermateMembri.firstOrNull()?.let { f -> seRiesce { corseRimasteFermata(f, o) }?.let { rimaste = it } }
+                delay(5 * 60_000L)
+            }
         }
     }
 
@@ -319,6 +336,7 @@ fun FermataSchermo(
                     item {
                         TabelloneFermata(
                             diviso = d,
+                            ultime = ultimeDelleRighe(rimaste, d.fissate + d.altre),
                             nomiLinee = nomiLinee,
                             conFissate = fissate.isNotEmpty(),
                             adesso = adesso,
@@ -494,6 +512,8 @@ fun AvvisoRete(testo: String, riprova: () -> Unit, modifier: Modifier = Modifier
 @Composable
 private fun TabelloneFermata(
     diviso: ArriviDivisi,
+    /** "ultima corsa" / "penultima corsa" per riga ([chiaveArrivo]). */
+    ultime: Map<String, String>,
     nomiLinee: Map<String, String>,
     conFissate: Boolean,
     adesso: Long,
@@ -511,7 +531,7 @@ private fun TabelloneFermata(
         if (conFissate) {
             TitolettoTabellone(tx("Le tue linee"), Accento)
             diviso.fissate.forEach { a ->
-                RigaArrivo(a, adesso, fissata = true, apri = apri(a), fissa = { fissa(a.lineaId) }, avvisa = { avvisa(a) })
+                RigaArrivo(a, adesso, fissata = true, ultima = ultime[chiaveArrivo(a)], apri = apri(a), fissa = { fissa(a.lineaId) }, avvisa = { avvisa(a) })
             }
             diviso.senzaPassaggi.forEach { id ->
                 RigaFissataVuota(nomiLinee[id] ?: id, id, togli = { fissa(id) })
@@ -526,7 +546,7 @@ private fun TabelloneFermata(
             )
         }
         diviso.altre.forEach { a ->
-            RigaArrivo(a, adesso, fissata = false, apri = apri(a), fissa = { fissa(a.lineaId) }, avvisa = { avvisa(a) })
+            RigaArrivo(a, adesso, fissata = false, ultima = ultime[chiaveArrivo(a)], apri = apri(a), fissa = { fissa(a.lineaId) }, avvisa = { avvisa(a) })
         }
         if (diviso.fissate.isEmpty() && diviso.altre.isEmpty() && testoVuoto != null) {
             Text(testoVuoto, color = Secondario, modifier = Modifier.padding(vertical = 16.dp))
@@ -541,9 +561,17 @@ private fun TitolettoTabellone(testo: String, colore: androidx.compose.ui.graphi
 
 /** Una linea alla fermata: numero, direzione, prossimi passaggi, minuti grandi e puntina. */
 @Composable
-private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (() -> Unit)?, fissa: () -> Unit, avvisa: () -> Unit) {
+private fun RigaArrivo(
+    arrivo: Arrivo,
+    adesso: Long,
+    fissata: Boolean,
+    ultima: String?,
+    apri: (() -> Unit)?,
+    fissa: () -> Unit,
+    avvisa: () -> Unit,
+) {
     val primo = arrivo.passaggi.first()
-    val frase = fraseArrivo(arrivo, adesso)
+    val frase = fraseArrivo(arrivo, adesso) + (ultima?.let { " ($it)." } ?: "")
     val reteLinea = Rete.di(arrivo.lineaId)
     Column {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -581,6 +609,17 @@ private fun RigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean, apri: (()
                     val poi = testoPoi(arrivo.passaggi.drop(1).take(2).map { minutiAttesa(it.orario, adesso) })
                     if (poi.isNotEmpty()) {
                         Text(poi, style = MaterialTheme.typography.bodySmall, color = Secondario)
+                    }
+                    // dalla sera: e' l'ultimo (o il penultimo) di oggi
+                    if (!ultima.isNullOrEmpty()) {
+                        Text(
+                            ultima.uppercase(),
+                            color = Accento,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.testTag("ultima-corsa"),
+                        )
                     }
                 }
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {

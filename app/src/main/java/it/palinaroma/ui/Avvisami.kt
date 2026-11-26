@@ -503,6 +503,9 @@ fun CartaTragittoSalvato(t: TragittoSalvato, carta: CartaSalvato, apri: () -> Un
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(t.nome, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (carta.ultima.isNotEmpty()) {
+                    Text(carta.ultima.uppercase(), color = Accento, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 1.sp)
+                }
                 if (carta.viaggio.isNotEmpty()) {
                     Text(carta.viaggio, style = MaterialTheme.typography.bodySmall, color = Accento, fontWeight = FontWeight.Bold, maxLines = 2)
                 }

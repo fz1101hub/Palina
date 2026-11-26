@@ -122,12 +122,14 @@ data class CartaTragitto(
     val perVoce: String,
     /** "parti tra 4 min", "parti ora", o null. */
     val partiTra: String? = null,
+    /** "64: ultima corsa", "Metro B: penultima corsa", o null. */
+    val ultimaCorsa: String? = null,
 )
 
 /** Il colore di un tratto: quello della linea, se Transitous lo da', o porpora. */
 fun coloreTratto(t: Tratto): Long = t.colore?.let { it.toLong() and 0xFFFFFFFFL } ?: Colori.PORPORA
 
-fun cartaTragitto(t: Tragitto, adessoMs: Long): CartaTragitto {
+fun cartaTragitto(t: Tragitto, adessoMs: Long, ultime: Map<String, String> = emptyMap()): CartaTragitto {
     val primo = t.mezzi.firstOrNull()
     val testoPrimo = primo?.let {
         val tra = ((it.partenza - adessoMs) / 60_000).toInt()
@@ -156,8 +158,10 @@ fun cartaTragitto(t: Tragitto, adessoMs: Long): CartaTragitto {
         perVoce = tx("Dalle {0} alle {1}, {2}.", oraARoma(t.partenza), oraARoma(t.arrivo), testoDurata(t.durata)) + " " +
             (testoPartiTra(t, adessoMs)?.let { "$it. " } ?: "") +
             (testoPrimo?.let { "$it. " } ?: "") + tx("{0}, {1} minuti a piedi.", cambi, t.minutiAPiedi) +
-            (if (t.mezzi.any { it.cancellato }) " " + tx("Corsa soppressa.") else ""),
+            (if (t.mezzi.any { it.cancellato }) " " + tx("Corsa soppressa.") else "") +
+            (ultime[t.chiave]?.let { " $it." } ?: ""),
         partiTra = testoPartiTra(t, adessoMs),
+        ultimaCorsa = ultime[t.chiave],
     )
 }
 

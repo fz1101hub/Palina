@@ -91,6 +91,9 @@ data class Tratto(
     val corsaId: String = "",
     /** Il numero del treno o della corsa (trip_short_name), se c'e'. */
     val numero: String = "",
+    /** La linea e la direzione per Transitous (routeId, directionId), se le da'. */
+    val lineaId: String = "",
+    val direzioneId: Int? = null,
 ) {
     val aPiedi: Boolean get() = modo in MODI_STRADALI
 
@@ -188,6 +191,16 @@ object Transitous {
         return withContext(Dispatchers.Default) { leggiPartenze(testoJson, fermataId, lat, lon) }
     }
 
+    /**
+     * Tutte le partenze da una fermata tra [daMs] e [finoMs] (per l'ultima corsa).
+     * [fermataId] e' dell'app; con [idTransitous] vero e' gia' quello di Transitous (i tratti dei tragitti).
+     */
+    suspend fun partenzeFinoA(fermataId: String, lat: Double, lon: Double, daMs: Long, finoMs: Long, idTransitous: Boolean = false): List<PartenzaTransitous> {
+        val url = urlPartenzeFinestra(if (idTransitous) fermataId else fermataTransitous(fermataId), lat, lon, daMs, finoMs)
+        val testoJson = scarica(url, Attesa.BREVE)
+        return withContext(Dispatchers.Default) { leggiPartenze(testoJson, fermataId, lat, lon) }
+    }
+
     /** Una corsa con tutte le sue fermate (solo quelle dove si sale o si scende), o null se non c'e'. */
     suspend fun corsa(corsaId: String): Tratto? {
         val testoJson = scarica(urlCorsa(corsaId), Attesa.BREVE)
@@ -239,6 +252,13 @@ fun urlPartenze(fermataId: String, lat: Double, lon: Double, da: Long? = null): 
         "&center=" + codifica(decimali(lat, 6) + "," + decimali(lon, 6)) +
         "&radius=30&exactRadius=true&n=40&window=5400&language=" + Lingue.perServizi +
         (da?.let { "&time=" + codifica(testoIstante(it)) } ?: "")
+
+/** Le partenze tra due istanti: con [window] Transitous le da' tutte, anche oltre [n]. */
+fun urlPartenzeFinestra(stopIdTransitous: String, lat: Double, lon: Double, daMs: Long, finoMs: Long): String =
+    Transitous.API + "/v5/stoptimes?stopId=" + codifica(stopIdTransitous) +
+        "&center=" + codifica(decimali(lat, 6) + "," + decimali(lon, 6)) +
+        "&radius=30&exactRadius=true&n=1&window=" + ((finoMs - daMs) / 1000).coerceIn(60, 12 * 3600) +
+        "&time=" + codifica(testoIstante(daMs)) + "&language=" + Lingue.perServizi
 
 /** Una corsa intera, senza le fermate dove il treno passa senza fermarsi. */
 fun urlCorsa(corsaId: String): String =
@@ -440,6 +460,8 @@ private fun leggiTratto(m: Map<String, Any?>, primo: Boolean, ultimo: Boolean, n
         avvisi = m.oggetti("alerts").mapNotNull { it.testo("headerText") ?: it.testo("descriptionText") }.distinct(),
         corsaId = m.testo("tripId").orEmpty(),
         numero = m.testo("tripShortName").orEmpty(),
+        lineaId = m.testo("routeId").orEmpty(),
+        direzioneId = m.testo("directionId")?.toIntOrNull() ?: m.numero("directionId")?.toInt(),
     )
 }
 

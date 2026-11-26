@@ -195,9 +195,11 @@ data class RigaArrivo(
     /** Soppresso o con un avviso: si scrive nel colore d'accento. */
     val evidenzia: Boolean,
     val perVoce: String,
+    /** "ultima corsa", "penultima corsa" o vuoto. */
+    val ultima: String = "",
 )
 
-fun rigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean = false, stazione: String? = null): RigaArrivo {
+fun rigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean = false, stazione: String? = null, ultima: String = ""): RigaArrivo {
     val primo = arrivo.passaggi.first()
     val rete = Rete.di(arrivo.lineaId)
     val minuti = minutiAttesa(primo.orario, adesso)
@@ -240,7 +242,8 @@ fun rigaArrivo(arrivo: Arrivo, adesso: Long, fissata: Boolean = false, stazione:
         },
         tempoReale = primo.tracciato,
         evidenzia = soppresso || primo.avviso != null,
-        perVoce = fraseArrivo(arrivo, adesso),
+        perVoce = fraseArrivo(arrivo, adesso) + (if (ultima.isNotEmpty()) " ($ultima)." else ""),
+        ultima = ultima,
     )
 }
 
@@ -267,13 +270,15 @@ fun tabelloneFermata(
     fissate: Set<String>,
     nomiLinee: Map<String, String>,
     stazioneDi: (Arrivo) -> String? = { null },
+    /** Dalla sera, "ultima corsa" / "penultima corsa" per riga ([ultimeDelleRighe]). */
+    ultime: Map<String, String> = emptyMap(),
 ): TabelloneFermata {
     val adesso = adessoMs / 1000
     val diviso = dividiArrivi(ancoraAttesi(arrivi.perFermata[fermataId].orEmpty(), adesso), fissate)
     return TabelloneFermata(
-        fissate = diviso.fissate.map { rigaArrivo(it, adesso, fissata = true, stazione = stazioneDi(it)) },
+        fissate = diviso.fissate.map { rigaArrivo(it, adesso, fissata = true, stazione = stazioneDi(it), ultima = ultime[chiaveArrivo(it)].orEmpty()) },
         fissateSenzaPassaggi = diviso.senzaPassaggi.map { nomiLinee[it] ?: it },
-        altre = diviso.altre.map { rigaArrivo(it, adesso, stazione = stazioneDi(it)) },
+        altre = diviso.altre.map { rigaArrivo(it, adesso, stazione = stazioneDi(it), ultima = ultime[chiaveArrivo(it)].orEmpty()) },
         conFissate = fissate.isNotEmpty(),
         suggerimento = if (fissate.isEmpty() && diviso.altre.isNotEmpty()) tx("Tocca la puntina accanto a una linea: resta in cima qui e in Home.") else null,
         avviso = avvisoArrivi(arrivi, Rete.di(fermataId) == Rete.ROMA),

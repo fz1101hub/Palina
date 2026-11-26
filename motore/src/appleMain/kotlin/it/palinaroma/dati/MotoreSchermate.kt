@@ -5,6 +5,8 @@ import it.palinaroma.ponte.TrenoOrologio
 import it.palinaroma.ponte.calcolaCorsaOrologio
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 /*
@@ -80,9 +82,18 @@ class MotoreFermata(private val orario: Orario, private val fermataId: String) {
     /** La chiave da salvare (o togliere) per fissare una linea a questa fermata. */
     fun chiaveDaFissare(lineaId: String): String = chiaveFissata(fermataId, lineaId)
 
+    /** Dalla sera: le corse rimaste oggi, per "ultima corsa" e "penultima corsa". */
+    private var rimaste: CorseRimaste? = null
+
     suspend fun aggiorna(): TabelloneFermata = withContext(Dispatchers.Main) {
         val fermata = withContext(dispatcherDati) { orario.fermata(fermataId) }
-        if (fermata != null) arrivi = caricatore.aggiorna(orario, listOf(fermata), emptyList(), arrivi)
+        if (fermata != null) {
+            coroutineScope {
+                val ultime = async { corseRimasteFermata(fermata, orario) }
+                arrivi = caricatore.aggiorna(orario, listOf(fermata), emptyList(), arrivi)
+                rimaste = ultime.await()
+            }
+        }
         tabellone()
     }
 
@@ -90,9 +101,11 @@ class MotoreFermata(private val orario: Orario, private val fermataId: String) {
     private val membri: List<String> by lazy { orario.stazioneUnita(fermataId) }
 
     /** Il tabellone con i tempi gia' letti, per adesso. */
-    fun tabellone(): TabelloneFermata = tabelloneFermata(fermataId, arrivi, adessoMs(), fissate, nomiLinee) { a ->
-        membri.firstOrNull { Rete.di(it) == Rete.di(a.lineaId) } ?: fermataId
-    }
+    fun tabellone(): TabelloneFermata = tabelloneFermata(
+        fermataId, arrivi, adessoMs(), fissate, nomiLinee,
+        stazioneDi = { a -> membri.firstOrNull { Rete.di(it) == Rete.di(a.lineaId) } ?: fermataId },
+        ultime = ultimeDelleRighe(rimaste, arrivi.perFermata[fermataId].orEmpty()),
+    )
 }
 
 /** Una direzione di una linea: "→ Casaletto". */

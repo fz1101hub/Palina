@@ -2,7 +2,7 @@
 package it.palinaroma.dati
 
 internal val INGLESE: Map<String, String> by lazy {
-    HashMap<String, String>(1168).also {
+    HashMap<String, String>(1178).also {
         inglese1(it)
         inglese2(it)
         inglese3(it)
@@ -457,6 +457,8 @@ private fun inglese3(m: HashMap<String, String>) {
     m["Treno {0} verso {1}: "] = "Train {0} towards {1}: "
     m["Tutto a piedi, {0}"] = "Walk all the way, {0}"
     m["Tutto a piedi: {0}"] = "Walk all the way: {0}"
+    m["ULTIMA CORSA: ESCI ORA"] = "LAST SERVICE: LEAVE NOW"
+    m["ULTIMA CORSA: ESCI TRA"] = "LAST SERVICE: LEAVE IN"
     m["Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato"] = "A stop of your choice, or the favourite you're near, with your pinned lines"
     m["Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato."] = "A stop of your choice, or the favourite you're near, with your pinned lines."
     m["Una vibrazione quando il mezzo seguito arriva tra 2 minuti"] = "A vibration when the followed vehicle is 2 minutes away"
@@ -465,11 +467,11 @@ private fun inglese3(m: HashMap<String, String>) {
     m["Va nell'altra direzione · mostra quella direzione ›"] = "Going the other way · show that direction ›"
     m["Verso {0}"] = "To {0}"
     m["Vettura"] = "Vehicle"
-    m["Vettura {0}"] = "Vehicle {0}"
-    m["Vicino a te"] = "Near you"
 }
 
 private fun inglese4(m: HashMap<String, String>) {
+    m["Vettura {0}"] = "Vehicle {0}"
+    m["Vicino a te"] = "Near you"
     m["Vuoi arrivare entro le…"] = "Arrive by…"
     m["Vuoi partire alle…"] = "Depart at…"
     m["Widget della fermata"] = "Stop widget"
@@ -529,6 +531,7 @@ private fun inglese4(m: HashMap<String, String>) {
     m["palina {0}"] = "stop {0}"
     m["parti ora"] = "leave now"
     m["parti tra {0} min"] = "leave in {0} min"
+    m["penultima corsa"] = "second-to-last service"
     m["poi {0}"] = "then {0}"
     m["poi {0} min"] = "then {0} min"
     m["posizione approssimativa (±{0} m)"] = "approximate location (±{0} m)"
@@ -549,6 +552,7 @@ private fun inglese4(m: HashMap<String, String>) {
     m["tempi delle {0}"] = "times from {0}"
     m["tempo reale"] = "real time"
     m["tra {0}"] = "in {0}"
+    m["ultima corsa"] = "last service"
     m["vedi i passaggi e seguila"] = "see departures and follow it"
     m["vedi i treni e le loro fermate"] = "see the trains and their stops"
     m["vedi la linea"] = "see the line"
@@ -600,6 +604,7 @@ private fun inglese4(m: HashMap<String, String>) {
     m["{0}: la posizione dei mezzi non è disponibile, solo il percorso"] = "{0}: vehicle positions aren't available, only the route"
     m["{0}: ora, verso {1}"] = "{0}: now, towards {1}"
     m["{0}: tra {1}, verso {2}"] = "{0}: in {1}, towards {2}"
+    m["{0}: {1}"] = "{0}: {1}"
     m["«Esci ora», il mezzo in arrivo e «Scendi alla prossima»"] = "“Leave now”, the vehicle arriving and “Get off at the next stop”"
     m["È a {0} dal percorso della linea: forse è in deviazione, in rimessa o sta andando al capolinea."] = "It's {0} from the line's route: it may be on a diversion, at the depot or heading to the terminus."
     m["è a {0} dalla fermata"] = "is {0} from the stop"
@@ -607,7 +612,7 @@ private fun inglese4(m: HashMap<String, String>) {
 }
 
 internal val FRANCESE: Map<String, String> by lazy {
-    HashMap<String, String>(1168).also {
+    HashMap<String, String>(1178).also {
         francese1(it)
         francese2(it)
         francese3(it)
@@ -1062,6 +1067,8 @@ private fun francese3(m: HashMap<String, String>) {
     m["Treno {0} verso {1}: "] = "Train {0} vers {1} : "
     m["Tutto a piedi, {0}"] = "Tout à pied, {0}"
     m["Tutto a piedi: {0}"] = "Tout à pied : {0}"
+    m["ULTIMA CORSA: ESCI ORA"] = "DERNIER PASSAGE : PARTEZ"
+    m["ULTIMA CORSA: ESCI TRA"] = "DERNIER PASSAGE : PARTEZ DANS"
     m["Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato"] = "Un arrêt de votre choix, ou le favori près duquel vous êtes, avec vos lignes épinglées"
     m["Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato."] = "Un arrêt de votre choix, ou le favori près duquel vous êtes, avec vos lignes épinglées."
     m["Una vibrazione quando il mezzo seguito arriva tra 2 minuti"] = "Une vibration quand le véhicule suivi arrive dans 2 minutes"
@@ -1070,11 +1077,11 @@ private fun francese3(m: HashMap<String, String>) {
     m["Va nell'altra direzione · mostra quella direzione ›"] = "Va dans l'autre sens · afficher ce sens ›"
     m["Verso {0}"] = "Vers {0}"
     m["Vettura"] = "Véhicule"
-    m["Vettura {0}"] = "Véhicule {0}"
-    m["Vicino a te"] = "Près de vous"
 }
 
 private fun francese4(m: HashMap<String, String>) {
+    m["Vettura {0}"] = "Véhicule {0}"
+    m["Vicino a te"] = "Près de vous"
     m["Vuoi arrivare entro le…"] = "Arriver avant…"
     m["Vuoi partire alle…"] = "Partir à…"
     m["Widget della fermata"] = "Widget de l'arrêt"
@@ -1134,6 +1141,7 @@ private fun francese4(m: HashMap<String, String>) {
     m["palina {0}"] = "arrêt {0}"
     m["parti ora"] = "départ maintenant"
     m["parti tra {0} min"] = "départ dans {0} min"
+    m["penultima corsa"] = "avant-dernier passage"
     m["poi {0}"] = "puis {0}"
     m["poi {0} min"] = "puis {0} min"
     m["posizione approssimativa (±{0} m)"] = "position approximative (±{0} m)"
@@ -1154,6 +1162,7 @@ private fun francese4(m: HashMap<String, String>) {
     m["tempi delle {0}"] = "horaires de {0}"
     m["tempo reale"] = "temps réel"
     m["tra {0}"] = "dans {0}"
+    m["ultima corsa"] = "dernier passage"
     m["vedi i passaggi e seguila"] = "voir les passages et la suivre"
     m["vedi i treni e le loro fermate"] = "voir les trains et leurs arrêts"
     m["vedi la linea"] = "voir la ligne"
@@ -1205,6 +1214,7 @@ private fun francese4(m: HashMap<String, String>) {
     m["{0}: la posizione dei mezzi non è disponibile, solo il percorso"] = "{0} : la position des véhicules n'est pas disponible, seulement le parcours"
     m["{0}: ora, verso {1}"] = "{0} : maintenant, vers {1}"
     m["{0}: tra {1}, verso {2}"] = "{0} : dans {1}, vers {2}"
+    m["{0}: {1}"] = "{0} : {1}"
     m["«Esci ora», il mezzo in arrivo e «Scendi alla prossima»"] = "« Partez maintenant », le véhicule qui arrive et « Descendez au prochain arrêt »"
     m["È a {0} dal percorso della linea: forse è in deviazione, in rimessa o sta andando al capolinea."] = "Il est à {0} du parcours de la ligne : il est peut-être dévié, au dépôt ou en route vers le terminus."
     m["è a {0} dalla fermata"] = "est à {0} de l'arrêt"
@@ -1212,7 +1222,7 @@ private fun francese4(m: HashMap<String, String>) {
 }
 
 internal val SPAGNOLO: Map<String, String> by lazy {
-    HashMap<String, String>(1168).also {
+    HashMap<String, String>(1178).also {
         spagnolo1(it)
         spagnolo2(it)
         spagnolo3(it)
@@ -1667,6 +1677,8 @@ private fun spagnolo3(m: HashMap<String, String>) {
     m["Treno {0} verso {1}: "] = "Tren {0} hacia {1}: "
     m["Tutto a piedi, {0}"] = "Todo a pie, {0}"
     m["Tutto a piedi: {0}"] = "Todo a pie: {0}"
+    m["ULTIMA CORSA: ESCI ORA"] = "ÚLTIMO SERVICIO: SAL YA"
+    m["ULTIMA CORSA: ESCI TRA"] = "ÚLTIMO SERVICIO: SAL EN"
     m["Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato"] = "Una parada a elegir, o el favorito cerca del que estás, con tus líneas fijadas"
     m["Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato."] = "Una parada a elegir, o el favorito cerca del que estás, con tus líneas fijadas."
     m["Una vibrazione quando il mezzo seguito arriva tra 2 minuti"] = "Una vibración cuando el vehículo seguido llega en 2 minutos"
@@ -1675,11 +1687,11 @@ private fun spagnolo3(m: HashMap<String, String>) {
     m["Va nell'altra direzione · mostra quella direzione ›"] = "Va en el otro sentido · mostrar ese sentido ›"
     m["Verso {0}"] = "Hacia {0}"
     m["Vettura"] = "Vehículo"
-    m["Vettura {0}"] = "Vehículo {0}"
-    m["Vicino a te"] = "Cerca de ti"
 }
 
 private fun spagnolo4(m: HashMap<String, String>) {
+    m["Vettura {0}"] = "Vehículo {0}"
+    m["Vicino a te"] = "Cerca de ti"
     m["Vuoi arrivare entro le…"] = "Llegar antes de las…"
     m["Vuoi partire alle…"] = "Salir a las…"
     m["Widget della fermata"] = "Widget de la parada"
@@ -1739,6 +1751,7 @@ private fun spagnolo4(m: HashMap<String, String>) {
     m["palina {0}"] = "parada {0}"
     m["parti ora"] = "sal ya"
     m["parti tra {0} min"] = "sal en {0} min"
+    m["penultima corsa"] = "penúltimo servicio"
     m["poi {0}"] = "luego {0}"
     m["poi {0} min"] = "luego {0} min"
     m["posizione approssimativa (±{0} m)"] = "ubicación aproximada (±{0} m)"
@@ -1759,6 +1772,7 @@ private fun spagnolo4(m: HashMap<String, String>) {
     m["tempi delle {0}"] = "tiempos de las {0}"
     m["tempo reale"] = "tiempo real"
     m["tra {0}"] = "en {0}"
+    m["ultima corsa"] = "último servicio"
     m["vedi i passaggi e seguila"] = "ver los pasos y seguirla"
     m["vedi i treni e le loro fermate"] = "ver los trenes y sus paradas"
     m["vedi la linea"] = "ver la línea"
@@ -1810,6 +1824,7 @@ private fun spagnolo4(m: HashMap<String, String>) {
     m["{0}: la posizione dei mezzi non è disponibile, solo il percorso"] = "{0}: la posición de los vehículos no está disponible, solo el recorrido"
     m["{0}: ora, verso {1}"] = "{0}: ahora, hacia {1}"
     m["{0}: tra {1}, verso {2}"] = "{0}: en {1}, hacia {2}"
+    m["{0}: {1}"] = "{0}: {1}"
     m["«Esci ora», il mezzo in arrivo e «Scendi alla prossima»"] = "«Sal ya», el vehículo que llega y «Bájate en la próxima»"
     m["È a {0} dal percorso della linea: forse è in deviazione, in rimessa o sta andando al capolinea."] = "Está a {0} del recorrido de la línea: quizá está desviado, en cocheras o yendo a la cabecera."
     m["è a {0} dalla fermata"] = "está a {0} de la parada"
@@ -1817,7 +1832,7 @@ private fun spagnolo4(m: HashMap<String, String>) {
 }
 
 internal val TEDESCO: Map<String, String> by lazy {
-    HashMap<String, String>(1168).also {
+    HashMap<String, String>(1178).also {
         tedesco1(it)
         tedesco2(it)
         tedesco3(it)
@@ -2272,6 +2287,8 @@ private fun tedesco3(m: HashMap<String, String>) {
     m["Treno {0} verso {1}: "] = "Zug {0} Richtung {1}: "
     m["Tutto a piedi, {0}"] = "Alles zu Fuß, {0}"
     m["Tutto a piedi: {0}"] = "Alles zu Fuß: {0}"
+    m["ULTIMA CORSA: ESCI ORA"] = "LETZTE FAHRT: JETZT LOS"
+    m["ULTIMA CORSA: ESCI TRA"] = "LETZTE FAHRT: LOS IN"
     m["Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato"] = "Eine Haltestelle deiner Wahl oder der Favorit in deiner Nähe, mit deinen angehefteten Linien"
     m["Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato."] = "Eine Haltestelle deiner Wahl oder der Favorit in deiner Nähe, mit deinen angehefteten Linien."
     m["Una vibrazione quando il mezzo seguito arriva tra 2 minuti"] = "Eine Vibration, wenn das verfolgte Fahrzeug in 2 Minuten kommt"
@@ -2280,11 +2297,11 @@ private fun tedesco3(m: HashMap<String, String>) {
     m["Va nell'altra direzione · mostra quella direzione ›"] = "Fährt in die andere Richtung · diese Richtung zeigen ›"
     m["Verso {0}"] = "Richtung {0}"
     m["Vettura"] = "Fahrzeug"
-    m["Vettura {0}"] = "Fahrzeug {0}"
-    m["Vicino a te"] = "In deiner Nähe"
 }
 
 private fun tedesco4(m: HashMap<String, String>) {
+    m["Vettura {0}"] = "Fahrzeug {0}"
+    m["Vicino a te"] = "In deiner Nähe"
     m["Vuoi arrivare entro le…"] = "Ankommen bis…"
     m["Vuoi partire alle…"] = "Abfahren um…"
     m["Widget della fermata"] = "Haltestellen-Widget"
@@ -2344,6 +2361,7 @@ private fun tedesco4(m: HashMap<String, String>) {
     m["palina {0}"] = "Haltestelle {0}"
     m["parti ora"] = "jetzt los"
     m["parti tra {0} min"] = "los in {0} Min."
+    m["penultima corsa"] = "vorletzte Fahrt"
     m["poi {0}"] = "dann {0}"
     m["poi {0} min"] = "dann {0} Min."
     m["posizione approssimativa (±{0} m)"] = "ungefährer Standort (±{0} m)"
@@ -2364,6 +2382,7 @@ private fun tedesco4(m: HashMap<String, String>) {
     m["tempi delle {0}"] = "Zeiten von {0}"
     m["tempo reale"] = "Echtzeit"
     m["tra {0}"] = "in {0}"
+    m["ultima corsa"] = "letzte Fahrt"
     m["vedi i passaggi e seguila"] = "Abfahrten ansehen und folgen"
     m["vedi i treni e le loro fermate"] = "Züge und ihre Halte ansehen"
     m["vedi la linea"] = "Linie ansehen"
@@ -2415,6 +2434,7 @@ private fun tedesco4(m: HashMap<String, String>) {
     m["{0}: la posizione dei mezzi non è disponibile, solo il percorso"] = "{0}: keine Fahrzeugpositionen verfügbar, nur der Verlauf"
     m["{0}: ora, verso {1}"] = "{0}: jetzt, Richtung {1}"
     m["{0}: tra {1}, verso {2}"] = "{0}: in {1}, Richtung {2}"
+    m["{0}: {1}"] = "{0}: {1}"
     m["«Esci ora», il mezzo in arrivo e «Scendi alla prossima»"] = "„Jetzt los“, das ankommende Fahrzeug und „Nächste Haltestelle aussteigen“"
     m["È a {0} dal percorso della linea: forse è in deviazione, in rimessa o sta andando al capolinea."] = "Es ist {0} vom Linienverlauf entfernt: vielleicht auf einer Umleitung, im Depot oder auf dem Weg zur Endhaltestelle."
     m["è a {0} dalla fermata"] = "ist {0} von der Haltestelle entfernt"
@@ -2422,7 +2442,7 @@ private fun tedesco4(m: HashMap<String, String>) {
 }
 
 internal val PORTOGHESE: Map<String, String> by lazy {
-    HashMap<String, String>(1168).also {
+    HashMap<String, String>(1178).also {
         portoghese1(it)
         portoghese2(it)
         portoghese3(it)
@@ -2877,6 +2897,8 @@ private fun portoghese3(m: HashMap<String, String>) {
     m["Treno {0} verso {1}: "] = "Trem {0} sentido {1}: "
     m["Tutto a piedi, {0}"] = "Tudo a pé, {0}"
     m["Tutto a piedi: {0}"] = "Tudo a pé: {0}"
+    m["ULTIMA CORSA: ESCI ORA"] = "ÚLTIMA VIAGEM: SAIA AGORA"
+    m["ULTIMA CORSA: ESCI TRA"] = "ÚLTIMA VIAGEM: SAIA EM"
     m["Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato"] = "Uma parada à escolha, ou o favorito perto de você, com as linhas que você fixou"
     m["Una fermata a scelta, o la preferita a cui sei vicino, con le linee che hai fissato."] = "Uma parada à escolha, ou o favorito perto de você, com as linhas que você fixou."
     m["Una vibrazione quando il mezzo seguito arriva tra 2 minuti"] = "Uma vibração quando o veículo seguido chega em 2 minutos"
@@ -2885,11 +2907,11 @@ private fun portoghese3(m: HashMap<String, String>) {
     m["Va nell'altra direzione · mostra quella direzione ›"] = "Vai no outro sentido · mostrar esse sentido ›"
     m["Verso {0}"] = "Sentido {0}"
     m["Vettura"] = "Veículo"
-    m["Vettura {0}"] = "Veículo {0}"
-    m["Vicino a te"] = "Perto de você"
 }
 
 private fun portoghese4(m: HashMap<String, String>) {
+    m["Vettura {0}"] = "Veículo {0}"
+    m["Vicino a te"] = "Perto de você"
     m["Vuoi arrivare entro le…"] = "Chegar até as…"
     m["Vuoi partire alle…"] = "Partir às…"
     m["Widget della fermata"] = "Widget da parada"
@@ -2949,6 +2971,7 @@ private fun portoghese4(m: HashMap<String, String>) {
     m["palina {0}"] = "parada {0}"
     m["parti ora"] = "saia agora"
     m["parti tra {0} min"] = "saia em {0} min"
+    m["penultima corsa"] = "penúltima viagem"
     m["poi {0}"] = "depois {0}"
     m["poi {0} min"] = "depois {0} min"
     m["posizione approssimativa (±{0} m)"] = "localização aproximada (±{0} m)"
@@ -2969,6 +2992,7 @@ private fun portoghese4(m: HashMap<String, String>) {
     m["tempi delle {0}"] = "horários das {0}"
     m["tempo reale"] = "tempo real"
     m["tra {0}"] = "em {0}"
+    m["ultima corsa"] = "última viagem"
     m["vedi i passaggi e seguila"] = "ver as passagens e segui-la"
     m["vedi i treni e le loro fermate"] = "ver os trens e suas paradas"
     m["vedi la linea"] = "ver a linha"
@@ -3020,6 +3044,7 @@ private fun portoghese4(m: HashMap<String, String>) {
     m["{0}: la posizione dei mezzi non è disponibile, solo il percorso"] = "{0}: a posição dos veículos não está disponível, só o percurso"
     m["{0}: ora, verso {1}"] = "{0}: agora, sentido {1}"
     m["{0}: tra {1}, verso {2}"] = "{0}: em {1}, sentido {2}"
+    m["{0}: {1}"] = "{0}: {1}"
     m["«Esci ora», il mezzo in arrivo e «Scendi alla prossima»"] = "“Saia agora”, o veículo chegando e “Desça na próxima”"
     m["È a {0} dal percorso della linea: forse è in deviazione, in rimessa o sta andando al capolinea."] = "Está a {0} do percurso da linha: talvez esteja em desvio, na garagem ou indo para o ponto final."
     m["è a {0} dalla fermata"] = "está a {0} da parada"

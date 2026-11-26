@@ -91,12 +91,21 @@ data class PartenzaSalvata(
     val linee: List<String> = emptyList(),
     val cambi: Int = 0,
     val durata: Int = 0,
+    /** "64: ultima corsa" (anche per i mezzi dopo il primo), vuoto se no. */
+    val ultima: String = "",
+    /** Uno dei mezzi e' proprio l'ultima corsa: se perdi questa, non torni con questo tragitto. */
+    val ultimissima: Boolean = false,
 )
 
 /** Le prossime partenze di un tragitto salvato, o perche' non si sanno. */
 data class PartenzeTragitto(val id: String, val calcolato: Long, val partenze: List<PartenzaSalvata>, val errore: String?)
 
-fun partenzeDaTragitti(id: String, tragitti: List<Tragitto>, adessoMs: Long): List<PartenzaSalvata> =
+fun partenzeDaTragitti(
+    id: String,
+    tragitti: List<Tragitto>,
+    adessoMs: Long,
+    ultime: Map<String, List<Pair<Tratto, UltimaCorsa>>> = emptyMap(),
+): List<PartenzaSalvata> =
     tragitti.filter { it.partenza >= adessoMs - 60_000 }
         .sortedBy { it.partenza }
         .map { t ->
@@ -112,6 +121,8 @@ fun partenzeDaTragitti(id: String, tragitti: List<Tragitto>, adessoMs: Long): Li
                 linee = t.mezzi.map { it.linea.ifEmpty { it.nomeMezzo } },
                 cambi = t.cambi,
                 durata = t.durata,
+                ultima = ultime[t.chiave].orEmpty().joinToString(" · ") { (m, u) -> testoUltimaDelTratto(m, u) },
+                ultimissima = ultime[t.chiave].orEmpty().any { it.second == UltimaCorsa.ULTIMA },
             )
         }
 
@@ -127,7 +138,15 @@ suspend fun partenzeTragittoSalvato(t: TragittoSalvato, posizione: Punto?): Part
     }
     val esito = cercaTragitti(partenza, t.arrivo, null, false)
     val adesso = adessoMs()
-    val partenze = partenzeDaTragitti(t.id, esito.tragitti, adesso).ifEmpty {
+    // la sera: e' l'ultima corsa? (le prime tre partenze bastano per la Home e il widget)
+    val ultime = try {
+        ultimeDeiTragitti(esito.tragitti.filter { it.partenza >= adesso - 60_000 }.sortedBy { it.partenza }.take(3))
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        emptyMap()
+    }
+    val partenze = partenzeDaTragitti(t.id, esito.tragitti, adesso, ultime).ifEmpty {
         esito.soloAPiedi?.let { partenzeDaTragitti(t.id, listOf(it), adesso) }.orEmpty()
     }
     return PartenzeTragitto(t.id, adesso, partenze, if (partenze.isEmpty()) esito.errore ?: tx("Nessuna partenza trovata.") else null)
@@ -141,6 +160,7 @@ object CodificaPartenze {
                 "partenza" to it.partenza, "arrivo" to it.arrivo, "linea" to it.linea, "colore" to it.colore,
                 "oraMezzo" to it.oraMezzo, "da" to it.da, "tempoReale" to it.tempoReale,
                 "linee" to it.linee, "cambi" to it.cambi, "durata" to it.durata,
+                "ultima" to it.ultima, "ultimissima" to it.ultimissima,
             )
         },
     )
@@ -162,6 +182,8 @@ object CodificaPartenze {
                     linee = (it["linee"] as? List<*>).orEmpty().mapNotNull { l -> l as? String },
                     cambi = it.numero("cambi")?.toInt() ?: 0,
                     durata = it.numero("durata")?.toInt() ?: 0,
+                    ultima = it.testo("ultima").orEmpty(),
+                    ultimissima = it.vero("ultimissima"),
                 )
             },
             errore = o.testo("errore"),
@@ -186,6 +208,8 @@ data class CartaSalvato(
     val perVoce: String,
     /** Il viaggio: "64 → Metro B · 1 cambio · 32 min" (vuoto quando non si sa). */
     val viaggio: String = "",
+    /** "64: ultima corsa" (in evidenza), vuoto se no. */
+    val ultima: String = "",
 )
 
 /** "64 → Metro B · 1 cambio · 32 min": i mezzi, i cambi e il tempo di percorrenza stimato. */
@@ -224,7 +248,13 @@ fun cartaTragittoSalvato(t: TragittoSalvato, partenze: PartenzeTragitto?, adesso
     return CartaSalvato(
         id = t.id,
         nome = t.nome,
-        esci = if (ora) tx("ESCI ORA") else tx("ESCI TRA"),
+        // se e' l'ultima corsa lo si dice gia' nell'etichetta: e' l'avviso per non perderla
+        esci = when {
+            p.ultimissima && ora -> tx("ULTIMA CORSA: ESCI ORA")
+            p.ultimissima -> tx("ULTIMA CORSA: ESCI TRA")
+            ora -> tx("ESCI ORA")
+            else -> tx("ESCI TRA")
+        },
         numero = if (ora) "" else "$minuti",
         unita = if (ora) "" else "min",
         sotto = sotto,
@@ -232,8 +262,9 @@ fun cartaTragittoSalvato(t: TragittoSalvato, partenze: PartenzeTragitto?, adesso
         colore = p.colore,
         poi = poi,
         perVoce = t.nome + ". " + (if (ora) tx("Esci ora.") else tx("Esci tra {0}.", txn("{0} minuto", "{0} minuti", minuti))) + " " +
-            sotto + ". " + viaggio + ".",
+            sotto + ". " + viaggio + "." + (if (p.ultima.isNotEmpty()) " " + p.ultima + "." else ""),
         viaggio = viaggio,
+        ultima = p.ultima,
     )
 }
 

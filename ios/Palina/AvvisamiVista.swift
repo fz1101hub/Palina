@@ -317,6 +317,9 @@ struct RigaTragittoSalvato: View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(carta.nome).font(.headline).lineLimit(1)
+                if !carta.ultima.isEmpty {
+                    Text(carta.ultima.uppercased()).font(.system(size: 11, weight: .bold)).tracking(1).foregroundStyle(Tavolozza.oro)
+                }
                 if !carta.viaggio.isEmpty {
                     Text(carta.viaggio).font(.footnote.bold()).foregroundStyle(Tavolozza.oro).lineLimit(2)
                 }

@@ -26,6 +26,10 @@ fun secondiARoma(giorno: LocalDate, ore: Int, minuti: Int, giorniDopo: Int = 0):
     return LocalDateTime(data, LocalTime(ore, minuti)).toInstant(FUSO_ROMA).epochSeconds
 }
 
+/** L'ora (0-23) di Roma nell'istante [millisecondi]. */
+@OptIn(ExperimentalTime::class)
+fun oraDelGiornoARoma(millisecondi: Long): Int = Instant.fromEpochMilliseconds(millisecondi).toLocalDateTime(FUSO_ROMA).hour
+
 /** "07:42": l'ora di Roma di un istante in millisecondi. */
 @OptIn(ExperimentalTime::class)
 fun oraARoma(millisecondi: Long): String {

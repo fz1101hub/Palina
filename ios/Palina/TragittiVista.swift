@@ -61,6 +61,8 @@ final class Tragitti: ObservableObject {
         let nuovo = try? await motore.cerca(lat: posizione.lat ?? .nan, lon: posizione.lon ?? .nan)
         inCorso = false
         stato = nuovo ?? motore.stato()
+        // dopo i risultati: i mezzi che sono l'ultima o la penultima corsa
+        if let conUltime = try? await motore.ultimeCorse() { stato = conUltime }
     }
 
     /** Parte e arriva come il tragitto salvato [t] (o al contrario, per il ritorno). */
@@ -88,6 +90,7 @@ final class Tragitti: ObservableObject {
         let nuovo = try? await motore.altri(dopo: dopo)
         caricandoAltri = false
         stato = nuovo ?? motore.stato()
+        if let conUltime = try? await motore.ultimeCorse() { stato = conUltime }
     }
 }
 
@@ -423,6 +426,14 @@ struct CartaTragittoVista: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // ultima o penultima corsa della giornata: in cima, perche' cambia la scelta
+            if let ultima = carta.ultimaCorsa {
+                Text(ultima.uppercased())
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(1)
+                    .foregroundStyle(Tavolozza.oro)
+                    .accessibilityIdentifier("ultima-corsa")
+            }
             HStack {
                 Text(carta.orari).font(.title3.bold()).monospacedDigit()
                 Spacer()
