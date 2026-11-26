@@ -67,6 +67,8 @@ data class FermataWatch(
     val sotto: String,
     val preferita: Boolean,
     val righe: List<RigaWatch>,
+    /** Il nome dato sull'iPhone ("Lavoro"), vuoto se nessuno. */
+    val etichetta: String = "",
 )
 
 /** Cosa mostra l'Apple Watch adesso. */
@@ -119,6 +121,7 @@ class MotoreWatch {
                 nome = f.nome,
                 sotto = f.sotto + (f.distanza?.let { " · " + testoDistanza(it) } ?: ""),
                 preferita = f.preferita,
+                etichetta = f.etichetta,
                 righe = f.righe.filter { it.prossimi(adesso).isNotEmpty() }.map { r ->
                     val passaggi = testoPassaggi(r, adesso, 3)
                     RigaWatch(
