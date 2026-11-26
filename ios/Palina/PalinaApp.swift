@@ -318,4 +318,15 @@ enum Prova {
     static var preferiti: [String]? {
         UserDefaults.standard.string(forKey: "provaPreferiti")?.split(separator: ",").map(String.init)
     }
+
+    /** `-provaNomi 70078=Lavoro`: i nomi dati alle fermate (Home e widget come nel disegno). */
+    static var nomi: [String: String]? {
+        guard let testo = UserDefaults.standard.string(forKey: "provaNomi") else { return nil }
+        var nomi: [String: String] = [:]
+        for coppia in testo.split(separator: ",") {
+            let parti = coppia.split(separator: "=", maxSplits: 1).map(String.init)
+            if parti.count == 2 { nomi[parti[0]] = parti[1] }
+        }
+        return nomi
+    }
 }

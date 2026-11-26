@@ -104,7 +104,8 @@ private data class Voce(val valore: String, val nome: String, val sotto: String)
 private fun SceltaWidget(tragitto: Boolean, attuale: String, chiudi: () -> Unit, scegli: (String) -> Unit, modifier: Modifier) {
     val preferiti by Archivio.preferiti.collectAsStateWithLifecycle()
     val salvati by Archivio.salvati.collectAsStateWithLifecycle()
-    val voci by produceState<List<Voce>?>(initialValue = null, preferiti, salvati, tragitto) {
+    val nomi by Archivio.nomi.collectAsStateWithLifecycle()
+    val voci by produceState<List<Voce>?>(initialValue = null, preferiti, salvati, tragitto, nomi) {
         value = if (tragitto) {
             listOf(Voce("", tx("Automatico"), tx("Il tragitto che parte più vicino a dove sei"))) +
                 salvati.map { Voce(it.id, it.nome, it.arrivo.nome) }
@@ -113,7 +114,13 @@ private fun SceltaWidget(tragitto: Boolean, attuale: String, chiudi: () -> Unit,
             val orario = Archivio.orario.value
             val trovate = orario?.let { o -> withContext(dispatcherDati) { o.fermate(preferiti.toList()) } }.orEmpty()
             listOf(Voce("", tx("Automatica"), tx("La preferita a cui sei vicino"))) +
-                preferiti.mapNotNull { id -> trovate[id]?.let { f -> Voce(id, f.nome, if (f.codice.isNotEmpty()) tx("palina {0}", f.codice) else "") } }
+                preferiti.mapNotNull { id ->
+                    trovate[id]?.let { f ->
+                        val palina = if (f.codice.isNotEmpty()) tx("palina {0}", f.codice) else ""
+                        val nome = nomi[id]
+                        if (nome != null) Voce(id, nome, listOf(f.nome, palina).filter { it.isNotEmpty() }.joinToString(" · ")) else Voce(id, f.nome, palina)
+                    }
+                }
                     .sortedBy { it.nome }
         }
     }

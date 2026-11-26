@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Il tratteggio del disegno ("1px dashed"), ripetuto in orizzontale: le linee tratteggiate delle forme non si vedono ovunque. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/widget_tratto_testata_png"
+    android:tileModeX="repeat"
+    android:tileModeY="clamp" />

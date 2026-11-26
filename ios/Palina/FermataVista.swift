@@ -9,6 +9,8 @@ struct FermataVista: View {
     @EnvironmentObject private var navigazione: Navigazione
     @EnvironmentObject private var tragitti: Tragitti
     @EnvironmentObject private var seguito: Seguito
+    @State private var rinominando = false
+    @State private var nomeNuovo = ""
     @State private var motore: MotoreFermata?
     @State private var voce: VoceFermata?
     @State private var linee: [VoceLinea] = []
@@ -22,6 +24,9 @@ struct FermataVista: View {
             if let voce {
                 Section {
                     VStack(alignment: .leading, spacing: 4) {
+                        if let nome = preferiti.nome(fermataId) {
+                            Text(nome.uppercased()).font(.system(size: 12, weight: .bold)).tracking(1.4).foregroundStyle(Tavolozza.oro)
+                        }
                         Text(voce.nome).font(.title2.bold())
                         Text(voce.sotto).foregroundStyle(.secondary)
                     }
@@ -63,6 +68,19 @@ struct FermataVista: View {
                 }
                 .accessibilityLabel(tx("Come arrivo qui"))
             }
+            // una preferita si puo' chiamare "Casa", "Lavoro": in Home e nei widget
+            if preferiti.eUnaPreferita(fermataId) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        nomeNuovo = preferiti.nome(fermataId) ?? ""
+                        rinominando = true
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .accessibilityLabel(tx("Dai un nome alla fermata"))
+                    .accessibilityIdentifier("nome-fermata")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     preferiti.alternaPreferita(fermataId)
@@ -75,6 +93,13 @@ struct FermataVista: View {
         .task(id: archivio.orario != nil) { await segui() }
         .task(id: archivio.orario != nil) {
             if let orario = archivio.orario { avvisi = (try? await AvvisiServizioKt.avvisiPerFermata(orario: orario, fermataId: fermataId)) ?? [] }
+        }
+        .alert(tx("Dai un nome alla fermata"), isPresented: $rinominando) {
+            TextField(tx("Nome"), text: $nomeNuovo)
+            Button(tx("Annulla"), role: .cancel) {}
+            Button(tx("Salva")) { preferiti.rinomina(fermataId, nomeNuovo) }
+        } message: {
+            Text(tx("Per esempio «Casa» o «Lavoro»: lo vedi in Home e nei widget. Lascia vuoto per toglierlo."))
         }
         .sheet(item: $avvisami) { r in
             AvvisamiVista(fermataId: fermataId, lineaId: r.lineaId, capolinea: r.capolinea)

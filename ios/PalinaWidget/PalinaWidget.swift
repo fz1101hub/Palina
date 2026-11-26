@@ -30,7 +30,7 @@ struct SeguiLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: SeguiAttributi.self) { contesto in
             SchermataBlocco(attributi: contesto.attributes, stato: contesto.state, scaduto: contesto.isStale)
-                .activityBackgroundTint(Color.black.opacity(0.82))
+                .activityBackgroundTint(Color(hex: 0x0E0B0B))
                 .activitySystemActionForegroundColor(.oroPalina)
         } dynamicIsland: { contesto in
             let a = contesto.attributes
@@ -95,7 +95,7 @@ private struct Linea: View {
 
     var body: some View {
         Text(nome)
-            .font(grande ? .headline.bold() : .caption.bold())
+            .font(cifreDoto(grande ? 17 : 12))
             .foregroundStyle(.white)
             .lineLimit(1)
             .minimumScaleFactor(0.6)
@@ -105,7 +105,29 @@ private struct Linea: View {
     }
 }
 
-/** Un pulsante della Live Activity: apre Palina con l'azione (palina://segui/...). */
+/** I colori della tavola "Blocco" del disegno. */
+private enum Blocco {
+    static let fondo = Color(hex: 0x0E0B0B)
+    static let bordo = Color(hex: 0x3A2E1A)
+    static let nero = Color(hex: 0x050404)
+    static let riga = Color(hex: 0x2B2323)
+    static let tenue = Color(hex: 0xB9B1AB)
+    static let chiaro = Color(hex: 0xE3D9CF)
+    static let porpora = Color(hex: 0x862633)
+    static let pulsante = Color(hex: 0x2A2424)
+    static let inchiostro = Color(hex: 0x1C1A1A)
+}
+
+extension Color {
+    init(hex: UInt32) {
+        self.init(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
+    }
+}
+
+/** Le cifre a punti delle paline (Doto), anche nei widget. */
+func cifreDoto(_ grandezza: CGFloat) -> Font { .custom("Doto-Black", size: grandezza) }
+
+/** Un pulsante della Live Activity (come nel disegno): apre Palina con l'azione (palina://segui/...). */
 private struct Pulsante: View {
     let testo: String
     let azione: AzioneSegui
@@ -114,90 +136,227 @@ private struct Pulsante: View {
     var body: some View {
         Link(destination: azione.url) {
             Text(testo)
-                .font(.subheadline.weight(pieno ? .bold : .medium))
-                .foregroundStyle(pieno ? Color.black : Color.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(pieno ? Color.oroPalina : Color.white.opacity(0.14), in: Capsule())
+                .font(.system(size: 14, weight: pieno ? .bold : .medium))
+                .foregroundStyle(pieno ? Blocco.inchiostro : Color(hex: 0xF4EFEA))
+                .lineLimit(1)
+                .padding(.horizontal, pieno ? 16 : 14)
+                .frame(height: 40)
+                .background(pieno ? Color.oroPalina : Blocco.pulsante, in: Capsule())
         }
     }
 }
 
-/** Sulla schermata di blocco: "Esci ora" (o il mezzo in arrivo, o "Scendi alla prossima"), la barra e i pulsanti. */
+/** La barra del disegno: avanza col tempo, i pallini delle fermate che mancano, il cerchio d'arrivo. */
+private struct Barra: View {
+    let inizio: Date
+    let fine: Date
+    let fermate: Int
+
+    var body: some View {
+        ProgressView(timerInterval: inizio...fine, countsDown: false) {
+            EmptyView()
+        } currentValueLabel: {
+            EmptyView()
+        }
+        .progressViewStyle(.linear)
+        .tint(.oroPalina)
+        .padding(.trailing, 14)
+        .overlay(alignment: .leading) {
+            // le fermate che mancano, tra qui e l'arrivo
+            if fermate > 0 {
+                GeometryReader { g in
+                    let n = min(fermate, 6)
+                    ForEach(1...n, id: \.self) { i in
+                        Circle()
+                            .fill(Blocco.fondo)
+                            .overlay(Circle().stroke(Color(hex: 0x8E8580), lineWidth: 2))
+                            .frame(width: 9, height: 9)
+                            .position(x: (g.size.width - 14) * CGFloat(i) / CGFloat(n + 1), y: g.size.height / 2)
+                    }
+                }
+            }
+        }
+        .overlay(alignment: .trailing) {
+            Circle()
+                .strokeBorder(Color.oroPalina, lineWidth: 5)
+                .background(Circle().fill(Blocco.fondo))
+                .frame(width: 20, height: 20)
+        }
+        .frame(height: 28)
+    }
+}
+
+/** Il numero della linea (Doto su porpora o sul colore della linea). */
+private struct Numero: View {
+    let nome: String
+    let colore: Int64
+    let grandezza: CGFloat
+    let altezza: CGFloat
+
+    var body: some View {
+        Text(nome)
+            .font(cifreDoto(grandezza))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .padding(.horizontal, 5)
+            .frame(minWidth: altezza * 1.4, minHeight: altezza, maxHeight: altezza)
+            .background(Color(argb: colore), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+/**
+ * Sulla schermata di blocco, come la tavola "Blocco" del disegno: "Esci ora"
+ * con il conto alla rovescia nel riquadro, la barra con le fermate e i
+ * pulsanti; a bordo la fascia d'oro "Scendi alla prossima".
+ */
 private struct SchermataBlocco: View {
     let attributi: SeguiAttributi
     let stato: SeguiAttributi.ContentState
     let scaduto: Bool
 
+    private var aBordo: Bool { stato.fase == "bordo" || stato.fase == "scendi" }
+
     var body: some View {
-        if let titolo = stato.titolo {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Linea(nome: attributi.linea, colore: attributi.colore, grande: false)
-                    Text(attributi.intestazione.isEmpty ? attributi.fermata : attributi.intestazione)
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .lineLimit(1)
-                }
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(titolo)
-                            .font(.title2.bold())
-                            .foregroundStyle(stato.fase == "scendi" || stato.fase == "esci" ? Color.oroPalina : .white)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                        if let testo = stato.testo {
-                            Text(testo).font(.subheadline).foregroundStyle(.white.opacity(0.85)).lineLimit(3)
-                        }
+        VStack(alignment: .leading, spacing: 0) {
+            if stato.fase == "scendi" {
+                HStack(spacing: 12) {
+                    Image(systemName: "iphone.radiowaves.left.and.right")
+                        .font(.system(size: 24, weight: .semibold))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(stato.titolo ?? "").font(.system(size: 22, weight: .black)).lineLimit(1).minimumScaleFactor(0.7)
+                        Text(stato.testo ?? "").font(.system(size: 15, weight: .medium)).lineLimit(1)
                     }
-                    Spacer(minLength: 4)
-                    if stato.fase != "scegli" {
-                        VStack(spacing: 0) {
-                            Conto(arrivo: stato.arrivo, tempoReale: stato.tempoReale, testoOra: attributi.testoOra)
-                                .font(.system(size: 30, weight: .black, design: .rounded))
-                            Text(stato.arrivo, style: .time).font(.caption).foregroundStyle(.white.opacity(0.6))
-                        }
-                    }
-                }
-                if let inizio = stato.inizio, let fine = stato.fine, fine > inizio {
-                    ProgressView(timerInterval: inizio...fine, countsDown: false) {
-                        EmptyView()
-                    } currentValueLabel: {
-                        EmptyView()
-                    }
-                    .tint(.oroPalina)
-                }
-                Text(scaduto ? attributi.testoScaduto : (stato.dettaglio ?? stato.fonte))
-                    .font(.caption)
-                    .foregroundStyle(stato.tempoReale && !scaduto ? Color.oroPalina : .white.opacity(0.6))
-                HStack(spacing: 8) {
                     Spacer(minLength: 0)
-                    if stato.mostraSuccessivo == true { Pulsante(testo: attributi.testoSuccessivo, azione: .successivo, pieno: false) }
-                    if stato.mostraUscito == true { Pulsante(testo: attributi.testoUscito, azione: .uscito, pieno: true) }
-                    if stato.mostraScegli == true { Pulsante(testo: attributi.testoScegli, azione: .scendi, pieno: true) }
-                    if stato.mostraFine == true { Pulsante(testo: attributi.testoFine, azione: .fine, pieno: false) }
+                }
+                .foregroundStyle(Blocco.inchiostro)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
+                .background(Color.oroPalina)
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                if aBordo {
+                    bordo
+                } else {
+                    attesa
+                }
+                if !pulsanti.isEmpty {
+                    HStack(spacing: 8) {
+                        Spacer(minLength: 0)
+                        ForEach(pulsanti) { p in Pulsante(testo: p.testo, azione: p.azione, pieno: p.pieno) }
+                    }
+                    .padding(.top, 2)
                 }
             }
-            .padding(16)
-        } else {
-            HStack(spacing: 12) {
-                Linea(nome: attributi.linea, colore: attributi.colore, grande: true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("→ " + attributi.capolinea).font(.headline).foregroundStyle(.white).lineLimit(1)
-                    Text(attributi.fermata).font(.subheadline).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
-                    Text(scaduto ? attributi.testoScaduto : stato.fonte)
-                        .font(.caption)
-                        .foregroundStyle(stato.tempoReale && !scaduto ? Color.oroPalina : .white.opacity(0.6))
-                }
-                Spacer(minLength: 4)
-                VStack(alignment: .trailing, spacing: 0) {
-                    Conto(arrivo: stato.arrivo, tempoReale: stato.tempoReale, testoOra: attributi.testoOra)
-                        .font(.system(size: 32, weight: .black, design: .rounded))
-                    Text(stato.arrivo, style: .time).font(.caption).foregroundStyle(.white.opacity(0.6))
-                }
-            }
-            .padding(16)
+            .padding(.horizontal, 18)
+            .padding(.top, stato.fase == "scendi" ? 14 : 16)
+            .padding(.bottom, 12)
         }
+        .background(Blocco.fondo)
+        .overlay(ContainerRelativeShape().strokeBorder(Blocco.bordo, lineWidth: 1))
+    }
+
+    /** Prima di salire: intestazione, "Esci ora" col testo, il riquadro dei minuti, la barra. */
+    @ViewBuilder
+    private var attesa: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "bus.fill")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Color.oroPalina)
+                .frame(width: 22, height: 22)
+                .background(Blocco.porpora, in: RoundedRectangle(cornerRadius: 6))
+            Text(attributi.intestazione.isEmpty ? attributi.fermata : attributi.intestazione)
+                .font(.system(size: 13))
+                .foregroundStyle(Blocco.tenue)
+                .lineLimit(1)
+        }
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(stato.titolo ?? ("→ " + attributi.capolinea))
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(stato.fase == "attesa" || stato.fase == "arrivo" || stato.fase == "scegli" ? Color.white : Color.oroPalina)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(stato.testo ?? (attributi.fermata + " · " + stato.fonte))
+                    .font(.system(size: 15))
+                    .foregroundStyle(Blocco.chiaro)
+                    .lineLimit(3)
+            }
+            Spacer(minLength: 0)
+            if stato.fase != "scegli" {
+                VStack(spacing: 0) {
+                    Conto(arrivo: stato.arrivo, tempoReale: stato.tempoReale, testoOra: attributi.testoOra)
+                        .font(cifreDoto(30))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(stato.arrivo, style: .time)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.oroPalina)
+                }
+                .frame(minWidth: 64)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 6)
+                .background(Blocco.nero, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Blocco.riga, lineWidth: 1))
+            }
+        }
+        if let inizio = stato.inizio, let fine = stato.fine, fine > inizio {
+            Barra(inizio: inizio, fine: fine, fermate: stato.fermateMancanti ?? 0)
+        }
+        HStack {
+            Text(scaduto ? attributi.testoScaduto : (stato.dettaglio ?? stato.fonte))
+                .foregroundStyle(stato.tempoReale && !scaduto ? Color.oroPalina : Blocco.tenue)
+            Spacer(minLength: 8)
+            Text(attributi.fermata).foregroundStyle(Blocco.tenue)
+        }
+        .font(.system(size: 12.5))
+        .lineLimit(1)
+    }
+
+    /** A bordo: la linea e "Verso ...", la barra fino a dove scendi, le due fermate con le ore. */
+    @ViewBuilder
+    private var bordo: some View {
+        HStack(spacing: 10) {
+            Numero(nome: attributi.linea, colore: attributi.colore, grandezza: 17, altezza: 28)
+            Text(stato.verso ?? attributi.capolinea).font(.system(size: 16, weight: .bold)).foregroundStyle(.white).lineLimit(1)
+            Spacer(minLength: 4)
+            Text(stato.arrivi ?? "").font(.system(size: 14)).foregroundStyle(Blocco.tenue)
+        }
+        if stato.fase == "bordo", let testo = stato.testo {
+            Text(testo).font(.system(size: 13.5)).foregroundStyle(Blocco.chiaro).lineLimit(2)
+        }
+        if let inizio = stato.inizio, let fine = stato.fine, fine > inizio {
+            Barra(inizio: inizio, fine: fine, fermate: 0)
+        }
+        HStack {
+            Text(stato.daTesto ?? attributi.fermata)
+            Spacer(minLength: 8)
+            Text(stato.aTesto ?? "")
+        }
+        .font(.system(size: 12.5))
+        .foregroundStyle(Blocco.tenue)
+        .lineLimit(1)
+        if scaduto {
+            Text(attributi.testoScaduto).font(.system(size: 12.5)).foregroundStyle(Blocco.tenue)
+        }
+    }
+
+    private struct DatiPulsante: Identifiable {
+        let testo: String
+        let azione: AzioneSegui
+        let pieno: Bool
+        var id: String { azione.rawValue }
+    }
+
+    /** I pulsanti del disegno: "Prendo il successivo" e "Sto uscendo"; a bordo "Fine viaggio" e "Apri". */
+    private var pulsanti: [DatiPulsante] {
+        var elenco: [DatiPulsante] = []
+        if stato.mostraSuccessivo == true { elenco.append(DatiPulsante(testo: attributi.testoSuccessivo, azione: .successivo, pieno: false)) }
+        if stato.mostraUscito == true { elenco.append(DatiPulsante(testo: attributi.testoUscito, azione: .uscito, pieno: true)) }
+        if stato.mostraScegli == true { elenco.append(DatiPulsante(testo: attributi.testoScegli, azione: .scendi, pieno: true)) }
+        if stato.mostraFine == true { elenco.append(DatiPulsante(testo: attributi.testoFine, azione: .fine, pieno: false)) }
+        if aBordo, !attributi.testoApri.isEmpty { elenco.append(DatiPulsante(testo: attributi.testoApri, azione: .apri, pieno: true)) }
+        return elenco
     }
 }
 
@@ -344,69 +503,105 @@ struct FornitoreTelefono: TimelineProvider {
     static let esempio = VoceWidgetTelefono(
         alle: 0,
         tabellone: WidgetTabelloneVoce(
-            etichetta: "PREFERITA", nome: "P.za Venezia", fermataId: "", ora: "18:34",
+            etichetta: "LAVORO", nome: "P.za Venezia", fermataId: "", ora: "18:34",
             righe: [
-                RigaWidgetVoce(linea: "64", colore: 0xFF862633, capolinea: "Stazione S. Pietro", poi: "9'", tra: "1'", tempoReale: true),
-                RigaWidgetVoce(linea: "40", colore: 0xFF862633, capolinea: "P.za Pia", poi: "13'", tra: "4'", tempoReale: true),
+                RigaWidgetVoce(linea: "64", colore: 0xFF862633, capolinea: "Stazione S. Pietro", poi: "poi 9", tra: "1′", tempoReale: true),
+                RigaWidgetVoce(linea: "40", colore: 0xFF862633, capolinea: "P.za Pia", poi: "poi 13", tra: "4′", tempoReale: true),
             ],
             nota: ""
         ),
         vicina: WidgetVicinaVoce(
             nome: "Plebiscito", fermataId: "", distanza: "121 m",
             righe: [
-                RigaWidgetVoce(linea: "87", colore: 0xFF862633, capolinea: "", poi: "", tra: "5'", tempoReale: true),
-                RigaWidgetVoce(linea: "63", colore: 0xFF862633, capolinea: "", poi: "", tra: "6'", tempoReale: true),
+                RigaWidgetVoce(linea: "87", colore: 0xFF862633, capolinea: "", poi: "", tra: "5′", tempoReale: true),
+                RigaWidgetVoce(linea: "63", colore: 0xFF862633, capolinea: "", poi: "", tra: "6′", tempoReale: true),
             ],
             nota: nil, etichetta: "PIÙ VICINA"
         ),
         tragitto: WidgetTragittoVoce(
             id: "", nome: "Lavoro → Casa", esci: "ESCI TRA", numero: "4", unita: "min",
-            sotto: "64 alle 18:41 · arrivi 19:05", linea: "64", colore: 0xFF862633, poi: nil,
+            sotto: "64 alle 18:41 · a Casa 19:05", linea: "64", colore: 0xFF862633, poi: nil,
             viaggio: "64 → Metro B · 1 cambio · 24 min"
         ),
         fermate: nil, tragitti: nil
     )
 }
 
-/** I colori dei widget: tabellone nero e oro col tema scuro, carta e ambra col chiaro. */
+/** I colori dei widget (come nel disegno): tabellone nero e oro col tema scuro, carta e ambra col chiaro. */
 private struct ColoriWidget {
     let scuro: Bool
-    var fondo: Color { scuro ? Color(red: 0.02, green: 0.016, blue: 0.016) : .white }
-    var caldo: Color { scuro ? Color(red: 0.165, green: 0.122, blue: 0.071) : Color(red: 0.984, green: 0.937, blue: 0.827) }
-    var accento: Color { scuro ? .oroPalina : Color(red: 0.541, green: 0.353, blue: 0) }
-    var testo: Color { scuro ? Color(red: 0.957, green: 0.937, blue: 0.918) : Color(red: 0.11, green: 0.09, blue: 0.082) }
-    var tenue: Color { scuro ? Color(red: 0.725, green: 0.694, blue: 0.671) : Color(red: 0.373, green: 0.341, blue: 0.318) }
+    var fondo: Color { scuro ? Color(hex: 0x050404) : .white }
+    var bordo: Color { scuro ? Color(hex: 0x2B2323) : Color(hex: 0xDDD4C9) }
+    var cornice: Color { scuro ? Color(hex: 0x120E0E) : Color(hex: 0xEFE9E1) }
+    var trattoTestata: Color { scuro ? Color(hex: 0x3A2E1A) : Color(hex: 0xE3D2AE) }
+    var trattoRiga: Color { scuro ? Color(hex: 0x2B2323) : Color(hex: 0xDDD4C9) }
+    var caldo: Color { scuro ? Color(hex: 0x2A1F12) : Color(hex: 0xFBEFD3) }
+    var caldoSotto: Color { scuro ? Color(hex: 0xE3D9CF) : Color(hex: 0x3A332E) }
+    var accento: Color { scuro ? .oroPalina : Color(hex: 0x8A5A00) }
+    var testo: Color { scuro ? Color(hex: 0xF4EFEA) : Color(hex: 0x1C1715) }
+    var tenue: Color { scuro ? Color(hex: 0xB9B1AB) : Color(hex: 0x5F5751) }
+}
+
+/** Il "1px dashed" del disegno. */
+private struct Tratteggio: View {
+    let colore: Color
+
+    var body: some View {
+        GeometryReader { g in
+            Path { p in
+                p.move(to: CGPoint(x: 0, y: 0.5))
+                p.addLine(to: CGPoint(x: g.size.width, y: 0.5))
+            }
+            .stroke(colore, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+        }
+        .frame(height: 1)
+    }
+}
+
+/** Il fondo del tabellone: bordo di 2 punti, cornice interna di 4, poi il nero (o la carta). */
+private struct FondoTabellone: View {
+    let colori: ColoriWidget
+    let cornice: Bool
+
+    var body: some View {
+        ZStack {
+            ContainerRelativeShape().fill(cornice ? colori.cornice : colori.fondo)
+            if cornice { ContainerRelativeShape().inset(by: 6).fill(colori.fondo) }
+            ContainerRelativeShape().strokeBorder(colori.bordo, lineWidth: 2)
+        }
+    }
 }
 
 private struct RigaWidget: View {
     let riga: RigaWidgetVoce
     let colori: ColoriWidget
-    let conCapolinea: Bool
-    let cifre: CGFloat
+    /** Il tabellone (badge 42x30, minuti 28) o il widget piccolo (36x26, minuti 24). */
+    let grande: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Text(riga.linea)
-                .font(.system(size: cifre * 0.62, weight: .black, design: .rounded))
+                .font(cifreDoto(grande ? 18 : 15))
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .frame(minWidth: 36)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 3)
-                .background(Color(argb: riga.colore), in: RoundedRectangle(cornerRadius: 6))
-            if conCapolinea {
+                .padding(.horizontal, grande ? 5 : 4)
+                .frame(minWidth: grande ? 42 : 36, minHeight: grande ? 30 : 26, maxHeight: grande ? 30 : 26)
+                .background(Color(argb: riga.colore), in: RoundedRectangle(cornerRadius: grande ? 7 : 6))
+            if grande {
                 (Text(riga.capolinea).foregroundStyle(colori.testo)
                     + Text(riga.poi.isEmpty ? "" : " · " + riga.poi).foregroundStyle(colori.tenue))
-                    .font(.subheadline)
+                    .font(.system(size: 14))
                     .lineLimit(1)
             }
             Spacer(minLength: 2)
             Text(riga.tra)
-                .font(.system(size: cifre, weight: .black, design: .rounded))
+                .font(cifreDoto(grande ? 28 : 24))
                 .foregroundStyle(riga.tempoReale ? colori.accento : colori.tenue)
                 .lineLimit(1)
+                .padding(.trailing, grande ? 8 : 0)
         }
+        .frame(height: grande ? 46 : nil)
     }
 }
 
@@ -452,31 +647,36 @@ struct VistaTabellone: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                VStack(alignment: .leading, spacing: 6) {
+                // come nel disegno: etichetta ("LAVORO"), nome, ora; tratteggi; le righe da 46; "tocca per aggiornare"
+                VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 8) {
-                        Text(t?.etichetta ?? "PALINA").font(.caption.bold()).tracking(1.2).foregroundStyle(colori.accento)
-                        Text(t?.nome ?? "Palina Roma").font(.footnote).foregroundStyle(colori.tenue).lineLimit(1)
+                        Text(t?.etichetta ?? "PALINA").font(.system(size: 12, weight: .bold)).tracking(1.4).foregroundStyle(colori.accento).lineLimit(1)
+                        Text(t?.nome ?? "Palina Roma").font(.system(size: 13)).foregroundStyle(colori.tenue).lineLimit(1)
                         Spacer(minLength: 2)
-                        Text(t?.ora ?? "").font(.system(size: 16, weight: .black, design: .rounded)).foregroundStyle(colori.accento)
+                        Text(t?.ora ?? "").font(cifreDoto(17)).foregroundStyle(colori.accento).padding(.trailing, 8)
                     }
-                    Divider().overlay(colori.tenue.opacity(0.4))
+                    .padding(.bottom, 6)
+                    Tratteggio(colore: colori.trattoTestata)
                     if let t, !t.righe.isEmpty {
-                        ForEach(t.righe.prefix(famiglia == .systemLarge ? 4 : 2), id: \.self) { r in
-                            RigaWidget(riga: r, colori: colori, conCapolinea: true, cifre: 26)
-                            Spacer(minLength: 0)
+                        let righe = Array(t.righe.prefix(famiglia == .systemLarge ? 5 : 2))
+                        ForEach(Array(righe.enumerated()), id: \.offset) { i, r in
+                            if i > 0 { Tratteggio(colore: colori.trattoRiga) }
+                            RigaWidget(riga: r, colori: colori, grande: true)
                         }
-                    } else {
-                        Spacer(minLength: 0)
                     }
+                    Spacer(minLength: 0)
                     Text(voce.voce == nil ? testoVecchio(voce) : (t?.nota ?? testoVecchio(voce)))
-                        .font(.caption2)
+                        .font(.system(size: 12))
                         .foregroundStyle(colori.tenue)
                         .lineLimit(2)
+                        .padding(.top, 4)
                 }
                 .widgetURL(URL(string: (t?.fermataId ?? voce.scelta).map { $0.isEmpty ? "palina://home" : "palina://fermata/\($0)" } ?? "palina://home"))
             }
         }
-        .containerBackground(for: .widget) { famiglia == .accessoryRectangular ? Color.clear : colori.fondo }
+        .containerBackground(for: .widget) {
+            if famiglia == .accessoryRectangular { Color.clear } else { FondoTabellone(colori: colori, cornice: true) }
+        }
     }
 }
 
@@ -511,25 +711,29 @@ struct VistaVicina: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(v?.etichetta ?? "PALINA").font(.caption2.bold()).tracking(1.1).foregroundStyle(colori.accento)
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(v?.nome ?? "Palina").font(.subheadline.bold()).foregroundStyle(colori.testo).lineLimit(1)
-                        Text(v?.distanza ?? "").font(.caption).foregroundStyle(colori.tenue).lineLimit(1)
-                    }
-                    Spacer(minLength: 0)
+                // come nel disegno: "PIÙ VICINA", il nome con la distanza, due linee con i minuti
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(v?.etichetta ?? "PALINA").font(.system(size: 11.5, weight: .bold)).tracking(1.2).foregroundStyle(colori.accento)
+                    (Text(v?.nome ?? "Palina").font(.system(size: 14, weight: .bold)).foregroundStyle(colori.testo)
+                        + Text(v.map { " " + $0.distanza } ?? "").font(.system(size: 12)).foregroundStyle(colori.tenue))
+                        .lineLimit(1)
+                        .padding(.top, 1)
                     if let v, !v.righe.isEmpty {
-                        ForEach(v.righe.prefix(2), id: \.self) { r in
-                            RigaWidget(riga: r, colori: colori, conCapolinea: false, cifre: 22)
+                        ForEach(Array(v.righe.prefix(2).enumerated()), id: \.offset) { _, r in
+                            Spacer(minLength: 0)
+                            RigaWidget(riga: r, colori: colori, grande: false)
                         }
                     } else {
-                        Text(v?.nota ?? testoVecchio(voce)).font(.caption2).foregroundStyle(colori.tenue).lineLimit(3)
+                        Spacer(minLength: 0)
+                        Text(v?.nota ?? testoVecchio(voce)).font(.system(size: 12)).foregroundStyle(colori.tenue).lineLimit(3)
                     }
                 }
                 .widgetURL(URL(string: v.map { $0.fermataId.isEmpty ? "palina://vicina" : "palina://fermata/\($0.fermataId)" } ?? "palina://vicina"))
             }
         }
-        .containerBackground(for: .widget) { famiglia == .accessoryRectangular ? Color.clear : colori.fondo }
+        .containerBackground(for: .widget) {
+            if famiglia == .accessoryRectangular { Color.clear } else { FondoTabellone(colori: colori, cornice: false) }
+        }
     }
 }
 
@@ -571,13 +775,13 @@ struct VistaEsciTra: View {
             case .systemMedium:
                 HStack(alignment: .top, spacing: 14) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(t?.nome ?? NSLocalizedString("Esci tra", comment: "")).font(.footnote.bold()).foregroundStyle(colori.testo).lineLimit(2)
+                        Text(t?.nome ?? NSLocalizedString("Esci tra", comment: "")).font(.system(size: 13, weight: .bold)).foregroundStyle(colori.testo).lineLimit(2)
                         Spacer(minLength: 0)
                         if let t {
-                            Text(t.esci).font(.caption.bold()).tracking(1).foregroundStyle(colori.accento)
+                            Text(t.esci).font(.system(size: 12, weight: .bold)).tracking(1).foregroundStyle(colori.accento)
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text(t.numero).font(.system(size: 50, weight: .black, design: .rounded)).foregroundStyle(colori.accento)
-                                Text(t.unita).font(.subheadline).foregroundStyle(colori.accento)
+                                Text(t.numero).font(cifreDoto(52)).foregroundStyle(colori.accento)
+                                Text(t.unita).font(.system(size: 14)).foregroundStyle(colori.accento)
                             }
                         }
                     }
@@ -586,7 +790,7 @@ struct VistaEsciTra: View {
                             if let viaggio = t.viaggio, !viaggio.isEmpty {
                                 Text(viaggio).font(.subheadline.bold()).foregroundStyle(colori.accento).lineLimit(3)
                             }
-                            Text(t.sotto).font(.footnote).foregroundStyle(colori.testo).lineLimit(2)
+                            Text(t.sotto).font(.system(size: 12.5)).foregroundStyle(colori.caldoSotto).lineLimit(2)
                             if let poi = t.poi { Text(poi).font(.caption).foregroundStyle(colori.tenue).lineLimit(1) }
                         } else {
                             Text(voce.voce == nil ? testoVecchio(voce) : vuoto).font(.caption).foregroundStyle(colori.tenue).lineLimit(4)
@@ -598,19 +802,19 @@ struct VistaEsciTra: View {
                 .widgetURL(URL(string: t.map { "palina://tragitto/\($0.id)" } ?? "palina://tragitto"))
             default:
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(t?.nome ?? NSLocalizedString("Esci tra", comment: "")).font(.footnote.bold()).foregroundStyle(colori.testo).lineLimit(1)
+                    Text(t?.nome ?? NSLocalizedString("Esci tra", comment: "")).font(.system(size: 13, weight: .bold)).foregroundStyle(colori.testo).lineLimit(1)
                     Spacer(minLength: 0)
                     if let t {
-                        Text(t.esci).font(.caption.bold()).tracking(1).foregroundStyle(colori.accento)
+                        Text(t.esci).font(.system(size: 12, weight: .bold)).tracking(1).foregroundStyle(colori.accento)
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text(t.numero).font(.system(size: 50, weight: .black, design: .rounded)).foregroundStyle(colori.accento)
-                            Text(t.unita).font(.subheadline).foregroundStyle(colori.accento)
+                            Text(t.numero).font(cifreDoto(52)).foregroundStyle(colori.accento).lineLimit(1).minimumScaleFactor(0.7)
+                            Text(t.unita).font(.system(size: 14)).foregroundStyle(colori.accento)
+                        }
+                        if let viaggio = t.viaggio, !viaggio.isEmpty {
+                            Text(viaggio).font(.system(size: 12, weight: .bold)).foregroundStyle(colori.accento).lineLimit(1)
                         }
                         Spacer(minLength: 0)
-                        if let viaggio = t.viaggio, !viaggio.isEmpty {
-                            Text(viaggio).font(.caption.bold()).foregroundStyle(colori.accento).lineLimit(2)
-                        }
-                        Text(t.sotto).font(.caption2).foregroundStyle(colori.testo).lineLimit(2)
+                        Text(t.sotto).font(.system(size: 12.5)).foregroundStyle(colori.caldoSotto).lineLimit(2)
                     } else {
                         Text(voce.voce == nil ? testoVecchio(voce) : vuoto).font(.caption).foregroundStyle(colori.tenue).lineLimit(4)
                         Spacer(minLength: 0)

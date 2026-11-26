@@ -28,6 +28,10 @@ final class Salvati: ObservableObject {
         scrivi(TragittiSalvatiKt.aggiungiTragittoSalvato(elenco: elenco, partenza: da, arrivo: a, nome: nome, id: id))
     }
 
+    func rinomina(_ id: String, _ nome: String) {
+        scrivi(TragittiSalvatiKt.rinominaTragittoSalvato(elenco: elenco, id: id, nome: nome))
+    }
+
     func rimuovi(_ id: String) {
         scrivi(TragittiSalvatiKt.rimuoviTragittoSalvato(elenco: elenco, id: id))
         partenze[id] = nil
@@ -64,9 +68,9 @@ enum Scorciatoie {
         UIApplication.shared.shortcutItems = WidgetTelefonoKt.scorciatoie(salvati: salvati).map { s in
             let icona: UIApplicationShortcutIcon
             if s.id == "vicina" {
-                icona = UIApplicationShortcutIcon(systemImageName: "location")
+                icona = UIApplicationShortcutIcon(systemImageName: "mappin.and.ellipse")
             } else if s.id == "palina" {
-                icona = UIApplicationShortcutIcon(systemImageName: "number")
+                icona = UIApplicationShortcutIcon(systemImageName: "circle.grid.3x3")
             } else {
                 icona = UIApplicationShortcutIcon(systemImageName: "point.topleft.down.to.point.bottomright.curvepath")
             }
@@ -122,7 +126,8 @@ final class DatiWidgetIphone {
         guard let dati = try? await motore.calcola(
             preferiti: preferiti.fermate, fissate: preferiti.fissate,
             conPosizione: punto != nil, lat: punto?.0 ?? 0, lon: punto?.1 ?? 0,
-            salvati: salvati?.json ?? "", prima: memoria.string(forKey: "dati_widget") ?? "", forza: forza
+            salvati: salvati?.json ?? "", prima: memoria.string(forKey: "dati_widget") ?? "", forza: forza,
+            nomi: preferiti.nomi
         ) else { return }
         memoria.set(dati, forKey: "dati_widget")
         scriviVoci()

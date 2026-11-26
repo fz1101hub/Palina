@@ -47,6 +47,8 @@ data class DatiWidget(
     val partenze: Map<String, PartenzeTragitto>,
     /** Il tragitto del widget "automatico": quello che parte piu' vicino a dove sei. */
     val automatico: String?,
+    /** I nomi dati alle fermate ("Lavoro"): l'etichetta in cima al widget. */
+    val nomi: Map<String, String> = emptyMap(),
 )
 
 object CodificaWidget {
@@ -63,6 +65,7 @@ object CodificaWidget {
             },
             "partenze" to d.partenze.mapValues { CodificaPartenze.inJson(it.value) },
             "automatico" to d.automatico,
+            "nomi" to d.nomi,
         ),
     )
 
@@ -85,6 +88,7 @@ object CodificaWidget {
                     CodificaPartenze.daJson(v.comeOggetto())?.let { id to it }
                 }.toMap(),
                 automatico = o["automatico"] as? String,
+                nomi = o.oggetto("nomi").orEmpty().mapNotNull { (id, v) -> (v as? String)?.let { id to it } }.toMap(),
             )
         } catch (_: Exception) {
             null
@@ -109,6 +113,7 @@ suspend fun calcolaDatiWidget(
     forza: Boolean,
     fermateWidget: Collection<String> = emptyList(),
     tragittiWidget: Collection<String>? = null,
+    nomi: Map<String, String> = emptyMap(),
 ): DatiWidget = coroutineScope {
     val adesso = adessoMs()
     val automatico = tragittoPerWidget(salvati, posizione)?.id
@@ -146,6 +151,7 @@ suspend fun calcolaDatiWidget(
         salvati = salvati,
         partenze = partenze.awaitAll().mapNotNull { (id, p) -> p?.let { id to it } }.toMap(),
         automatico = automatico,
+        nomi = nomi,
     )
 }
 
@@ -187,13 +193,14 @@ data class WidgetVicina(
 private fun riga(r: RigaOrologio, adesso: Long): RigaWidgetTelefono? {
     val prossimi = r.prossimi(adesso)
     val primo = prossimi.firstOrNull() ?: return null
-    val poi = prossimi.getOrNull(1)?.let { tx("poi {0}", testoMinuti(it, adesso)) }.orEmpty()
+    // "poi 9" come nel disegno (senza il segno dei minuti)
+    val poi = prossimi.getOrNull(1)?.let { tx("poi {0}", testoMinuti(it, adesso).removeSuffix("'")) }.orEmpty()
     return RigaWidgetTelefono(
         linea = r.linea.take(8),
         colore = r.colore.toLong() and 0xFFFFFFFFL,
         capolinea = r.capolinea,
         poi = poi,
-        tra = testoMinuti(primo, adesso),
+        tra = conPrimo(testoMinuti(primo, adesso)),
         tempoReale = r.tempoReale,
         perVoce = perVoceRigaOrologio(r, adesso),
     )
@@ -231,7 +238,9 @@ fun widgetTabellone(d: DatiWidget?, adesso: Long, quante: Int = 3, fermataId: St
         else -> tx("Fissa le linee che usi con la puntina · tocca per aggiornare")
     }
     return WidgetTabellone(
+        // come nel disegno: il nome che hai dato alla fermata ("LAVORO")
         etichetta = when {
+            !d.nomi[f.id].isNullOrBlank() -> d.nomi.getValue(f.id).uppercase()
             scelta -> tx("FERMATA")
             f.preferita -> tx("PREFERITA")
             else -> tx("VICINO A TE")
@@ -244,6 +253,9 @@ fun widgetTabellone(d: DatiWidget?, adesso: Long, quante: Int = 3, fermataId: St
     )
 }
 
+/** "4'" -> "4′": il segno dei minuti delle paline (come nel disegno e nell'app). */
+private fun conPrimo(minuti: String): String = if (minuti.endsWith("'")) minuti.dropLast(1) + "′" else minuti
+
 /** Il widget della fermata piu' vicina. [adesso] in secondi. */
 fun widgetVicina(d: DatiWidget?, adesso: Long): WidgetVicina {
     val vicine = d?.tabellone?.fermate?.filter { it.distanza != null }?.sortedBy { it.distanza!! }.orEmpty()
@@ -251,7 +263,7 @@ fun widgetVicina(d: DatiWidget?, adesso: Long): WidgetVicina {
     val f = vicine.firstOrNull { v -> v.distanza!! <= vicine.first().distanza!! + 150 && v.righe.any { it.prossimi(adesso).isNotEmpty() } }
         ?: vicine.firstOrNull()
         ?: return WidgetVicina("Palina", "", "", emptyList(), tx("Apri Palina con la posizione attiva"))
-    val righe = f.righe.mapNotNull { riga(it, adesso) }.sortedBy { r -> if (r.tra.endsWith("'")) r.tra.dropLast(1).toIntOrNull() ?: 0 else 0 }.take(2)
+    val righe = f.righe.mapNotNull { riga(it, adesso) }.sortedBy { r -> if (r.tra.endsWith("′")) r.tra.dropLast(1).toIntOrNull() ?: 0 else 0 }.take(2)
     return WidgetVicina(
         nome = f.nome,
         fermataId = f.id,
@@ -317,7 +329,10 @@ fun vociWidget(d: DatiWidget?, adessoMs: Long, minuti: Int = 60): String {
         mapOf(
             "voci" to voci,
             "elenco" to mapOf(
-                "fermate" to fermate.map { mapOf("id" to it.id, "nome" to it.nome, "sotto" to it.sotto) },
+                "fermate" to fermate.map {
+                    val nome = d?.nomi?.get(it.id)
+                    mapOf("id" to it.id, "nome" to (nome ?: it.nome), "sotto" to if (nome != null) it.nome else it.sotto)
+                },
                 "tragitti" to d?.salvati.orEmpty().map { mapOf("id" to it.id, "nome" to it.nome) },
             ),
             "vuoto" to mapOf(

@@ -59,18 +59,21 @@ final class Seguito: NSObject, ObservableObject, UNUserNotificationCenterDelegat
 
     /** "Segui" dal tabellone: avviso 2 minuti prima, come sull'orologio. */
     func segui(fermataId: String, lineaId: String, capolinea: String) async {
-        await avvisami(fermataId: fermataId, lineaId: lineaId, capolinea: capolinea, quando: "", scendi: false, posizione: nil)
+        await avvisami(fermataId: fermataId, lineaId: lineaId, capolinea: capolinea, quando: "", scendi: false, blocco: true, posizione: nil)
     }
 
-    /** "Avvisami": [quando] "uscire", "cinque" o "due" ("" = "Segui"); [scendi]: poi avvisa quando scendere. */
-    func avvisami(fermataId: String, lineaId: String, capolinea: String, quando: String, scendi: Bool, posizione: (Double, Double)?) async {
+    /**
+     * "Avvisami": [quando] "uscire", "cinque" o "due" ("" = "Segui"); [scendi]: poi avvisa quando scendere;
+     * [blocco]: "Seguilo sulla schermata di blocco" (la Live Activity), altrimenti solo gli avvisi.
+     */
+    func avvisami(fermataId: String, lineaId: String, capolinea: String, quando: String, scendi: Bool, blocco: Bool, posizione: (Double, Double)?) async {
         guard let motore else { return }
         // nelle prove sul simulatore nessuno risponderebbe alla domanda
         let consentite = Prova.segui ? true
             : (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
         guard let nuovo = try? await motore.avvisami(
             fermataId: fermataId, lineaId: lineaId, capolinea: capolinea, quando: quando,
-            conPosizione: posizione != nil, lat: posizione?.0 ?? 0, lon: posizione?.1 ?? 0, scendi: scendi
+            conPosizione: posizione != nil, lat: posizione?.0 ?? 0, lon: posizione?.1 ?? 0, scendi: scendi, blocco: blocco
         ) else {
             messaggio = tx("Non trovo un prossimo passaggio da seguire per questa linea.")
             return
@@ -78,7 +81,7 @@ final class Seguito: NSObject, ObservableObject, UNUserNotificationCenterDelegat
         await chiudi()
         stato = nuovo
         await mostra(nuovo)
-        if !ActivityAuthorizationInfo().areActivitiesEnabled {
+        if blocco, !ActivityAuthorizationInfo().areActivitiesEnabled {
             messaggio = tx("Le Live Activity di Palina sono spente: il conto alla rovescia si vede solo nell'app. Puoi attivarle nelle Impostazioni dell'iPhone.")
         } else if !consentite {
             messaggio = tx("Le notifiche di Palina sono spente: niente avvisi. Puoi attivarle nelle Impostazioni dell'iPhone.")
@@ -124,6 +127,7 @@ final class Seguito: NSObject, ObservableObject, UNUserNotificationCenterDelegat
         case .successivo: Task { await prendiSuccessivo() }
         case .scendi: apriScendi = true
         case .fine: smetti()
+        case .apri: break
         }
     }
 
@@ -171,10 +175,20 @@ final class Seguito: NSObject, ObservableObject, UNUserNotificationCenterDelegat
             mostraSuccessivo: s.mostraSuccessivo,
             mostraUscito: s.mostraUscito,
             mostraScegli: s.mostraScegli,
-            mostraFine: s.mostraFine
+            mostraFine: s.mostraFine,
+            fermateMancanti: Int(s.fermateMancanti),
+            daTesto: s.daTesto,
+            aTesto: s.aTesto,
+            verso: s.verso,
+            arrivi: s.arrivi
         )
+        // "Seguilo sulla schermata di blocco" spento: solo gli avvisi, niente Live Activity
+        if !s.blocco {
+            for attivita in Activity<SeguiAttributi>.activities { await attivita.end(nil, dismissalPolicy: .immediate) }
+            ultimoMostrato = contenuto
+        }
         // si ridisegna solo quando cambia qualcosa (il conto alla rovescia va da solo)
-        if contenuto != ultimoMostrato || Activity<SeguiAttributi>.activities.isEmpty {
+        if s.blocco, contenuto != ultimoMostrato || Activity<SeguiAttributi>.activities.isEmpty {
             ultimoMostrato = contenuto
             let scade = (s.fase == "scegli" ? Date().addingTimeInterval(15 * 60) : contenuto.arrivo.addingTimeInterval(90))
             let attivita = ActivityContent(state: contenuto, staleDate: scade)
@@ -185,9 +199,10 @@ final class Seguito: NSObject, ObservableObject, UNUserNotificationCenterDelegat
                 let attributi = SeguiAttributi(
                     linea: s.linea, capolinea: s.capolinea, fermata: s.fermata, colore: s.colore,
                     testoOra: tx("ora§adesso"), testoScaduto: tx("tempi da aggiornare: apri Palina"),
-                    intestazione: s.quando.isEmpty ? "Palina · " + s.fermata : tx("Palina Roma · avviso per il {0}", s.linea),
+                    intestazione: s.intestazione,
                     testoUscito: tx("Sto uscendo"), testoSuccessivo: tx("Prendo il successivo"),
-                    testoScegli: tx("Scegli dove scendi"), testoFine: tx("Fine viaggio")
+                    testoScegli: tx("Scegli dove scendi"), testoFine: tx("Fine viaggio"),
+                    testoApri: tx("Apri"), testoMin: "min"
                 )
                 _ = try? Activity.request(attributes: attributi, content: attivita, pushType: nil)
             }

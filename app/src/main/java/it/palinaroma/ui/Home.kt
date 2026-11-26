@@ -75,6 +75,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import it.palinaroma.Richieste
 import it.palinaroma.avviso.Avvisatore
 import it.palinaroma.dati.Luogo
+import it.palinaroma.dati.titoloSeiVicino
 import it.palinaroma.dati.cartaTragittoSalvato
 import it.palinaroma.dati.tragittoDiRitorno
 import it.palinaroma.dati.Archivio
@@ -301,6 +302,7 @@ private fun Tabellone(
         apriTragitto()
     }
     val preferiti by Archivio.preferiti.collectAsStateWithLifecycle()
+    val nomi by Archivio.nomi.collectAsStateWithLifecycle()
     val chiaviFissate by Archivio.fissate.collectAsStateWithLifecycle()
     val aggiornamento by Archivio.aggiornamento.collectAsStateWithLifecycle()
     val (vicino, permessoPosizione, chiediPermesso) = rememberVicine(orario)
@@ -391,9 +393,10 @@ private fun Tabellone(
             val primaRiga: List<Pair<Fermata, Double?>> = inEvidenza?.let { listOf(it.first to it.second) } ?: emptyList()
             val resto = preferiteOrdinate.filter { it.first.id != evidenza?.id }
             if (primaRiga.isNotEmpty()) {
-                item { TitoloConAggiornamento(tx("Sei vicino a"), arrivi.aggiornatoAlle, adessoMs) }
+                // come nel disegno: "SEI VICINO A · LAVORO" col nome che hai dato alla fermata
+                item { TitoloConAggiornamento(titoloSeiVicino(evidenza?.let { nomi[it.id] }), arrivi.aggiornatoAlle, adessoMs) }
                 items(primaRiga, key = { "e-" + it.first.id }) { (f, d) ->
-                    SchedaPreferita(f, d, arrivi.perFermata[f.id], lineeFissate(f.id, chiaviFissate), adesso) { apriFermata(f.id) }
+                    SchedaPreferita(f, null, d, arrivi.perFermata[f.id], lineeFissate(f.id, chiaviFissate), adesso) { apriFermata(f.id) }
                 }
             }
             if (resto.isNotEmpty()) {
@@ -402,7 +405,7 @@ private fun Tabellone(
                     else Intestazione(tx("Altri preferiti"))
                 }
                 items(resto, key = { "p-" + it.first.id }) { (f, d) ->
-                    SchedaPreferita(f, d, arrivi.perFermata[f.id], lineeFissate(f.id, chiaviFissate), adesso) { apriFermata(f.id) }
+                    SchedaPreferita(f, nomi[f.id], d, arrivi.perFermata[f.id], lineeFissate(f.id, chiaviFissate), adesso) { apriFermata(f.id) }
                 }
             }
         }
@@ -521,6 +524,8 @@ private fun CampoCerca(apri: () -> Unit) {
 @Composable
 private fun SchedaPreferita(
     fermata: Fermata,
+    /** Il nome che le hai dato ("Casa"), sopra il nome vero. */
+    nome: String?,
     distanza: Double?,
     arrivi: List<Arrivo>?,
     fissate: Set<String>,
@@ -537,6 +542,16 @@ private fun SchedaPreferita(
             .clickable(onClickLabel = tx("apri la fermata"), onClick = apri)
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
+        if (nome != null) {
+            Text(
+                nome.uppercase(),
+                color = Accento,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                letterSpacing = 1.4.sp,
+                maxLines = 1,
+            )
+        }
         Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(bottom = 6.dp)) {
             Text(
                 fermata.nome,

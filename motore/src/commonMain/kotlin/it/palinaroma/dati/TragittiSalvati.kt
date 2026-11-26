@@ -65,6 +65,10 @@ fun aggiungiTragittoSalvato(elenco: List<TragittoSalvato>, partenza: Luogo, arri
 
 fun rimuoviTragittoSalvato(elenco: List<TragittoSalvato>, id: String): List<TragittoSalvato> = elenco.filter { it.id != id }
 
+/** Il tragitto [id] con il nome [nome] (vuoto: il nome dai due luoghi). */
+fun rinominaTragittoSalvato(elenco: List<TragittoSalvato>, id: String, nome: String): List<TragittoSalvato> =
+    elenco.map { if (it.id == id) it.copy(nome = nome.trim().ifEmpty { nomeTragittoSalvato(it.partenza, it.arrivo) }.take(40)) else it }
+
 /** Il ritorno: stessi luoghi al contrario (solo se la partenza non e' "La mia posizione"). */
 fun tragittoDiRitorno(t: TragittoSalvato): Pair<Luogo, Luogo>? =
     if (t.partenza.tipo == TipoLuogo.POSIZIONE) null else t.arrivo to t.partenza
@@ -206,10 +210,13 @@ fun cartaTragittoSalvato(t: TragittoSalvato, partenze: PartenzeTragitto?, adesso
             perVoce = t.nome + ". " + (partenze.errore ?: tx("Tocca per cercare le prossime partenze.")),
         )
     val minuti = ((p.partenza - adessoMs) / 60_000).toInt()
+    // come nel disegno: "60 alle 18:41 · a Casa 19:05"
+    val dove = if (t.arrivo.tipo == TipoLuogo.POSIZIONE) "" else t.arrivo.nome.substringBefore(",").trim().take(24)
+    val arrivo = if (dove.isEmpty()) tx("arrivi {0}", oraARoma(p.arrivo)) else tx("a {0} {1}", dove, oraARoma(p.arrivo))
     val sotto = if (p.linea.isEmpty()) {
-        tx("A piedi · arrivi {0}", oraARoma(p.arrivo))
+        tx("A piedi") + " · " + arrivo
     } else {
-        tx("{0} alle {1} · arrivi {2}", p.linea, oraARoma(p.oraMezzo), oraARoma(p.arrivo))
+        tx("{0} alle {1}", p.linea, oraARoma(p.oraMezzo)) + " · " + arrivo
     }
     val ora = minuti < 1
     val viaggio = testoViaggio(p)

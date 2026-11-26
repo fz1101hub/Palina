@@ -192,7 +192,7 @@ jobs:
           xcrun simctl terminate "$dispositivo" it.palinaroma
           # 4. Home con due preferite (una vicina a piazza Venezia, una a Termini)
           termini=$(sqlite3 ios/Risorse/orario.db "SELECT id FROM fermate WHERE nome LIKE '%Termini%' LIMIT 1")
-          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -provaPreferiti "70078,$termini"
+          xcrun simctl launch "$dispositivo" it.palinaroma -posizione 41.8958,12.4826 -provaPreferiti "70078,$termini" -provaNomi "70078=Lavoro"
           sleep 14
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-04-preferite.png
           xcrun simctl terminate "$dispositivo" it.palinaroma

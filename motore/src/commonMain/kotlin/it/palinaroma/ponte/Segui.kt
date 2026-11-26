@@ -54,6 +54,8 @@ data class Seguimento(
     val scendiAttivo: Boolean = false,
     /** Dove si scende, una volta scelto. */
     val discesa: Discesa? = null,
+    /** "Seguilo sulla schermata di blocco": il conto alla rovescia in evidenza (Live Activity, Live Update). */
+    val blocco: Boolean = true,
 ) {
     /** Da chiedere al telefono, perche' la tenga nel tabellone anche lontano dalla fermata. */
     val lineaSeguita: LineaSeguita? get() = lineaId.takeIf { it.isNotEmpty() }?.let { LineaSeguita(fermataId, it) }
@@ -166,6 +168,7 @@ fun Seguimento.testoJson(): String = ScriviJson.testo(
         "tempoReale" to tempoReale, "inizio" to inizio, "aggiornato" to aggiornato, "avvisato" to avvisato,
         "anticipo" to anticipo, "quando" to quando, "aPiedi" to aPiedi, "uscito" to uscito, "corsaId" to corsaId,
         "scendiAttivo" to scendiAttivo,
+        "blocco" to blocco,
         "discesa" to discesa?.let {
             mapOf(
                 "fermataId" to it.fermataId, "nome" to it.nome, "arrivo" to it.arrivo, "avvisoAlle" to it.avvisoAlle,
@@ -199,6 +202,7 @@ fun seguimentoDaJson(testo: String?): Seguimento? {
             uscito = o["uscito"] == true,
             corsaId = o.testoO("corsaId"),
             scendiAttivo = o["scendiAttivo"] == true,
+            blocco = o["blocco"] != false,
             discesa = (o["discesa"] as? Map<*, *>)?.let { d ->
                 @Suppress("UNCHECKED_CAST")
                 val m = d as Map<String, Any?>

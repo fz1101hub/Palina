@@ -16,13 +16,20 @@ import kotlinx.coroutines.flow.asStateFlow
  * salvati, numero della palina (i testi dal motore, come sull'iPhone).
  */
 object Scorciatoie {
+    /** Le icone del disegno: segnaposto, percorso, tastierino. */
+    private fun icona(id: String): Int = when {
+        id == "vicina" -> R.drawable.ic_scorciatoia_vicina
+        id.startsWith("tragitto:") -> R.drawable.ic_scorciatoia_tragitto
+        else -> R.drawable.ic_scorciatoia_palina
+    }
+
     fun aggiorna(context: Context) {
         val elenco = scorciatoie(Archivio.salvati.value).mapIndexed { i, s ->
             ShortcutInfoCompat.Builder(context, s.id)
                 .setShortLabel(s.breve)
                 .setLongLabel(s.titolo)
                 .setRank(i)
-                .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
+                .setIcon(IconCompat.createWithResource(context, icona(s.id)))
                 .setIntent(
                     Intent(context, MainActivity::class.java)
                         .setAction(Intent.ACTION_VIEW)

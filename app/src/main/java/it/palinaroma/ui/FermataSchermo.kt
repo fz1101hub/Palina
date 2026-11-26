@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Place
@@ -243,6 +244,8 @@ fun FermataSchermo(
     val diviso = remember(visibili, fissate) { visibili?.let { dividiArrivi(it, fissate) } }
     // "Avvisami" per una riga: fermata (la banchina giusta negli scambi), linea e capolinea
     var avvisami by remember { mutableStateOf<Triple<String, String, String>?>(null) }
+    var rinominando by remember { mutableStateOf(false) }
+    val nomi by Archivio.nomi.collectAsStateWithLifecycle()
     val avvisiRoma by produceState(initialValue = emptyList<SchedaAvviso>(), o, fermataId) {
         value = o?.let { avvisiPerFermata(it, fermataId) }.orEmpty()
     }
@@ -252,7 +255,7 @@ fun FermataSchermo(
         topBar = {
             BarraSuperiore(
                 titolo = fermata?.nome ?: tx("Fermata {0}", fermataId),
-                sottotitolo = fermata?.let { descrizioneFermata(it) },
+                sottotitolo = fermata?.let { listOfNotNull(nomi[fermataId], descrizioneFermata(it)).joinToString(" · ") },
                 indietro = indietro,
                 azioni = {
                     fermata?.let { f ->
@@ -261,6 +264,12 @@ fun FermataSchermo(
                         }
                     }
                     val preferita = fermataId in preferiti
+                    // una preferita si puo' chiamare "Casa", "Lavoro": in Home e nei widget
+                    if (preferita) {
+                        IconButton(onClick = { rinominando = true }, modifier = Modifier.testTag("nome-fermata")) {
+                            Icon(Icons.Filled.Edit, contentDescription = tx("Dai un nome alla fermata"))
+                        }
+                    }
                     IconButton(onClick = { Archivio.alternaPreferito(fermataId) }) {
                         Icon(
                             if (preferita) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -393,6 +402,19 @@ fun FermataSchermo(
                 }
             }
         }
+    }
+    if (rinominando) {
+        DialogoNome(
+            titolo = tx("Dai un nome alla fermata"),
+            spiegazione = tx("Per esempio «Casa» o «Lavoro»: lo vedi in Home e nei widget. Lascia vuoto per toglierlo."),
+            nomeIniziale = nomi[fermataId].orEmpty(),
+            lunghezza = 24,
+            chiudi = { rinominando = false },
+            salva = { nome ->
+                Archivio.rinominaFermata(fermataId, nome)
+                rinominando = false
+            },
+        )
     }
     avvisami?.let { (f, l, c) ->
         FoglioAvvisami(fermataId = f, lineaId = l, capolinea = c, chiudi = { avvisami = null })

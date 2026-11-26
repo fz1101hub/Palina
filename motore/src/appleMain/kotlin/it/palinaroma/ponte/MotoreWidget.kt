@@ -26,6 +26,7 @@ class MotoreWidgetTelefono(private val orario: Orario) {
         salvati: String,
         prima: String,
         forza: Boolean,
+        nomi: Map<String, String>,
     ): String = withContext(Dispatchers.Main) {
         // sull'iPhone l'app non sa quali fermate e tragitti hai scelto nei widget: tutte le preferite e tutti i tragitti
         val d = calcolaDatiWidget(
@@ -38,6 +39,7 @@ class MotoreWidgetTelefono(private val orario: Orario) {
             forza,
             fermateWidget = preferiti.sorted().take(12),
             tragittiWidget = null,
+            nomi = nomi,
         )
         CodificaWidget.scrivi(d)
     }

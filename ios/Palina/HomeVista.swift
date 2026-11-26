@@ -16,6 +16,9 @@ struct HomeVista: View {
     @EnvironmentObject private var tragitti: Tragitti
     /** Il minuto attuale, per "esci tra". */
     @State private var orologio = Date()
+    /** Il tragitto a cui si sta dando un nome. */
+    @State private var daRinominare: TragittoSalvato?
+    @State private var nomeNuovo = ""
 
     var body: some View {
         List {
@@ -55,6 +58,16 @@ struct HomeVista: View {
             }
         }
         .listStyle(.insetGrouped)
+        .alert(tx("Rinomina il tragitto"), isPresented: Binding(get: { daRinominare != nil }, set: { if !$0 { daRinominare = nil } })) {
+            TextField(tx("Nome"), text: $nomeNuovo)
+            Button(tx("Annulla"), role: .cancel) { daRinominare = nil }
+            Button(tx("Salva")) {
+                if let t = daRinominare { salvati.rinomina(t.id, nomeNuovo) }
+                daRinominare = nil
+            }
+        } message: {
+            Text(tx("Per esempio «Casa → Lavoro». Lascia vuoto per usare i nomi dei due luoghi."))
+        }
         .safeAreaInset(edge: .bottom) {
             if testo.isEmpty {
                 HStack {
@@ -108,6 +121,10 @@ struct HomeVista: View {
                     }
                     .foregroundStyle(.primary)
                     .swipeActions(edge: .trailing) {
+                        Button {
+                            nomeNuovo = t.nome
+                            daRinominare = t
+                        } label: { Label(tx("Rinomina"), systemImage: "pencil") }
                         Button(role: .destructive) { salvati.rimuovi(t.id) } label: { Label(tx("Elimina"), systemImage: "trash") }
                         if t.partenza.tipo != .posizione {
                             Button {
@@ -135,14 +152,15 @@ struct HomeVista: View {
         }
         if let evidenza = stato?.evidenza {
             Section {
-                SchedaPreferitaVistaSwift(scheda: evidenza)
+                SchedaPreferitaVistaSwift(scheda: evidenza, nome: nil)
             } header: {
-                IntestazioneConAggiornamento(titolo: tx("Sei vicino a"), aggiornato: stato?.aggiornato)
+                // come nel disegno: "SEI VICINO A · LAVORO" col nome che hai dato alla fermata
+                IntestazioneConAggiornamento(titolo: NomiKt.titoloSeiVicino(nome: preferiti.nome(evidenza.id)), aggiornato: stato?.aggiornato)
             }
         }
         if let titolo = stato?.titoloPreferite, let preferite = stato?.preferite {
             Section {
-                ForEach(preferite, id: \.id) { SchedaPreferitaVistaSwift(scheda: $0) }
+                ForEach(preferite, id: \.id) { SchedaPreferitaVistaSwift(scheda: $0, nome: preferiti.nome($0.id)) }
             } header: {
                 IntestazioneConAggiornamento(titolo: titolo, aggiornato: stato?.evidenza == nil ? stato?.aggiornato : nil)
             }
@@ -231,10 +249,18 @@ struct IntestazioneConAggiornamento: View {
 /** Una preferita come piccolo tabellone: le linee fissate (o le prime tre) grandi, le altre in breve. */
 struct SchedaPreferitaVistaSwift: View {
     let scheda: SchedaPreferitaVista
+    /** Il nome che le hai dato ("Casa"), sopra il nome vero. */
+    let nome: String?
 
     var body: some View {
         NavigationLink(value: Destinazione.fermata(scheda.id)) {
             VStack(alignment: .leading, spacing: 6) {
+                if let nome {
+                    Text(nome.uppercased())
+                        .font(.system(size: 12, weight: .bold))
+                        .tracking(1.4)
+                        .foregroundStyle(Tavolozza.oro)
+                }
                 HStack(alignment: .firstTextBaseline) {
                     Text(scheda.nome).font(.headline).lineLimit(2)
                     Spacer()

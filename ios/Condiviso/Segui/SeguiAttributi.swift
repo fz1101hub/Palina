@@ -27,6 +27,14 @@ struct SeguiAttributi: ActivityAttributes {
         var mostraUscito: Bool? = nil
         var mostraScegli: Bool? = nil
         var mostraFine: Bool? = nil
+        /** A quante fermate e' il mezzo (-1 o nil se non si sa): i pallini sulla barra. */
+        var fermateMancanti: Int? = nil
+        /** A bordo: "Plebiscito · 18:41" e "Labicana/Colosseo · 18:46". */
+        var daTesto: String? = nil
+        var aTesto: String? = nil
+        /** A bordo: "Verso Labicana/Colosseo" e "arrivi 18:46". */
+        var verso: String? = nil
+        var arrivi: String? = nil
     }
 
     var linea: String
@@ -43,11 +51,13 @@ struct SeguiAttributi: ActivityAttributes {
     var testoSuccessivo: String = ""
     var testoScegli: String = ""
     var testoFine: String = ""
+    var testoApri: String = ""
+    var testoMin: String = "min"
 }
 
 /** Gli indirizzi che i pulsanti della Live Activity aprono in Palina. */
 enum AzioneSegui: String {
-    case uscito, successivo, scendi, fine
+    case uscito, successivo, scendi, fine, apri
 
     var url: URL { URL(string: "palina://segui/\(rawValue)")! }
 

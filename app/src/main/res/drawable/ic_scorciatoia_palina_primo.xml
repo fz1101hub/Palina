@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scorciatoia: il numero della palina (un tastierino), in oro come nel disegno. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="2"
+        android:scaleY="2"
+        android:translateX="30"
+        android:translateY="30">
+        <path
+            android:pathData="M6,3h12a2,2 0 0,1 2,2v14a2,2 0 0,1 -2,2H6a2,2 0 0,1 -2,-2V5a2,2 0 0,1 2,-2z"
+            android:strokeWidth="2"
+            android:strokeColor="#FFF2A900"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M8,8h0.01M12,8h0.01M16,8h0.01M8,12h0.01M12,12h0.01M16,12h0.01M8,16h0.01M12,16h0.01M16,16h0.01"
+            android:strokeWidth="2"
+            android:strokeColor="#FFF2A900"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>

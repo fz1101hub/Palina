@@ -17,7 +17,11 @@ import android.os.PersistableBundle
 import android.os.SystemClock
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.graphics.Typeface
+import android.text.style.AbsoluteSizeSpan
 import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import it.palinaroma.MainActivity
@@ -47,7 +51,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * I tempi si ridisegnano ogni minuto dai dati salvati, senza rete e solo
  * mentre lo schermo e' acceso (allarme che non sveglia il telefono). I dati si
  * richiedono (Roma Mobilita', Transitous) al massimo ogni 15 minuti, quando
- * si tocca "aggiorna", e quando si esce da Palina.
+ * si tocca il widget ("tocca per aggiornare"), e quando si esce da Palina.
  */
 
 /** Il widget grande: la tua fermata. */
@@ -73,6 +77,11 @@ abstract class WidgetPalina : AppWidgetProvider() {
 
     override fun onDisabled(context: Context) {
         if (!Widget.ciSonoWidget(context)) Widget.fermaMinuto(context)
+    }
+
+    /** Ridimensionato: quante righe ci stanno, quanto grande il numero. */
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, opzioni: android.os.Bundle) {
+        Widget.disegnaTutti(context)
     }
 
     override fun onDeleted(context: Context, ids: IntArray) {
@@ -206,6 +215,7 @@ object Widget {
             forza,
             fermateWidget = scelte(context, WidgetTabellone::class.java),
             tragittiWidget = scelte(context, WidgetTragitto::class.java),
+            nomi = Archivio.nomi.value,
         )
         Archivio.salvaDatiWidget(CodificaWidget.scrivi(dati))
         disegnaTutti(context)
@@ -252,21 +262,37 @@ object Widget {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
+    /** L'altezza del widget in dp (in verticale), 0 se non si sa (prove, launcher vecchi). */
+    private fun altezza(context: Context, id: Int): Int =
+        if (id == 0) 0 else runCatching { AppWidgetManager.getInstance(context).getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT) }.getOrDefault(0)
+
+    /** Le righe da 46dp del disegno che stanno nel widget: testata, tratteggio e nota prendono circa 82dp. */
+    private fun righeCheStanno(altezza: Int): Int = if (altezza <= 0) 2 else ((altezza - 82) / 47).coerceIn(1, 3)
+
     private val righe = listOf(
         intArrayOf(R.id.riga1, R.id.fondo1, R.id.linea1, R.id.capolinea1, R.id.tra1),
         intArrayOf(R.id.riga2, R.id.fondo2, R.id.linea2, R.id.capolinea2, R.id.tra2),
         intArrayOf(R.id.riga3, R.id.fondo3, R.id.linea3, R.id.capolinea3, R.id.tra3),
     )
 
+    private val tratti = intArrayOf(R.id.tratto1, R.id.tratto2)
+
     private fun riempiRighe(context: Context, v: RemoteViews, elenco: List<RigaWidgetTelefono>, quante: Int, conCapolinea: Boolean) {
         val tenue = context.getColor(R.color.widget_tenue)
-        for ((i, id) in righe.take(quante).withIndex()) {
+        if (conCapolinea) tratti.forEach { v.setViewVisibility(it, View.GONE) }
+        for ((i, id) in righe.withIndex()) {
+            if (i >= quante) {
+                if (conCapolinea || i < 2) v.setViewVisibility(id[0], View.GONE)
+                continue
+            }
             val r = elenco.getOrNull(i)
             if (r == null) {
                 v.setViewVisibility(id[0], View.GONE)
                 continue
             }
             v.setViewVisibility(id[0], View.VISIBLE)
+            // il tratteggio sopra la riga, come nel disegno
+            if (i > 0 && conCapolinea) v.setViewVisibility(tratti[i - 1], View.VISIBLE)
             v.setInt(id[1], "setColorFilter", r.colore.toInt())
             v.setTextViewText(id[2], r.linea)
             if (conCapolinea) {
@@ -292,11 +318,12 @@ object Widget {
         v.setTextViewText(R.id.nome, w.nome)
         v.setTextViewText(R.id.ora, w.ora)
         v.setTextViewText(R.id.nota, w.nota)
-        riempiRighe(context, v, w.righe, 3, conCapolinea = true)
-        v.setContentDescription(R.id.aggiorna, tx("Aggiorna"))
-        v.setOnClickPendingIntent(R.id.aggiorna, tocca(context))
-        v.setOnClickPendingIntent(R.id.nota, tocca(context))
-        v.setOnClickPendingIntent(R.id.radice, apri(context, 1000 + id, if (w.fermataId.isNotEmpty()) "fermata:" + w.fermataId else "home"))
+        riempiRighe(context, v, w.righe, righeCheStanno(altezza(context, id)), conCapolinea = true)
+        // come nel disegno: la testata e le righe aprono la fermata, il resto ("tocca per aggiornare") aggiorna
+        val apriFermata = apri(context, 1000 + id, if (w.fermataId.isNotEmpty()) "fermata:" + w.fermataId else "home")
+        v.setOnClickPendingIntent(R.id.testata, apriFermata)
+        v.setOnClickPendingIntent(R.id.righe, apriFermata)
+        v.setOnClickPendingIntent(R.id.radice, tocca(context))
         return v
     }
 
@@ -304,7 +331,16 @@ object Widget {
         val w = widgetVicina(dati, adessoMs / 1000)
         val v = RemoteViews(context.packageName, R.layout.widget_vicina)
         v.setTextViewText(R.id.etichetta, tx("PIÙ VICINA"))
-        v.setTextViewText(R.id.nome, if (w.distanza.isNotEmpty()) w.nome + "  " + w.distanza else w.nome)
+        // "Plebiscito 121 m": il nome in grassetto, la distanza piu' piccola e tenue
+        val nome = SpannableStringBuilder(w.nome)
+        nome.setSpan(StyleSpan(Typeface.BOLD), 0, nome.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        if (w.distanza.isNotEmpty()) {
+            val inizio = nome.length
+            nome.append(" ").append(w.distanza)
+            nome.setSpan(ForegroundColorSpan(context.getColor(R.color.widget_tenue)), inizio, nome.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            nome.setSpan(AbsoluteSizeSpan(12, true), inizio, nome.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        v.setTextViewText(R.id.nome, nome)
         v.setTextViewText(R.id.nota, w.nota.orEmpty())
         v.setViewVisibility(R.id.nota, if (w.nota.isNullOrEmpty()) View.GONE else View.VISIBLE)
         riempiRighe(context, v, w.righe, 2, conCapolinea = false)
@@ -329,6 +365,9 @@ object Widget {
             return v
         }
         v.setTextViewText(R.id.nome, c.nome)
+        // il numero grande del disegno (52) se il widget e' alto abbastanza
+        val alto = altezza(context, id).let { it == 0 || it >= 160 }
+        v.setTextViewTextSize(R.id.numero, TypedValue.COMPLEX_UNIT_SP, if (alto) 52f else 40f)
         v.setTextViewText(R.id.esci, c.esci)
         v.setTextViewText(R.id.numero, c.numero)
         v.setTextViewText(R.id.unita, c.unita)

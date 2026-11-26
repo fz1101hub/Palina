@@ -13,8 +13,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.24"
-    CURRENT_PROJECT_VERSION: "25"
+    MARKETING_VERSION: "0.25"
+    CURRENT_PROJECT_VERSION: "26"
 targets:
   Palina:
     type: application
@@ -123,6 +123,9 @@ targets:
       - path: Condiviso/Colore.swift
       - path: Condiviso/Segui
       - path: Condiviso/Widget
+      # le cifre a punti delle paline anche nei widget e sulla schermata di blocco
+      - path: Palina/Doto-Black.ttf
+        buildPhase: resources
     entitlements:
       path: PalinaWidget/PalinaWidget.entitlements
       properties:
@@ -131,6 +134,7 @@ targets:
       path: PalinaWidget/Info.plist
       properties:
         CFBundleDisplayName: Palina
+        UIAppFonts: [Doto-Black.ttf]
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:

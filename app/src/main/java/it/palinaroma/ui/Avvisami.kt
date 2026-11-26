@@ -42,8 +42,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,6 +51,12 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -84,6 +88,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.palinaroma.avviso.Avvisatore
+import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.CartaSalvato
 import it.palinaroma.dati.SchedaAvviso
 import it.palinaroma.dati.TragittoSalvato
@@ -113,6 +118,8 @@ fun FoglioAvvisami(fermataId: String, lineaId: String, capolinea: String, chiudi
     var proposta by remember { mutableStateOf<PropostaAvviso?>(null) }
     var caricando by remember { mutableStateOf(true) }
     var scendi by remember { mutableStateOf(false) }
+    // "Seguilo sulla schermata di blocco" (come nel disegno): acceso di solito
+    var blocco by remember { mutableStateOf(true) }
     var attivando by remember { mutableStateOf(false) }
     var errore by remember { mutableStateOf<String?>(null) }
     val stato = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -120,7 +127,7 @@ fun FoglioAvvisami(fermataId: String, lineaId: String, capolinea: String, chiudi
     fun attiva() {
         attivando = true
         ambito.launch {
-            val s = Avvisatore.avvia(context, fermataId, lineaId, capolinea, proposta?.scelta ?: quando, scendi)
+            val s = Avvisatore.avvia(context, fermataId, lineaId, capolinea, proposta?.scelta ?: quando, scendi, blocco)
             attivando = false
             if (s == null) errore = tx("Non trovo un prossimo passaggio da seguire per questa linea.") else chiudi()
         }
@@ -178,40 +185,61 @@ fun FoglioAvvisami(fermataId: String, lineaId: String, capolinea: String, chiudi
                 }
             }
             Intestazione(tx("Quando").uppercase(), rientro = 0.dp)
+            // le tre scelte in griglia, come nel disegno
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 p.opzioni.forEach { o ->
-                    FilterChip(
-                        selected = o.codice == p.scelta,
-                        onClick = { quando = o.codice },
-                        enabled = o.abilitata,
-                        label = { Text(o.etichetta) },
-                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AccentoFondo, selectedLabelColor = Accento),
-                        modifier = Modifier.weight(1f),
-                    )
+                    val scelta = o.codice == p.scelta
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (scelta) AccentoFondo else Color.Transparent)
+                            .border(1.5.dp, if (scelta) Accento else Bordo, RoundedCornerShape(14.dp))
+                            .selectable(selected = scelta, enabled = o.abilitata, role = Role.RadioButton, onClick = { quando = o.codice })
+                            .testTag("quando-" + o.codice),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            o.etichetta,
+                            color = when {
+                                !o.abilitata -> Secondario.copy(alpha = 0.5f)
+                                scelta -> Accento
+                                else -> Testo
+                            },
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
             Text(p.spiegazione, style = MaterialTheme.typography.bodyMedium, color = Testo)
-            HorizontalDivider(color = Divisore)
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .toggleable(value = scendi, role = Role.Switch, onValueChange = { scendi = it }),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(tx("Poi avvisami quando scendere"))
-                    Text(tx("scegli la fermata quando sei a bordo"), style = MaterialTheme.typography.bodySmall, color = Secondario)
-                }
-                Switch(
-                    checked = scendi,
-                    onCheckedChange = null,
-                    colors = SwitchDefaults.colors(checkedTrackColor = Oro, checkedThumbColor = Inchiostro),
-                )
+            Column {
+                HorizontalDivider(color = Divisore)
+                RigaInterruttore(
+                    tx("Seguilo sulla schermata di blocco"),
+                    tx("quanto manca, senza aprire l'app"),
+                    blocco,
+                    Modifier.testTag("interruttore-blocco"),
+                ) { blocco = it }
+                HorizontalDivider(color = Divisore)
+                RigaInterruttore(
+                    tx("Poi avvisami quando scendere"),
+                    tx("scegli la fermata quando sei a bordo"),
+                    scendi,
+                    Modifier.testTag("interruttore-scendi"),
+                ) { scendi = it }
             }
             errore?.let { Text(it, color = Accento) }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = chiudi, modifier = Modifier.weight(1f)) { Text(tx("Annulla"), color = Accento) }
+                OutlinedButton(
+                    onClick = chiudi,
+                    border = BorderStroke(1.5.dp, Accento.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                ) { Text(tx("Annulla"), color = Accento, fontSize = 15.sp) }
                 Button(
                     onClick = {
                         if (!notifichePermesse(context) && Build.VERSION.SDK_INT >= 33) {
@@ -224,10 +252,11 @@ fun FoglioAvvisami(fermataId: String, lineaId: String, capolinea: String, chiudi
                     colors = ButtonDefaults.buttonColors(containerColor = Oro, contentColor = Inchiostro),
                     modifier = Modifier
                         .weight(2f)
+                        .height(52.dp)
                         .testTag("attiva-avviso"),
                 ) {
-                    Icon(Icons.Filled.Notifications, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text(" " + tx("Attiva avviso"), fontWeight = FontWeight.Bold)
+                    Icon(Icons.Filled.Notifications, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Text(" " + tx("Attiva avviso"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
             if (!notifichePermesse(context)) {
@@ -443,6 +472,20 @@ fun SchedaAvvisiRoma(avvisi: List<SchedaAvviso>, modifier: Modifier = Modifier) 
 /** Un tragitto salvato in Home: "Lavoro → Casa · ESCI TRA 4 min", con ritorno ed elimina. */
 @Composable
 fun CartaTragittoSalvato(t: TragittoSalvato, carta: CartaSalvato, apri: () -> Unit, ritorno: (() -> Unit)?, rimuovi: () -> Unit) {
+    var rinominando by remember { mutableStateOf(false) }
+    if (rinominando) {
+        DialogoNome(
+            titolo = tx("Rinomina il tragitto"),
+            spiegazione = tx("Per esempio «Casa → Lavoro». Lascia vuoto per usare i nomi dei due luoghi."),
+            nomeIniziale = t.nome,
+            lunghezza = 40,
+            chiudi = { rinominando = false },
+            salva = { nome ->
+                Archivio.rinominaTragitto(t.id, nome)
+                rinominando = false
+            },
+        )
+    }
     var menu by remember { mutableStateOf(false) }
     Card(
         colors = CardDefaults.cardColors(containerColor = AccentoFondo),
@@ -488,6 +531,10 @@ fun CartaTragittoSalvato(t: TragittoSalvato, carta: CartaSalvato, apri: () -> Un
                         ritorno()
                     })
                 }
+                DropdownMenuItem(text = { Text(tx("Rinomina")) }, onClick = {
+                    menu = false
+                    rinominando = true
+                })
                 DropdownMenuItem(text = { Text(tx("Elimina")) }, onClick = {
                     menu = false
                     rimuovi()
@@ -500,22 +547,61 @@ fun CartaTragittoSalvato(t: TragittoSalvato, carta: CartaSalvato, apri: () -> Un
 /** Salva il tragitto con un nome ("Lavoro → Casa"). */
 @Composable
 fun DialogoSalvaTragitto(nomeIniziale: String, chiudi: () -> Unit, salva: (String) -> Unit) {
+    DialogoNome(
+        titolo = tx("Salva il tragitto"),
+        spiegazione = tx("Lo ritrovi in Home con «esci tra», nel widget e tenendo premuta l'icona di Palina."),
+        nomeIniziale = nomeIniziale,
+        lunghezza = 40,
+        chiudi = chiudi,
+        salva = salva,
+    )
+}
+
+/** Un nome da dare (a una fermata, a un tragitto): vuoto lo toglie. */
+@Composable
+fun DialogoNome(titolo: String, spiegazione: String, nomeIniziale: String, lunghezza: Int, chiudi: () -> Unit, salva: (String) -> Unit) {
     var nome by remember { mutableStateOf(nomeIniziale) }
     AlertDialog(
         onDismissRequest = chiudi,
-        title = { Text(tx("Salva il tragitto")) },
+        title = { Text(titolo) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    tx("Lo ritrovi in Home con «esci tra», nel widget e tenendo premuta l'icona di Palina."),
-                    style = MaterialTheme.typography.bodyMedium,
+            // il dialogo e' una finestra a parte: anche qui le etichette per le prove
+            Column(Modifier.semantics { testTagsAsResourceId = true }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(spiegazione, style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(
+                    value = nome,
+                    onValueChange = { nome = it.take(lunghezza) },
+                    singleLine = true,
+                    label = { Text(tx("Nome")) },
+                    modifier = Modifier.testTag("campo-nome"),
                 )
-                OutlinedTextField(value = nome, onValueChange = { nome = it.take(40) }, singleLine = true, label = { Text(tx("Nome")) })
             }
         },
         confirmButton = { TextButton(onClick = { salva(nome) }) { Text(tx("Salva"), color = Accento) } },
         dismissButton = { TextButton(onClick = chiudi) { Text(tx("Annulla"), color = Secondario) } },
     )
+}
+
+/** Un interruttore del foglio "Avvisami" (come nel disegno): titolo, spiegazione, l'interruttore d'oro. */
+@Composable
+private fun RigaInterruttore(titolo: String, sotto: String, acceso: Boolean, modifier: Modifier = Modifier, cambia: (Boolean) -> Unit) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = 60.dp)
+            .toggleable(value = acceso, role = Role.Switch, onValueChange = cambia),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(titolo, fontSize = 15.sp)
+            Text(sotto, fontSize = 12.5.sp, color = Secondario)
+        }
+        Switch(
+            checked = acceso,
+            onCheckedChange = null,
+            colors = SwitchDefaults.colors(checkedTrackColor = Oro, checkedThumbColor = Inchiostro, checkedBorderColor = Oro),
+        )
+    }
 }
 
 /** Il pulsante "Avvisami" su una riga del tabellone. */

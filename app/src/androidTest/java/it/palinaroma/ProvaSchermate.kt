@@ -122,6 +122,14 @@ class ProvaSchermate {
         // preferito: lo si aggiunge qui e lo si ritrova in cima alla Home, con i suoi tempi
         tocca(By.desc("Aggiungi ai preferiti"))
         aspetta(By.desc("Togli dai preferiti"), 5_000, "il cuore pieno")
+        // un nome alla preferita ("Lavoro"): in Home e nei widget, come nel disegno
+        tocca(By.res("nome-fermata"))
+        val campoNome = aspetta(By.res("campo-nome"), 5_000, "il campo del nome")
+        campoNome.text = "Lavoro"
+        attendi(500)
+        schermata("03c-nome-fermata")
+        tocca(By.text("Salva"))
+        attendi(1_000)
         telefono.pressBack()
         // si torna alla ricerca, rimasta aperta: la si chiude con la freccia
         if (aspettaUnoDi(15_000, "la ricerca o la Home", By.desc("Chiudi la ricerca"), By.res("preferita")) == 0) {

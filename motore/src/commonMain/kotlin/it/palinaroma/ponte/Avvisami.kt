@@ -182,6 +182,18 @@ data class StatoSegui(
     val discesa: String?,
     /** La scelta di "Avvisami" ("" per "Segui"). */
     val quando: String,
+    /** "Palina Roma · avviso per il 64". */
+    val intestazione: String,
+    /** "Seguilo sulla schermata di blocco". */
+    val blocco: Boolean,
+    /** A quante fermate e' il mezzo (-1 se non si sa): i pallini sulla barra. */
+    val fermateMancanti: Int,
+    /** A bordo: da dove a dove, con le ore ("Plebiscito · 18:41", "Colosseo · 18:46"). */
+    val daTesto: String,
+    val aTesto: String,
+    /** A bordo: "Verso Labicana/Colosseo" e "arrivi 18:46" (vuoti prima di salire). */
+    val verso: String,
+    val arrivi: String,
 )
 
 /** Il testo dell'avviso per uscire o per il mezzo vicino. [adesso] in secondi. */
@@ -308,6 +320,13 @@ fun statoSegui(s: Seguimento, adesso: Long, fermateMancanti: Int?): StatoSegui {
         discesaTesto = discesa?.let { tx("{0} · prenota la fermata", it.nome) }.orEmpty(),
         discesa = discesa?.nome,
         quando = s.quando,
+        intestazione = if (s.quando.isEmpty()) "Palina · " + s.fermata else tx("Palina Roma · avviso per il {0}", s.linea),
+        blocco = s.blocco,
+        fermateMancanti = if (discesa == null && !passato) fermateMancanti ?: -1 else -1,
+        daTesto = if (discesa != null) s.fermata + " · " + oraARoma(s.obiettivo * 1000) else s.fermata,
+        aTesto = discesa?.let { it.nome + " · " + oraARoma(it.arrivo * 1000) }.orEmpty(),
+        verso = discesa?.let { tx("Verso {0}", it.nome) }.orEmpty(),
+        arrivi = discesa?.let { tx("arrivi {0}", oraARoma(it.arrivo * 1000)) }.orEmpty(),
     )
 }
 
@@ -352,7 +371,7 @@ class MotoreSegui(private val orario: Orario) {
 
     /** "Segui" (avviso 2 minuti prima, come sull'orologio). Null se la linea non ha passaggi. */
     suspend fun inizia(fermataId: String, lineaId: String, capolinea: String): StatoSegui? =
-        avvisami(fermataId, lineaId, capolinea, "", false, 0.0, 0.0, false)
+        avvisami(fermataId, lineaId, capolinea, "", false, 0.0, 0.0, false, true)
 
     /**
      * "Avvisami" con la scelta [quando] ("" = come "Segui"), la posizione per i
@@ -367,6 +386,7 @@ class MotoreSegui(private val orario: Orario) {
         lat: Double,
         lon: Double,
         scendi: Boolean,
+        blocco: Boolean,
     ): StatoSegui? = withContext(Dispatchers.Main) {
         val adesso = adessoMs()
         val t = tabellone(fermataId, lineaId, adesso)
@@ -397,6 +417,7 @@ class MotoreSegui(private val orario: Orario) {
                     aPiedi = p.aPiedi,
                     anticipo = anticipoAvviso(QuandoAvvisare.da(p.scelta), p.aPiedi),
                     scendiAttivo = scendi,
+                    blocco = blocco,
                     // se l'ora di avvisare e' gia' passata si avvisa subito
                     avvisato = false,
                 )

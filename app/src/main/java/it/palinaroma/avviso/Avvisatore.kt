@@ -69,10 +69,10 @@ object Avvisatore {
     }
 
     /** Attiva "Avvisami" ([quando] "" = "Segui" con avviso 2 minuti prima). Null se non c'e' un passaggio da seguire. */
-    suspend fun avvia(context: Context, fermataId: String, lineaId: String, capolinea: String, quando: String, scendi: Boolean): StatoSegui? {
+    suspend fun avvia(context: Context, fermataId: String, lineaId: String, capolinea: String, quando: String, scendi: Boolean, blocco: Boolean = true): StatoSegui? {
         val m = motore(context) ?: return null
         val posizione = if (quando == "uscire" && haPermessoPosizione(context)) posizioneAttuale(context, 5_000) else null
-        val s = m.avvisami(fermataId, lineaId, capolinea, quando, posizione != null, posizione?.latitude ?: 0.0, posizione?.longitude ?: 0.0, scendi)
+        val s = m.avvisami(fermataId, lineaId, capolinea, quando, posizione != null, posizione?.latitude ?: 0.0, posizione?.longitude ?: 0.0, scendi, blocco)
         pubblica(context, s)
         if (s != null) avviaServizio(context)
         return s

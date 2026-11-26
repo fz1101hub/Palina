@@ -90,6 +90,10 @@ object Archivio {
     private val _partenze = MutableStateFlow<Map<String, PartenzeTragitto>>(emptyMap())
     val partenze: StateFlow<Map<String, PartenzeTragitto>> = _partenze.asStateFlow()
 
+    /** I nomi dati alle fermate preferite ("Casa", "Lavoro"). */
+    private val _nomi = MutableStateFlow<Map<String, String>>(emptyMap())
+    val nomi: StateFlow<Map<String, String>> = _nomi.asStateFlow()
+
     /** Chi deve sapere che preferiti, linee fissate o tragitti sono cambiati (widget e scorciatoie). */
     var quandoCambia: ((Context) -> Unit)? = null
 
@@ -104,6 +108,7 @@ object Archivio {
         _cifreLed.value = impostazioni.getBoolean("cifre_led", true)
         _lingua.value = impostazioni.getString("lingua", "").orEmpty()
         _salvati.value = CodificaTragittiSalvati.leggi(impostazioni.getString("tragitti_salvati", null))
+        _nomi.value = CodificaNomi.leggi(impostazioni.getString("nomi_fermate", null))
         impostaLingua(app, _lingua.value)
         ambito.launch {
             pulisciAvanzi()
@@ -333,6 +338,18 @@ object Archivio {
     fun salvaTragitto(partenza: Luogo, arrivo: Luogo, nome: String) {
         val nuovi = aggiungiTragittoSalvato(_salvati.value, partenza, arrivo, nome, "t" + System.currentTimeMillis().toString(36))
         scriviSalvati(nuovi)
+    }
+
+    fun rinominaTragitto(id: String, nome: String) {
+        scriviSalvati(rinominaTragittoSalvato(_salvati.value, id, nome))
+    }
+
+    /** Il nome della fermata [id] ("Lavoro"); vuoto lo toglie. */
+    fun rinominaFermata(id: String, nome: String) {
+        val nuovi = conNomeFermata(_nomi.value, id, nome)
+        _nomi.value = nuovi
+        impostazioni.edit().putString("nomi_fermate", CodificaNomi.scrivi(nuovi)).apply()
+        quandoCambia?.invoke(app)
     }
 
     fun rimuoviTragitto(id: String) {

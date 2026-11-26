@@ -241,6 +241,16 @@ class AvvisamiETragittiTest {
         assertEquals("Scendi alla prossima", statoSegui(bordo, t0 + 1120, null).titoloScheda)
         assertFalse(finito(bordo, t0 + 1200))
         assertTrue(finito(bordo, t0 + 1300))
+        // la schermata di blocco del disegno: intestazione, pallini, da/a con le ore
+        assertEquals("Palina Roma · avviso per il 64", statoSegui(s, t0, 3).intestazione)
+        assertEquals(3, statoSegui(s, t0, 3).fermateMancanti)
+        assertEquals(-1, statoSegui(bordo, t0 + 800, 3).fermateMancanti)
+        assertEquals("Verso Colosseo", statoSegui(bordo, t0 + 1120, null).verso)
+        assertEquals("arrivi " + oraARoma((t0 + 1200) * 1000), statoSegui(bordo, t0 + 1120, null).arrivi)
+        assertEquals("P.za Venezia · " + oraARoma((t0 + 600) * 1000), statoSegui(bordo, t0 + 800, null).daTesto)
+        assertEquals("Colosseo · " + oraARoma((t0 + 1200) * 1000), statoSegui(bordo, t0 + 800, null).aTesto)
+        assertTrue(statoSegui(s, t0, 3).blocco)
+        assertFalse(statoSegui(s.copy(blocco = false), t0, 3).blocco)
     }
 
     @Test
@@ -248,6 +258,8 @@ class AvvisamiETragittiTest {
         val s = seguimento().copy(discesa = Discesa("70100", "Colosseo", t0 + 1200, t0 + 1110, true, avvisato = true))
         assertEquals(s, seguimentoDaJson(s.testoJson()))
         assertEquals(seguimento(), seguimentoDaJson(seguimento().testoJson()))
+        // "Seguilo sulla schermata di blocco" spento resta spento
+        assertEquals(false, seguimentoDaJson(seguimento().copy(blocco = false).testoJson())?.blocco)
     }
 
     @Test
@@ -305,7 +317,7 @@ class AvvisamiETragittiTest {
         val c = cartaTragittoSalvato(t, partenze, adesso)
         assertEquals("ESCI TRA", c.esci)
         assertEquals("4", c.numero)
-        assertEquals("60 alle " + oraARoma(adesso + 7 * 60_000) + " · arrivi " + oraARoma(adesso + 30 * 60_000), c.sotto)
+        assertEquals("60 alle " + oraARoma(adesso + 7 * 60_000) + " · a Casa " + oraARoma(adesso + 30 * 60_000), c.sotto)
         assertEquals("oppure esci alle " + oraARoma(adesso + 16 * 60_000), c.poi)
         assertEquals("ESCI ORA", cartaTragittoSalvato(t, partenze, adesso + 4 * 60_000 - 10_000).esci)
         // dopo la prima partenza si passa alla seconda
@@ -317,6 +329,20 @@ class AvvisamiETragittiTest {
         val tappa = Tappa("A", 41.9, 12.5, null, null, null, null, null)
         val piedi = Tratto("WALK", partenza, partenza + aPiedi * 60_000L, partenza, partenza, false, aPiedi * 60, 100.0, tappa, tappa, "", "", null, "", emptyList(), emptyList(), emptyList(), false, emptyList())
         return Tragitto(partenza, partenza + 1_800_000, 1800, cambi, listOf(piedi))
+    }
+
+    @Test
+    fun nomiDelleFermate() {
+        var nomi = conNomeFermata(emptyMap(), "70078", "  Lavoro   centro ")
+        assertEquals(mapOf("70078" to "Lavoro centro"), nomi)
+        nomi = conNomeFermata(nomi, "70001", "Casa")
+        assertEquals(nomi, CodificaNomi.leggi(CodificaNomi.scrivi(nomi)))
+        assertEquals(mapOf("70001" to "Casa"), conNomeFermata(nomi, "70078", " "))
+        assertEquals("Sei vicino a · Lavoro", titoloSeiVicino("Lavoro"))
+        assertEquals("Sei vicino a", titoloSeiVicino(null))
+        val elenco = listOf(TragittoSalvato("t1", "A → B", lavoro, casa))
+        assertEquals("Rientro", rinominaTragittoSalvato(elenco, "t1", " Rientro ")[0].nome)
+        assertEquals("Lavoro → Casa", rinominaTragittoSalvato(elenco, "t1", "")[0].nome)
     }
 
     @Test
@@ -351,8 +377,11 @@ class AvvisamiETragittiTest {
         assertEquals("PREFERITA", tab.etichetta)
         // solo le linee fissate
         assertEquals(listOf("40"), tab.righe.map { it.linea })
-        assertEquals("4'", tab.righe[0].tra)
-        assertEquals("poi 13'", tab.righe[0].poi)
+        assertEquals("4′", tab.righe[0].tra)
+        assertEquals("poi 13", tab.righe[0].poi)
+        // con il nome dato alla fermata, come nel disegno
+        assertEquals("LAVORO", widgetTabellone(d.copy(nomi = mapOf("70078" to "Lavoro")), adesso).etichetta)
+        assertEquals("LAVORO", CodificaWidget.leggi(CodificaWidget.scrivi(d.copy(nomi = mapOf("70078" to "Lavoro"))))!!.let { widgetTabellone(it, adesso).etichetta })
         assertEquals("Solo le linee che hai fissato · tocca per aggiornare", tab.nota)
         // la piu' vicina e' la preferita (102 m)
         assertEquals("P.za Venezia", widgetVicina(d, adesso).nome)

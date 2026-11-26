@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Il fondo delle icone delle scorciatoie, come il menu del disegno. -->
+    <color name="scorciatoia_fondo">#FF1A1414</color>
+</resources>

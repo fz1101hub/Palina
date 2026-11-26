@@ -2,9 +2,10 @@ import SwiftUI
 import Motore
 
 /**
- * Il foglio "Avvisami per il 64": quando avvisare (ora di uscire, a 5 o a 2
- * minuti), cosa propone l'app (il successivo, se il prossimo non lo prendi in
- * tempo) e "poi avvisami quando scendere". Come su Android: tutto dal motore.
+ * Il foglio "Avvisami per il 64", come nel disegno: la linea grande, cosa
+ * propone l'app (il successivo, se il prossimo non lo prendi in tempo), le tre
+ * scelte di "quando", "Seguilo sulla schermata di blocco" e "Poi avvisami quando
+ * scendere", Annulla e Attiva avviso. Come su Android: tutto dal motore.
  */
 struct AvvisamiVista: View {
     let fermataId: String
@@ -13,99 +14,144 @@ struct AvvisamiVista: View {
     @EnvironmentObject private var seguito: Seguito
     @EnvironmentObject private var posizione: Posizione
     @Environment(\.dismiss) private var chiudi
+    @AppStorage("cifre_led") private var cifreLed = true
     @State private var quando = "uscire"
     @State private var proposta: PropostaAvviso?
     @State private var caricando = true
     @State private var scendi = false
+    @State private var blocco = true
     @State private var attivando = false
 
     var body: some View {
-        NavigationStack {
-            Group {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
                 if let p = proposta {
-                    Form {
-                        Section {
-                            HStack(spacing: 12) {
-                                BadgeLinea(nome: p.linea, colore: p.colore, grande: true)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(p.titolo).font(.title3.bold())
-                                    Text(p.sotto).font(.subheadline).foregroundStyle(.secondary)
-                                }
-                            }
-                            if let nota = p.nota {
-                                Label {
-                                    Text(nota).font(.subheadline)
-                                } icon: {
-                                    Image(systemName: "figure.walk").foregroundStyle(Tavolozza.oro)
-                                }
-                                .listRowBackground(Tavolozza.oro.opacity(0.14))
-                            }
-                        }
-                        Section {
-                            Picker(tx("Quando"), selection: $quando) {
-                                ForEach(p.opzioni.filter { $0.abilitata }, id: \.codice) { o in
-                                    Text(o.etichetta).tag(o.codice)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .accessibilityIdentifier("quando")
-                            Text(p.spiegazione).font(.subheadline)
-                        } header: {
-                            Text(tx("Quando"))
-                        }
-                        Section {
-                            Toggle(isOn: $scendi) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(tx("Poi avvisami quando scendere"))
-                                    Text(tx("scegli la fermata quando sei a bordo")).font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
-                            .tint(Tavolozza.oro)
-                        }
-                        Section {
-                            Button {
-                                attivando = true
-                                Task {
-                                    await seguito.avvisami(
-                                        fermataId: fermataId, lineaId: lineaId, capolinea: capolinea,
-                                        quando: p.scelta, scendi: scendi, posizione: coordinate
-                                    )
-                                    attivando = false
-                                    chiudi()
-                                }
-                            } label: {
-                                Label(tx("Attiva avviso"), systemImage: "bell.fill")
-                                    .font(.body.bold())
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .disabled(!p.possibile || attivando)
-                            .buttonStyle(.borderedProminent)
-                            .tint(Tavolozza.oro)
-                            .foregroundStyle(Tavolozza.inchiostro)
-                            .listRowBackground(Color.clear)
-                            .accessibilityIdentifier("attiva-avviso")
+                    HStack(spacing: 12) {
+                        Text(p.linea)
+                            .font(Tavolozza.cifre(25, aPunti: cifreLed))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .padding(.horizontal, 6)
+                            .frame(minWidth: 52, minHeight: 40)
+                            .background(Color(argb: p.colore), in: RoundedRectangle(cornerRadius: 9))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(p.titolo).font(.system(size: 20, weight: .bold))
+                            Text(p.sotto).font(.system(size: 13.5)).foregroundStyle(.secondary)
                         }
                     }
+                    if let nota = p.nota {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "figure.walk").font(.system(size: 20)).foregroundStyle(Tavolozza.oro)
+                            Text(nota).font(.system(size: 14))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Tavolozza.oro.opacity(0.14), in: RoundedRectangle(cornerRadius: 16))
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(tx("Quando").uppercased())
+                            .font(.system(size: 12, weight: .bold))
+                            .tracking(1.6)
+                            .foregroundStyle(Tavolozza.oro)
+                        // le tre scelte in griglia, come nel disegno
+                        HStack(spacing: 8) {
+                            ForEach(p.opzioni, id: \.codice) { o in
+                                let scelta = o.codice == p.scelta
+                                Button { quando = o.codice } label: {
+                                    Text(o.etichetta)
+                                        .font(.system(size: 14, weight: .medium))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                        .frame(maxWidth: .infinity, minHeight: 48)
+                                        .foregroundStyle(scelta ? Tavolozza.oro : (o.abilitata ? Color.primary : Color.secondary.opacity(0.5)))
+                                        .background(scelta ? Tavolozza.oro.opacity(0.14) : Color.clear, in: RoundedRectangle(cornerRadius: 14))
+                                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(scelta ? Tavolozza.oro : Color.secondary.opacity(0.35), lineWidth: 1.5))
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(!o.abilitata)
+                                .accessibilityAddTraits(scelta ? AccessibilityTraits.isSelected : AccessibilityTraits())
+                                .accessibilityIdentifier("quando-" + o.codice)
+                            }
+                        }
+                        Text(p.spiegazione).font(.system(size: 14))
+                    }
+                    VStack(spacing: 0) {
+                        Divider()
+                        interruttore(tx("Seguilo sulla schermata di blocco"), tx("quanto manca, senza aprire l'app"), $blocco)
+                            .accessibilityIdentifier("interruttore-blocco")
+                        Divider()
+                        interruttore(tx("Poi avvisami quando scendere"), tx("scegli la fermata quando sei a bordo"), $scendi)
+                            .accessibilityIdentifier("interruttore-scendi")
+                    }
+                    HStack(spacing: 12) {
+                        Button { chiudi() } label: {
+                            Text(tx("Annulla"))
+                                .font(.system(size: 15, weight: .medium))
+                                .frame(maxWidth: .infinity, minHeight: 52)
+                                .foregroundStyle(Tavolozza.oro)
+                                .overlay(Capsule().stroke(Tavolozza.oro.opacity(0.4), lineWidth: 1.5))
+                        }
+                        .buttonStyle(.plain)
+                        Button {
+                            attivando = true
+                            Task {
+                                await seguito.avvisami(
+                                    fermataId: fermataId, lineaId: lineaId, capolinea: capolinea,
+                                    quando: p.scelta, scendi: scendi, blocco: blocco, posizione: coordinate
+                                )
+                                attivando = false
+                                chiudi()
+                            }
+                        } label: {
+                            Label(tx("Attiva avviso"), systemImage: "bell")
+                                .font(.system(size: 15, weight: .bold))
+                                .frame(maxWidth: .infinity, minHeight: 52)
+                                .foregroundStyle(Tavolozza.inchiostro)
+                                .background(Tavolozza.oro, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .layoutPriority(1)
+                        .frame(maxWidth: .infinity)
+                        .disabled(!p.possibile || attivando)
+                        .opacity(!p.possibile || attivando ? 0.5 : 1)
+                        .accessibilityIdentifier("attiva-avviso")
+                    }
+                    Text(tx("La prima volta l'iPhone ti chiede il permesso per le notifiche."))
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
                 } else if caricando {
                     HStack { ProgressView(); Text(tx("Carico i tempi…")).foregroundStyle(.secondary) }
                 } else {
-                    Text(tx("Non riesco a leggere i tempi d'attesa. Controlla la connessione.")).foregroundStyle(.secondary).padding()
+                    Text(tx("Non riesco a leggere i tempi d'attesa. Controlla la connessione.")).foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle(tx("Avvisami"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(tx("Annulla")) { chiudi() }
-                }
-            }
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
+            .padding(.bottom, 24)
         }
+        .presentationDragIndicator(.visible)
         .task(id: quando) {
             let p = await seguito.proposta(fermataId: fermataId, lineaId: lineaId, capolinea: capolinea, quando: quando, posizione: coordinate)
             proposta = p
             caricando = false
             if let p, p.scelta != quando { quando = p.scelta }
         }
+    }
+
+    /** Un interruttore del disegno: titolo, spiegazione, l'interruttore d'oro. */
+    private func interruttore(_ titolo: String, _ sotto: String, _ valore: Binding<Bool>) -> some View {
+        Toggle(isOn: valore) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titolo).font(.system(size: 15))
+                Text(sotto).font(.system(size: 12.5)).foregroundStyle(.secondary)
+            }
+        }
+        .tint(Tavolozza.oro)
+        .frame(minHeight: 60)
     }
 
     private var coordinate: (Double, Double)? {

@@ -8,6 +8,9 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.drawable.Icon
+import android.os.Build
+import androidx.annotation.RequiresApi
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -29,6 +32,8 @@ import kotlinx.coroutines.launch
 object NotificheAvviso {
     const val CANALE_IN_CORSO = "avviso_in_corso"
     const val CANALE_AVVISO = "avviso"
+    /** "Seguilo sulla schermata di blocco" spento: una notifica discreta, nascosta sulla schermata di blocco. */
+    const val CANALE_DISCRETO = "avviso_discreto"
     const val ID = 21
     private const val ID_AVVISO = 22
 
@@ -40,6 +45,15 @@ object NotificheAvviso {
                 setSound(null, null)
                 enableVibration(false)
                 setShowBadge(false)
+            },
+        )
+        gestore.createNotificationChannel(
+            NotificationChannel(CANALE_DISCRETO, tx("Avviso in corso, discreto"), NotificationManager.IMPORTANCE_LOW).apply {
+                description = tx("Quando non lo segui sulla schermata di blocco: solo gli avvisi")
+                setSound(null, null)
+                enableVibration(false)
+                setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
             },
         )
         gestore.createNotificationChannel(
@@ -80,7 +94,8 @@ object NotificheAvviso {
         } else {
             100
         }
-        val b = NotificationCompat.Builder(context, CANALE_IN_CORSO)
+        if (s.blocco && Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) return inCorso16(context, s, adesso, progresso)
+        val b = NotificationCompat.Builder(context, if (s.blocco) CANALE_IN_CORSO else CANALE_DISCRETO)
             .setSmallIcon(R.drawable.ic_notifica)
             .setContentTitle(s.titoloScheda)
             .setContentText(s.testoScheda)
@@ -89,9 +104,9 @@ object NotificheAvviso {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVisibility(if (s.blocco) NotificationCompat.VISIBILITY_PUBLIC else NotificationCompat.VISIBILITY_SECRET)
             .setColor(s.colore.toInt())
-            .setRequestPromotedOngoing(true)
+            .setRequestPromotedOngoing(s.blocco)
             .setContentIntent(apri(context, s.mostraScegli))
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         if (s.contoMs > adesso) {
@@ -107,6 +122,58 @@ object NotificheAvviso {
         b.addAction(
             NotificationCompat.Action.Builder(null, if (s.mostraFine) tx("Fine viaggio") else tx("Smetti"), azione(context, 43, ServizioAvviso.FERMA)).build(),
         )
+        return b.build()
+    }
+
+    /**
+     * Android 16, come la tavola "Blocco" del disegno: un Live Update con la
+     * barra d'oro, il bus che avanza, i pallini delle fermate che mancano e il
+     * cerchio dell'arrivo; nella barra di stato i minuti.
+     */
+    @RequiresApi(Build.VERSION_CODES.BAKLAVA)
+    private fun inCorso16(context: Context, s: StatoSegui, adesso: Long, progresso: Int): Notification {
+        val oro = 0xFFF2A900.toInt()
+        val stile = Notification.ProgressStyle()
+            .setStyledByProgress(true)
+            .setProgressSegments(listOf(Notification.ProgressStyle.Segment(100).setColor(oro)))
+            .setProgressTrackerIcon(Icon.createWithResource(context, R.drawable.ic_avanza_bus))
+            .setProgressEndIcon(Icon.createWithResource(context, R.drawable.ic_avanza_arrivo))
+            .setProgress(if (s.fineMs > s.inizioMs) progresso else 100)
+        // le fermate che mancano, tra il mezzo e la tua fermata
+        val fermate = s.fermateMancanti.coerceAtMost(6)
+        if (fermate > 0 && progresso < 95) {
+            stile.setProgressPoints(
+                (1..fermate).map { i ->
+                    Notification.ProgressStyle.Point(progresso + (100 - progresso) * i / (fermate + 1)).setColor(0xFF8E8580.toInt())
+                },
+            )
+        }
+        val b = Notification.Builder(context, CANALE_IN_CORSO)
+            .setSmallIcon(R.drawable.ic_notifica)
+            .setContentTitle(s.titoloScheda)
+            .setContentText(s.testoScheda)
+            .setSubText(listOf(s.linea, s.dettaglio).filter { it.isNotBlank() }.joinToString(" · "))
+            .setStyle(stile)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setCategory(Notification.CATEGORY_NAVIGATION)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setColor(s.colore.toInt())
+            .setContentIntent(apri(context, s.mostraScegli))
+            .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+        // il Live Update in evidenza (anche nella barra di stato)
+        b.extras.putBoolean(Notification.EXTRA_REQUEST_PROMOTED_ONGOING, true)
+        if (s.contoMs > adesso) {
+            b.setWhen(s.contoMs).setShowWhen(true).setUsesChronometer(true).setChronometerCountDown(true)
+            b.setShortCriticalText(if (s.numero.isNotEmpty()) s.numero + " " + s.unita else s.unita)
+        } else if (s.unita.isNotEmpty()) {
+            b.setShortCriticalText(s.unita)
+        }
+        fun azione16(testo: String, intento: PendingIntent) = Notification.Action.Builder(null as Icon?, testo, intento).build()
+        if (s.mostraSuccessivo) b.addAction(azione16(tx("Prendo il successivo"), azione(context, 42, ServizioAvviso.SUCCESSIVO)))
+        if (s.mostraUscito) b.addAction(azione16(tx("Sto uscendo"), azione(context, 41, ServizioAvviso.USCITO)))
+        if (s.mostraScegli) b.addAction(azione16(tx("Scegli dove scendi"), apri(context, true)))
+        b.addAction(azione16(if (s.mostraFine) tx("Fine viaggio") else tx("Smetti"), azione(context, 43, ServizioAvviso.FERMA)))
         return b.build()
     }
 
