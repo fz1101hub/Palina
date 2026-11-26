@@ -21,6 +21,8 @@ struct AvvisamiVista: View {
     @State private var scendi = false
     @State private var blocco = true
     @State private var attivando = false
+    /** "Ripeti ogni settimana…": il promemoria ricorrente per questa linea. */
+    @State private var promemoria: PromemoriaAperto?
 
     var body: some View {
         ScrollView {
@@ -118,6 +120,19 @@ struct AvvisamiVista: View {
                         .opacity(!p.possibile || attivando ? 0.5 : 1)
                         .accessibilityIdentifier("attiva-avviso")
                     }
+                    Button(tx("Ripeti ogni settimana…")) {
+                        promemoria = PromemoriaAperto(
+                            promemoria: PromemoriaKt.promemoriaPerLinea(
+                                fermataId: fermataId, lineaId: lineaId, capolinea: capolinea, nomeLinea: p.linea, quando: p.scelta,
+                                minuti: PromemoriaKt.minutiProposti(adessoMs: Int64(Date().timeIntervalSince1970 * 1000))
+                            ),
+                            esistente: false
+                        )
+                    }
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(Tavolozza.oro)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("ripeti-promemoria")
                     Text(tx("La prima volta l'iPhone ti chiede il permesso per le notifiche."))
                         .font(.system(size: 12.5))
                         .foregroundStyle(.secondary)
@@ -134,6 +149,7 @@ struct AvvisamiVista: View {
             .padding(.bottom, 24)
         }
         .presentationDragIndicator(.visible)
+        .sheet(item: $promemoria) { PromemoriaVista(aperto: $0) }
         .task(id: quando) {
             let p = await seguito.proposta(fermataId: fermataId, lineaId: lineaId, capolinea: capolinea, quando: quando, posizione: coordinate)
             proposta = p

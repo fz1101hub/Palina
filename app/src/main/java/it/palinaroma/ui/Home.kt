@@ -75,6 +75,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import it.palinaroma.Richieste
 import it.palinaroma.avviso.Avvisatore
 import it.palinaroma.dati.Luogo
+import it.palinaroma.dati.titoloSciopero
+import it.palinaroma.dati.scioperoInVista
+import it.palinaroma.dati.Sciopero
 import it.palinaroma.dati.titoloSeiVicino
 import it.palinaroma.dati.cartaTragittoSalvato
 import it.palinaroma.dati.tragittoDiRitorno
@@ -303,6 +306,13 @@ private fun Tabellone(
     }
     val preferiti by Archivio.preferiti.collectAsStateWithLifecycle()
     val nomi by Archivio.nomi.collectAsStateWithLifecycle()
+    // gli scioperi dagli avvisi di Roma Mobilita' (ogni 30 minuti; il feed resta in memoria)
+    val sciopero by produceState<Sciopero?>(initialValue = null) {
+        while (true) {
+            value = scioperoInVista()
+            delay(30 * 60_000L)
+        }
+    }
     val chiaviFissate by Archivio.fissate.collectAsStateWithLifecycle()
     val aggiornamento by Archivio.aggiornamento.collectAsStateWithLifecycle()
     val (vicino, permessoPosizione, chiediPermesso) = rememberVicine(orario)
@@ -377,6 +387,11 @@ private fun Tabellone(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
+        }
+
+        // uno sciopero oggi o nei prossimi giorni, con le fasce garantite
+        sciopero?.let { sc ->
+            item(key = "sciopero") { SchedaSciopero(sc, Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
         }
 
         if (arrivi.romaFerma && !arrivi.errore && preferiteOrdinate.any { Rete.di(it.first.id) == Rete.ROMA }) {
@@ -759,6 +774,36 @@ private fun SchedaCerca(
                         color = Secondario,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                     )
+                }
+            }
+        }
+    }
+}
+
+
+/** Uno sciopero in Home: "SCIOPERO DOMANI", cosa dice l'avviso e le fasce garantite. */
+@Composable
+private fun SchedaSciopero(s: Sciopero, modifier: Modifier = Modifier) {
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    var aperta by remember { mutableStateOf(false) }
+    Column(
+        modifier
+            .fillMaxWidth()
+            .background(AccentoFondo, RoundedCornerShape(16.dp))
+            .clickable(onClickLabel = tx("dettagli")) { aperta = !aperta }
+            .semantics(mergeDescendants = true) { contentDescription = s.perVoce }
+            .testTag("sciopero")
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(titoloSciopero(s).uppercase(), color = Accento, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 1.4.sp)
+        Text(s.titolo, fontWeight = FontWeight.Medium, maxLines = if (aperta) 6 else 2, overflow = TextOverflow.Ellipsis)
+        s.fasce?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        if (aperta) {
+            if (s.testo.isNotEmpty()) Text(s.testo, style = MaterialTheme.typography.bodySmall, color = Secondario)
+            s.url?.let { indirizzo ->
+                TextButton(onClick = { runCatching { uri.openUri(indirizzo) } }) {
+                    Text(tx("Dettagli su Roma Mobilità"), color = Accento, fontWeight = FontWeight.Bold)
                 }
             }
         }

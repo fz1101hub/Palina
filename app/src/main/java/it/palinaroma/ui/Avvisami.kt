@@ -89,6 +89,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.palinaroma.avviso.Avvisatore
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.minutiProposti
+import it.palinaroma.dati.promemoriaPerTragitto
+import it.palinaroma.dati.Promemoria
 import it.palinaroma.dati.CartaSalvato
 import it.palinaroma.dati.SchedaAvviso
 import it.palinaroma.dati.TragittoSalvato
@@ -111,7 +114,14 @@ private fun notifichePermesse(context: android.content.Context): Boolean =
  * tempo) e "poi avvisami quando scendere".
  */
 @Composable
-fun FoglioAvvisami(fermataId: String, lineaId: String, capolinea: String, chiudi: () -> Unit) {
+fun FoglioAvvisami(
+    fermataId: String,
+    lineaId: String,
+    capolinea: String,
+    chiudi: () -> Unit,
+    /** "Ripeti ogni settimana…": il promemoria ricorrente per questa linea (nome della linea, scelta di quando). */
+    ripeti: ((String, String) -> Unit)? = null,
+) {
     val context = LocalContext.current
     val ambito = rememberCoroutineScope()
     var quando by remember { mutableStateOf("uscire") }
@@ -257,6 +267,11 @@ fun FoglioAvvisami(fermataId: String, lineaId: String, capolinea: String, chiudi
                 ) {
                     Icon(Icons.Filled.Notifications, contentDescription = null, modifier = Modifier.size(20.dp))
                     Text(" " + tx("Attiva avviso"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
+            }
+            if (ripeti != null) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    PulsanteRipeti { ripeti(p.linea, p.scelta) }
                 }
             }
             if (!notifichePermesse(context)) {
@@ -473,6 +488,11 @@ fun SchedaAvvisiRoma(avvisi: List<SchedaAvviso>, modifier: Modifier = Modifier) 
 @Composable
 fun CartaTragittoSalvato(t: TragittoSalvato, carta: CartaSalvato, apri: () -> Unit, ritorno: (() -> Unit)?, rimuovi: () -> Unit) {
     var rinominando by remember { mutableStateOf(false) }
+    // il promemoria ricorrente di questo tragitto (quello che c'e', o uno nuovo)
+    var promemoria by remember { mutableStateOf<Pair<Promemoria, Boolean>?>(null) }
+    promemoria?.let { (p, esistente) ->
+        FoglioPromemoria(iniziale = p, titolo = t.nome, esistente = esistente, chiudi = { promemoria = null })
+    }
     if (rinominando) {
         DialogoNome(
             titolo = tx("Rinomina il tragitto"),
@@ -534,6 +554,11 @@ fun CartaTragittoSalvato(t: TragittoSalvato, carta: CartaSalvato, apri: () -> Un
                         ritorno()
                     })
                 }
+                DropdownMenuItem(text = { Text(tx("Promemoria…")) }, onClick = {
+                    menu = false
+                    val gia = Archivio.promemoria.value.firstOrNull { it.tragittoId == t.id }
+                    promemoria = (gia ?: promemoriaPerTragitto(t.id, minutiProposti())) to (gia != null)
+                })
                 DropdownMenuItem(text = { Text(tx("Rinomina")) }, onClick = {
                     menu = false
                     rinominando = true

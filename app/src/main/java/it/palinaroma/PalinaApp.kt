@@ -5,6 +5,8 @@ import android.content.res.Configuration
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.Collegamento
 import it.palinaroma.dati.HttpAndroid
+import it.palinaroma.sfondo.AvvisiLinee
+import it.palinaroma.sfondo.Promemorie
 import it.palinaroma.widget.Widget
 import org.osmdroid.config.Configuration as ConfigurazioneMappe
 import java.io.File
@@ -30,6 +32,15 @@ class PalinaApp : Application() {
             Widget.chiediDati(context, forza = true)
         }
         Scorciatoie.aggiorna(this)
+        // promemoria ricorrenti e avvisi sulle tue linee: le notifiche anche ad app chiusa
+        Promemorie.preparaCanale(this)
+        AvvisiLinee.preparaCanale(this)
+        Archivio.quandoCambianoPromemoria = { context ->
+            Promemorie.programma(context)
+            AvvisiLinee.programma(context)
+        }
+        Promemorie.programma(this)
+        AvvisiLinee.programma(this)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

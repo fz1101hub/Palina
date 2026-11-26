@@ -11,6 +11,7 @@ struct PalinaApp: App {
     @StateObject private var tragitti = Tragitti()
     @StateObject private var seguito = Seguito()
     @StateObject private var salvati = Salvati()
+    @StateObject private var promemorie = Promemorie.condivisi
     @UIApplicationDelegateAdaptor(DelegatoApp.self) private var delegato
     @Environment(\.scenePhase) private var fase
     @AppStorage("aspetto") private var aspetto = "AUTOMATICO"
@@ -34,6 +35,7 @@ struct PalinaApp: App {
                 .environmentObject(tragitti)
                 .environmentObject(seguito)
                 .environmentObject(salvati)
+                .environmentObject(promemorie)
                 .tint(Tavolozza.oro)
                 .onAppear {
                     // l'Apple Watch chiede il tabellone all'iPhone
@@ -52,6 +54,10 @@ struct PalinaApp: App {
                     DatiWidgetIphone.condiviso.prepara(orario: orario, preferiti: preferiti, posizione: posizione, salvati: salvati)
                     DatiWidgetIphone.condiviso.chiedi(forza: false)
                     Scorciatoie.aggiorna(salvati: salvati.elenco)
+                    // promemoria ricorrenti (si riprogrammano a ogni apertura) e avvisi sulle tue linee
+                    promemorie.prepara(orario: orario, preferiti: preferiti, salvati: salvati)
+                    await promemorie.programma()
+                    await AvvisiLinee.controlla(orario: orario, preferiti: preferiti, salvati: salvati, promemorie: promemorie)
                 }
                 .onChange(of: preferiti.fermate) { DatiWidgetIphone.condiviso.chiedi(forza: true) }
                 .onChange(of: preferiti.fissate) { DatiWidgetIphone.condiviso.chiedi(forza: true) }
@@ -79,6 +85,7 @@ struct PalinaApp: App {
         // i widget si aggiornano anche con Palina chiusa, quando iOS lo permette
         .backgroundTask(.appRefresh(PalinaApp.idWidget)) {
             await DatiWidgetIphone.condiviso.calcolaInSfondo()
+            await DatiWidgetIphone.condiviso.avvisiInSfondo()
             PalinaApp.programmaWidget()
         }
     }
@@ -220,6 +227,15 @@ struct Principale: View {
             navigazione.percorso = [.tragitti]
         } else if cosa.hasPrefix("fermata:") {
             navigazione.percorso = [.fermata(String(cosa.dropFirst("fermata:".count)))]
+        } else if cosa.hasPrefix("linea:") {
+            navigazione.percorso = [.linea(RichiestaLinea(lineaId: String(cosa.dropFirst("linea:".count))))]
+        } else if let parti = PromemoriaKt.leggiRichiestaAvvisami(testo: cosa), parti.count == 4 {
+            // dal promemoria: "Avvisami" per il prossimo passaggio, con il conto alla rovescia
+            navigazione.percorso = []
+            for _ in 0..<20 where archivio.orario == nil { try? await Task.sleep(nanoseconds: 500_000_000) }
+            let qui: (Double, Double)? = posizione.lat.flatMap { lat in posizione.lon.map { (lat, $0) } }
+            await seguito.avvisami(fermataId: parti[0], lineaId: parti[1], capolinea: parti[2], quando: parti[3], scendi: false, blocco: true, posizione: qui)
+            if seguito.stato == nil { navigazione.percorso = [.fermata(parti[0])] }
         } else if cosa == "vicina" {
             posizione.avvia()
             // la posizione e l'orario arrivano tra poco

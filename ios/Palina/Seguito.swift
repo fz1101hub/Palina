@@ -32,6 +32,7 @@ final class Seguito: NSObject, ObservableObject, UNUserNotificationCenterDelegat
     override init() {
         super.init()
         UNUserNotificationCenter.current().delegate = self
+        Promemorie.registraCategoria()
     }
 
     func prepara(orario: Orario) {
@@ -248,5 +249,18 @@ final class Seguito: NSObject, ObservableObject, UNUserNotificationCenterDelegat
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .sound]
+    }
+
+    /** Il tocco su una notifica di promemoria o di avviso: apre la fermata, la linea, il tragitto, o "Avvisami". */
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive risposta: UNNotificationResponse
+    ) async {
+        let info = risposta.notification.request.content.userInfo
+        let avvisami = info["avvisami"] as? String ?? ""
+        let apri = info["apri"] as? String ?? ""
+        let cosa = risposta.actionIdentifier == "avvisami" && !avvisami.isEmpty ? avvisami : apri
+        guard !cosa.isEmpty else { return }
+        await MainActor.run { Richieste.condivise.apri = cosa }
     }
 }

@@ -25,6 +25,8 @@ data class AvvisoServizio(
     val titolo: Map<String, String>,
     val testo: Map<String, String>,
     val url: String?,
+    /** Cause di GTFS-Realtime (4 = sciopero...), 0 se manca. */
+    val causa: Int = 0,
 ) {
     fun attivo(adesso: Long): Boolean =
         periodi.isEmpty() || periodi.any { (inizio, fine) -> (inizio == 0L || inizio <= adesso) && (fine == 0L || adesso <= fine) }
@@ -75,6 +77,7 @@ object FeedAvvisi {
         val fermate = HashSet<String>()
         var generale = false
         var effetto = 0
+        var causa = 0
         var titolo: Map<String, String> = emptyMap()
         var testo: Map<String, String> = emptyMap()
         var url: String? = null
@@ -113,6 +116,7 @@ object FeedAvvisi {
                     if (fermata.isNotBlank()) fermate.add(prefisso + fermata.trim())
                     if (linea.isBlank() && fermata.isBlank() && (azienda.isNotBlank() || tipo)) generale = true
                 }
+                tag(6, VARINT) -> causa = m.leggiVarint().toInt()
                 tag(7, VARINT) -> effetto = m.leggiVarint().toInt()
                 tag(8, LUNGHEZZA) -> url = leggiTradotto(m.leggiMessaggio()).values.firstOrNull { it.isNotBlank() }
                 tag(10, LUNGHEZZA) -> titolo = leggiTradotto(m.leggiMessaggio())
@@ -120,7 +124,7 @@ object FeedAvvisi {
                 else -> m.salta(t and 7)
             }
         }
-        return AvvisoServizio("", periodi, linee, fermate, generale, effetto, titolo, testo, url)
+        return AvvisoServizio("", periodi, linee, fermate, generale, effetto, titolo, testo, url, causa)
     }
 
     private fun leggiPeriodo(m: LettoreProto): Pair<Long, Long> {

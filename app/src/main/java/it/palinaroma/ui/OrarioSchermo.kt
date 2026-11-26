@@ -26,6 +26,9 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -38,6 +41,9 @@ import it.palinaroma.dati.Aspetto
 import it.palinaroma.dati.ORIGINE_INCLUSA
 import it.palinaroma.dati.StatoAggiornamento
 import it.palinaroma.dati.TestiImpostazioni
+import it.palinaroma.dati.vociPromemoria
+import it.palinaroma.dati.titoloPromemoria
+import it.palinaroma.dati.Promemoria
 import it.palinaroma.dati.tx
 
 @Composable
@@ -52,6 +58,7 @@ fun OrarioSchermo(indietro: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             PannelloAspetto()
+            PannelloNotifiche()
             PannelloLingua()
             PannelloOrario(Modifier.fillMaxWidth(), primaVolta = false)
             // i testi sono nel motore, uguali sull'iPhone
@@ -121,6 +128,75 @@ private fun PannelloAspetto() {
                 color = Secondario,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
+        }
+    }
+}
+
+/** Le notifiche anche ad app chiusa: avvisi sulle tue linee (e scioperi), i promemoria ricorrenti. */
+@Composable
+private fun PannelloNotifiche() {
+    val avvisi by Archivio.avvisiLinee.collectAsStateWithLifecycle()
+    val promemoria by Archivio.promemoria.collectAsStateWithLifecycle()
+    val salvati by Archivio.salvati.collectAsStateWithLifecycle()
+    val nomi by Archivio.nomi.collectAsStateWithLifecycle()
+    val orario by Archivio.orario.collectAsStateWithLifecycle()
+    var aperto by remember { mutableStateOf<Promemoria?>(null) }
+    aperto?.let { p ->
+        FoglioPromemoria(
+            iniziale = p,
+            titolo = titoloPromemoria(p, nomi[p.fermataId] ?: orario?.fermata(p.fermataId)?.nome, salvati),
+            esistente = true,
+            chiudi = { aperto = null },
+        )
+    }
+    Card(colors = CardDefaults.cardColors(containerColor = Superficie), modifier = Modifier.fillMaxWidth().testTag("notifiche")) {
+        Column(Modifier.padding(vertical = 12.dp)) {
+            Text(
+                tx("Notifiche"),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .toggleable(value = avvisi, onValueChange = { Archivio.impostaAvvisiLinee(it) }, role = Role.Switch)
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(tx("Avvisi sulle tue linee"))
+                    Text(
+                        tx("Deviazioni e lavori sulle linee fissate, dei tragitti salvati e dei promemoria; gli scioperi la sera prima."),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Secondario,
+                    )
+                }
+                Switch(checked = avvisi, onCheckedChange = null)
+            }
+            HorizontalDivider(color = Divisore, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+            Text(
+                tx("Promemoria ricorrenti"),
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            val voci = vociPromemoria(promemoria, orario, nomi, salvati)
+            if (voci.isEmpty()) {
+                Text(
+                    tx("Nessuno: li aggiungi da «Avvisami» su una linea («Ripeti ogni settimana…») o dal menu di un tragitto salvato."),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Secondario,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+            voci.forEach { v ->
+                RigaPromemoria(
+                    v,
+                    apri = { aperto = promemoria.firstOrNull { it.id == v.id } },
+                    accendi = { acceso -> promemoria.firstOrNull { it.id == v.id }?.let { Archivio.salvaPromemoria(it.copy(attivo = acceso)) } },
+                )
+            }
         }
     }
 }

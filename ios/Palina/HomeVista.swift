@@ -17,6 +17,10 @@ struct HomeVista: View {
     /** Il minuto attuale, per "esci tra". */
     @State private var orologio = Date()
     /** Il tragitto a cui si sta dando un nome. */
+    @State private var promemoriaAperto: PromemoriaAperto?
+    @EnvironmentObject private var promemorie: Promemorie
+    /** Uno sciopero oggi o nei prossimi giorni (dagli avvisi di Roma Mobilita'). */
+    @State private var sciopero: Sciopero?
     @State private var daRinominare: TragittoSalvato?
     @State private var nomeNuovo = ""
 
@@ -58,6 +62,14 @@ struct HomeVista: View {
             }
         }
         .listStyle(.insetGrouped)
+        .sheet(item: $promemoriaAperto) { PromemoriaVista(aperto: $0) }
+        .task {
+            // gli scioperi: ogni 30 minuti (il feed degli avvisi resta in memoria)
+            while !Task.isCancelled {
+                sciopero = try? await AvvisiPerTeKt.scioperoInVista(adessoMs: Int64(Date().timeIntervalSince1970 * 1000))
+                try? await Task.sleep(nanoseconds: 30 * 60 * 1_000_000_000)
+            }
+        }
         .alert(tx("Rinomina il tragitto"), isPresented: Binding(get: { daRinominare != nil }, set: { if !$0 { daRinominare = nil } })) {
             TextField(tx("Nome"), text: $nomeNuovo)
             Button(tx("Annulla"), role: .cancel) { daRinominare = nil }
@@ -122,6 +134,18 @@ struct HomeVista: View {
                     .foregroundStyle(.primary)
                     .swipeActions(edge: .trailing) {
                         Button {
+                            if let gia = promemorie.elenco.first(where: { $0.tragittoId == t.id }) {
+                                promemoriaAperto = PromemoriaAperto(promemoria: gia, esistente: true)
+                            } else {
+                                promemoriaAperto = PromemoriaAperto(
+                                    promemoria: PromemoriaKt.promemoriaPerTragitto(
+                                        tragittoId: t.id, minuti: PromemoriaKt.minutiProposti(adessoMs: Int64(Date().timeIntervalSince1970 * 1000))
+                                    ),
+                                    esistente: false
+                                )
+                            }
+                        } label: { Label(tx("Promemoria…"), systemImage: "bell.badge") }
+                        Button {
                             nomeNuovo = t.nome
                             daRinominare = t
                         } label: { Label(tx("Rinomina"), systemImage: "pencil") }
@@ -149,6 +173,9 @@ struct HomeVista: View {
         }
         if let avviso = stato?.avviso {
             Text(avviso).font(.footnote).foregroundStyle(Tavolozza.oro)
+        }
+        if let sciopero {
+            Section { SchedaSciopero(sciopero: sciopero) }
         }
         if let evidenza = stato?.evidenza {
             Section {
@@ -336,3 +363,30 @@ struct Pillola: View {
     }
 }
 
+
+/** Uno sciopero in Home: "SCIOPERO DOMANI", cosa dice l'avviso e le fasce garantite. */
+struct SchedaSciopero: View {
+    let sciopero: Sciopero
+    @State private var aperta = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(AvvisiPerTeKt.titoloSciopero(s: sciopero).uppercased())
+                .font(.system(size: 12, weight: .bold)).tracking(1.4).foregroundStyle(Tavolozza.oro)
+            Text(sciopero.titolo).font(.subheadline.weight(.medium)).lineLimit(aperta ? 6 : 2)
+            if let fasce = sciopero.fasce { Text(fasce).font(.footnote) }
+            if aperta {
+                if !sciopero.testo.isEmpty { Text(sciopero.testo).font(.caption).foregroundStyle(.secondary) }
+                if let url = sciopero.url.flatMap({ URL(string: $0) }) {
+                    Link(tx("Dettagli su Roma Mobilità"), destination: url).font(.caption.bold())
+                }
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { aperta.toggle() }
+        .listRowBackground(Tavolozza.oro.opacity(0.14))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(sciopero.perVoce)
+        .accessibilityIdentifier("sciopero")
+    }
+}

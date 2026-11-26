@@ -7,6 +7,9 @@ struct ImpostazioniVista: View {
     @AppStorage("aspetto") private var aspetto = "AUTOMATICO"
     @AppStorage("cifre_led") private var cifreLed = true
     @AppStorage("lingua") private var lingua = ""
+    @AppStorage("avvisi_linee") private var avvisiLinee = true
+    @EnvironmentObject private var promemorie: Promemorie
+    @State private var promemoriaAperto: PromemoriaAperto?
     @State private var provato = false
     private let testi = TestiImpostazioni.shared
 
@@ -51,6 +54,55 @@ struct ImpostazioniVista: View {
                 Text(testi.grandezzaTesto(sistema: "iOS"))
             }
 
+            // notifiche anche ad app chiusa: avvisi sulle tue linee (e scioperi), promemoria ricorrenti
+            Section {
+                Toggle(isOn: $avvisiLinee) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tx("Avvisi sulle tue linee"))
+                        Text(tx("Deviazioni e lavori sulle linee fissate, dei tragitti salvati e dei promemoria; gli scioperi la sera prima."))
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+                .tint(Tavolozza.oro)
+                Text(tx("Promemoria ricorrenti")).font(.subheadline.weight(.semibold))
+                let voci = promemorie.voci()
+                if voci.isEmpty {
+                    Text(tx("Nessuno: li aggiungi da «Avvisami» su una linea («Ripeti ogni settimana…») o dal menu di un tragitto salvato."))
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                ForEach(voci, id: \.id) { v in
+                    HStack {
+                        Button {
+                            if let p = promemorie.elenco.first(where: { $0.id == v.id }) {
+                                promemoriaAperto = PromemoriaAperto(promemoria: p, esistente: true)
+                            }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(v.titolo).foregroundStyle(Color.primary)
+                                Text(v.sotto).font(.footnote).foregroundStyle(.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { v.attivo },
+                            set: { acceso in
+                                if let p = promemorie.elenco.first(where: { $0.id == v.id }) {
+                                    promemorie.salva(PromemoriaKt.promemoriaModificato(
+                                        p: p, giorni: PromemoriaKt.giorniDelPromemoria(p: p), minuti: p.minuti, quando: p.quando, attivo: acceso
+                                    ))
+                                }
+                            }
+                        ))
+                        .labelsHidden()
+                        .tint(Tavolozza.oro)
+                    }
+                    .accessibilityIdentifier("promemoria")
+                }
+            } header: {
+                Text(tx("Notifiche"))
+            }
+            .sheet(item: $promemoriaAperto) { PromemoriaVista(aperto: $0) }
             Section(testi.LINGUA) {
                 ForEach(testi.lingue, id: \.chiave) { scelta in
                     Button {

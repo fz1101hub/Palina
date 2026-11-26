@@ -149,6 +149,15 @@ final class DatiWidgetIphone {
         scriviVoci()
     }
 
+    /** In sottofondo: gli avvisi sulle tue linee e i promemoria (riprogrammati per i prossimi giorni). */
+    func avvisiInSfondo() async {
+        guard let orario, let preferiti, let salvati else { return }
+        let promemorie = Promemorie.condivisi
+        promemorie.prepara(orario: orario, preferiti: preferiti, salvati: salvati)
+        await promemorie.programma()
+        await AvvisiLinee.controlla(orario: orario, preferiti: preferiti, salvati: salvati, promemorie: promemorie)
+    }
+
     /** Le voci per la prossima ora dai dati salvati (anche senza rete), poi WidgetKit le ridisegna. */
     func scriviVoci() {
         guard let dati = memoria.string(forKey: "dati_widget") else { return }

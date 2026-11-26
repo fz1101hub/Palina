@@ -104,6 +104,9 @@ object TestiImpostazioni {
         get() = tx("Quando ha più di una settimana si aggiorna da solo in Wi-Fi; con i dati mobili puoi aggiornarlo da qui (circa 50 MB).")
 }
 
+/** "novembre": il nome del mese nella lingua dell'app. */
+fun nomeMese(numero: Int): String = mese(numero)
+
 private fun mese(numero: Int): String = when (numero) {
     1 -> tx("gennaio")
     2 -> tx("febbraio")

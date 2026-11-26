@@ -40,12 +40,17 @@ Aggiungi una fermata ai preferiti (il cuore nella fermata) per sceglierla qui.	A
 Aggiungi una fermata ai preferiti sul telefono, o attiva la posizione.	Add a stop to your favourites on the phone, or turn on location.	Ajoutez un arrêt aux favoris sur le téléphone, ou activez la localisation.	Añade una parada a favoritos en el teléfono o activa la ubicación.	Füge auf dem Telefon eine Haltestelle zu den Favoriten hinzu oder aktiviere den Standort.	Adicione uma parada aos favoritos no celular ou ative a localização.
 Aggiungi una fermata ai preferiti, o apri Palina per i tempi delle fermate vicine.	Add a stop to your favourites, or open Palina for the times of nearby stops.	Ajoutez un arrêt aux favoris, ou ouvrez Palina pour les horaires des arrêts proches.	Añade una parada a favoritos, o abre Palina para ver los tiempos de las paradas cercanas.	Füge eine Haltestelle zu den Favoriten hinzu oder öffne Palina für die Zeiten in deiner Nähe.	Adicione uma parada aos favoritos ou abra o Palina para ver os horários das paradas próximas.
 agosto	August	août	agosto	August	agosto
+All'ora che hai scelto: quando passa la tua linea o quando uscire	At the time you chose: when your line is due or when to leave	À l'heure choisie : quand passe votre ligne ou quand partir	A la hora que elegiste: cuándo pasa tu línea o cuándo salir	Zur gewählten Uhrzeit: wann deine Linie kommt oder wann du losmusst	No horário que você escolheu: quando passa a sua linha ou quando sair
+All'ora scelta arriva una notifica con i tempi: tocca «Avvisami» per il conto alla rovescia.	At the chosen time you get a notification with the times: tap “Alert me” for the countdown.	À l'heure choisie, une notification arrive avec les horaires : touchez « Me prévenir » pour le compte à rebours.	A la hora elegida te llega una notificación con los tiempos: toca «Avísame» para la cuenta atrás.	Zur gewählten Uhrzeit kommt eine Mitteilung mit den Zeiten: Tippe auf „Erinnere mich“ für den Countdown.	No horário escolhido chega uma notificação com os tempos: toque em “Me avise” para a contagem regressiva.
+All'ora scelta arriva una notifica: quando uscire, con che mezzi e a che ora arrivi.	At the chosen time you get a notification: when to leave, which services to take and when you'll arrive.	À l'heure choisie, une notification arrive : quand partir, avec quels transports et à quelle heure vous arrivez.	A la hora elegida te llega una notificación: cuándo salir, con qué transportes y a qué hora llegas.	Zur gewählten Uhrzeit kommt eine Mitteilung: wann du losmusst, mit welchen Verkehrsmitteln und wann du ankommst.	No horário escolhido chega uma notificação: quando sair, com quais transportes e a que horas você chega.
 Alla rotonda prosegui	At the roundabout, continue	Au rond-point, continuez	En la rotonda, continúa	Im Kreisverkehr weiter	Na rotatória, continue
 Alla rotonda prosegui in {0}	At the roundabout, continue onto {0}	Au rond-point, continuez sur {0}	En la rotonda, continúa por {0}	Im Kreisverkehr weiter auf {0}	Na rotatória, continue pela {0}
 Altre linee	Other lines	Autres lignes	Otras líneas	Weitere Linien	Outras linhas
 Altre:	Others:	Autres :	Otras:	Weitere:	Outras:
 Altri preferiti	Other favourites	Autres favoris	Otros favoritos	Weitere Favoriten	Outros favoritos
 Altro per {0}	More for {0}	Plus pour {0}	Más para {0}	Mehr zu {0}	Mais para {0}
+Ancora {0} avvisi sulle tue linee: aprili da Palina.	{0} more alerts on your lines: open them in Palina.	Encore {0} alertes sur vos lignes : ouvrez-les dans Palina.	{0} avisos más en tus líneas: ábrelos en Palina.	Noch {0} Hinweise zu deinen Linien: Öffne sie in Palina.	Mais {0} avisos nas suas linhas: abra-os no Palina.
+Ancora {0} avviso sulle tue linee: aprili da Palina.	{0} more alert on your lines: open it in Palina.	Encore {0} alerte sur vos lignes : ouvrez-la dans Palina.	{0} aviso más en tus líneas: ábrelo en Palina.	Noch {0} Hinweis zu deinen Linien: Öffne ihn in Palina.	Mais {0} aviso nas suas linhas: abra-o no Palina.
 Annulla	Cancel	Annuler	Cancelar	Abbrechen	Cancelar
 Apri	Open	Ouvrir	Abrir	Öffnen	Abrir
 apri la fermata	open the stop	ouvrir l'arrêt	abrir la parada	Haltestelle öffnen	abrir a parada
@@ -80,7 +85,9 @@ Avvisami	Alert me	Me prévenir	Avísame	Erinnere mich	Me avise
 Avvisami per il {0}	Alert me for the {0}	Me prévenir pour le {0}	Avísame del {0}	Erinnere mich an Linie {0}	Me avise do {0}
 Avvisi di Roma Mobilità	Roma Mobilità notices	Avis de Roma Mobilità	Avisos de Roma Mobilità	Hinweise von Roma Mobilità	Avisos da Roma Mobilità
 Avvisi per uscire e scendere	Alerts to leave and to get off	Alertes pour partir et descendre	Avisos para salir y bajar	Hinweise zum Losgehen und Aussteigen	Avisos para sair e descer
+Avvisi sulle tue linee	Alerts on your lines	Alertes sur vos lignes	Avisos en tus líneas	Hinweise zu deinen Linien	Avisos nas suas linhas
 Avviso	Notice	Avis	Aviso	Hinweis	Aviso
+Avviso di Roma Mobilità	Roma Mobilità alert	Alerte de Roma Mobilità	Aviso de Roma Mobilità	Hinweis von Roma Mobilità	Aviso da Roma Mobilità
 Avviso in corso	Active alert	Alerte en cours	Aviso activo	Aktiver Hinweis	Aviso ativo
 Avviso in corso, discreto	Alert in progress, discreet	Alerte en cours, discrète	Aviso en curso, discreto	Laufende Erinnerung, dezent	Aviso em andamento, discreto
 A§arrivo	To	À	A	Nach	Para
@@ -128,6 +135,7 @@ Come il telefono	Same as the phone	Comme le téléphone	Como el teléfono	Wie da
 come sulle paline elettroniche	like the electronic stop displays	comme sur les afficheurs des arrêts	como en los paneles de las paradas	wie auf den Anzeigen an der Haltestelle	como nos painéis das paradas
 Condividi il tragitto	Share journey	Partager le trajet	Compartir trayecto	Verbindung teilen	Compartilhar trajeto
 Conferma	Confirm	Confirmer	Confirmar	Bestätigen	Confirmar
+Consenti	Allow	Autoriser	Permitir	Erlauben	Permitir
 Conto alla rovescia sul quadrante e una vibrazione 2 minuti prima.	Countdown on the watch face and a vibration 2 minutes before.	Compte à rebours sur le cadran et une vibration 2 minutes avant.	Cuenta atrás en la esfera y una vibración 2 minutos antes.	Countdown auf dem Zifferblatt und eine Vibration 2 Minuten vorher.	Contagem regressiva no mostrador e uma vibração 2 minutos antes.
 controlla la connessione e riprova.	check your connection and try again.	vérifiez la connexion et réessayez.	comprueba la conexión e inténtalo de nuevo.	prüfe die Verbindung und versuche es erneut.	verifique a conexão e tente de novo.
 Controllo se c'è un orario nuovo…	Checking for a new timetable…	Recherche de nouveaux horaires…	Buscando un horario nuevo…	Suche nach neuem Fahrplan…	Verificando se há horários novos…
@@ -143,17 +151,23 @@ dal {0}	from {0}	à partir du {0}	desde el {0}	ab {0}	a partir de {0}
 Dalle {0} alle {1}, {2}.	From {0} to {1}, {2}.	De {0} à {1}, {2}.	De {0} a {1}, {2}.	Von {0} bis {1}, {2}.	Das {0} às {1}, {2}.
 Da§partenza	From	De	Desde	Von	De
 delle {0}	at {0}	de {0}	de las {0}	um {0}	das {0}
+dettagli	details	détails	detalles	Details	detalhes
 Dettagli su Roma Mobilità	Details on Roma Mobilità	Détails sur Roma Mobilità	Detalles en Roma Mobilità	Details bei Roma Mobilità	Detalhes na Roma Mobilità
 Deviazione	Diversion	Déviation	Desvío	Umleitung	Desvio
+Deviazioni e lavori sulle linee fissate, dei tragitti salvati e dei promemoria; gli scioperi la sera prima.	Diversions and works on pinned lines, saved journeys and reminders; strikes the evening before.	Déviations et travaux sur les lignes épinglées, les trajets enregistrés et les rappels ; les grèves la veille au soir.	Desvíos y obras en las líneas fijadas, los trayectos guardados y los recordatorios; las huelgas la noche anterior.	Umleitungen und Bauarbeiten auf angehefteten Linien, gespeicherten Strecken und Erinnerungen; Streiks am Vorabend.	Desvios e obras nas linhas fixadas, nos trajetos salvos e nos lembretes; as greves na noite anterior.
+Deviazioni, lavori e scioperi che riguardano le tue linee e fermate	Diversions, works and strikes affecting your lines and stops	Déviations, travaux et grèves qui concernent vos lignes et arrêts	Desvíos, obras y huelgas que afectan a tus líneas y paradas	Umleitungen, Bauarbeiten und Streiks, die deine Linien und Haltestellen betreffen	Desvios, obras e greves que afetam suas linhas e paradas
 dicembre	December	décembre	diciembre	Dezember	dezembro
 Direzione	Direction	Sens	Sentido	Richtung	Sentido
 Direzione non indicata	Direction not given	Sens non indiqué	Sentido no indicado	Richtung nicht angegeben	Sentido não indicado
 Direzione {0}	Direction {0}	Sens {0}	Sentido {0}	Richtung {0}	Sentido {0}
+dom	Sun	dim.	dom	So	dom
 Domani	Tomorrow	Demain	Mañana	Morgen	Amanhã
 domani {0}	tomorrow {0}	demain {0}	mañana {0}	morgen {0}	amanhã {0}
+domenica	Sunday	dimanche	domingo	Sonntag	domingo
 Dove scendi?	Where are you getting off?	Où descendez-vous ?	¿Dónde te bajas?	Wo steigst du aus?	Onde você desce?
 Dove vai?	Where to?	Où allez-vous ?	¿Adónde vas?	Wohin?	Para onde você vai?
 Dove vuoi andare?	Where do you want to go?	Où voulez-vous aller ?	¿Adónde quieres ir?	Wohin möchtest du?	Para onde você quer ir?
+D§domenica	S	D	D	S	D
 Elimina	Delete	Supprimer	Eliminar	Löschen	Excluir
 Esci alle {0}	Leave at {0}	Partez à {0}	Sal a las {0}	Los um {0}	Saia às {0}
 ESCI ORA	LEAVE NOW	PARTEZ	SAL YA	JETZT LOS	SAIA AGORA
@@ -162,6 +176,7 @@ Esci ora.	Leave now.	Partez maintenant.	Sal ya.	Jetzt los.	Saia agora.
 Esci ora: il {0} passa alle {1}	Leave now: the {0} comes at {1}	Partez : le {0} passe à {1}	Sal ya: el {0} pasa a las {1}	Jetzt los: Linie {0} kommt um {1}	Saia agora: o {0} passa às {1}
 ESCI TRA	LEAVE IN	PARTEZ DANS	SAL EN	LOS IN	SAIA EM
 Esci tra	Leave in	Partez dans	Sal en	Los in	Saia em
+Esci tra {0} min	Leave in {0} min	Partez dans {0} min	Sal en {0} min	Los in {0} Min.	Saia em {0} min
 Esci tra {0}.	Leave in {0}.	Partez dans {0}.	Sal en {0}.	Los in {0}.	Saia em {0}.
 Esempio	Example	Exemple	Ejemplo	Beispiel	Exemplo
 Fatto	Done	Terminé	Hecho	Fertig	Pronto
@@ -191,13 +206,18 @@ fondo color carta, cifre ambra	paper background, amber digits	fond couleur papie
 Fonti	Sources	Sources	Fuentes	Quellen	Fontes
 Funivia	Cable car	Téléphérique	Teleférico	Seilbahn	Teleférico
 gennaio	January	janvier	enero	Januar	janeiro
+gio	Thu	jeu.	jue	Do	qui
+Giorni	Days	Jours	Días	Tage	Dias
+Giorni feriali	Weekdays	Jours de semaine	Días laborables	Werktage	Dias úteis
 Giorno	Day	Jour	Día	Tag	Dia
+giovedì	Thursday	jeudi	jueves	Donnerstag	quinta-feira
 Gira a destra	Turn right	Tournez à droite	Gira a la derecha	Rechts abbiegen	Vire à direita
 Gira a destra in {0}	Turn right onto {0}	Tournez à droite sur {0}	Gira a la derecha por {0}	Rechts abbiegen in {0}	Vire à direita na {0}
 Gira a sinistra	Turn left	Tournez à gauche	Gira a la izquierda	Links abbiegen	Vire à esquerda
 Gira a sinistra in {0}	Turn left onto {0}	Tournez à gauche sur {0}	Gira a la izquierda por {0}	Links abbiegen in {0}	Vire à esquerda na {0}
 giugno	June	juin	junio	Juni	junho
 Gli orari programmati non sono disponibili in questo momento: vedi solo i mezzi seguiti in tempo reale.	Scheduled times aren't available right now: you only see vehicles tracked in real time.	Les horaires prévus ne sont pas disponibles pour le moment : vous ne voyez que les véhicules suivis en temps réel.	Los horarios programados no están disponibles ahora: solo ves los vehículos seguidos en tiempo real.	Fahrplanzeiten sind gerade nicht verfügbar: Du siehst nur in Echtzeit verfolgte Fahrzeuge.	Os horários programados não estão disponíveis agora: você vê só os veículos acompanhados em tempo real.
+G§giovedì	T	J	J	D	Q
 I prossimi bus e treni della fermata preferita più vicina	The next buses and trains at the nearest favourite stop	Les prochains bus et trains à l'arrêt favori le plus proche	Los próximos autobuses y trenes de la parada favorita más cercana	Die nächsten Busse und Züge an der nächsten Lieblingshaltestelle	Os próximos ônibus e trens da parada favorita mais próxima
 I tempi d'attesa si leggono solo mentre la Home, una fermata o una linea sono aperte: ogni 30 secondi, la posizione dei mezzi ogni 15. Ogni lettura può scaricare alcuni MB (niente, se i dati non sono cambiati): con il traffico dati tienilo presente.	Waiting times are only fetched while Home, a stop or a line is open: every 30 seconds, vehicle positions every 15. Each fetch can download a few MB (nothing if the data hasn't changed): keep that in mind on mobile data.	Les temps d'attente ne sont lus que lorsque l'accueil, un arrêt ou une ligne sont ouverts : toutes les 30 secondes, la position des véhicules toutes les 15. Chaque lecture peut télécharger quelques Mo (rien si les données n'ont pas changé) : pensez-y avec les données mobiles.	Los tiempos de espera solo se leen mientras la pantalla de inicio, una parada o una línea están abiertas: cada 30 segundos, la posición de los vehículos cada 15. Cada lectura puede descargar algunos MB (nada si los datos no han cambiado): tenlo en cuenta con datos móviles.	Wartezeiten werden nur abgerufen, solange die Startseite, eine Haltestelle oder eine Linie geöffnet ist: alle 30 Sekunden, die Fahrzeugpositionen alle 15. Jeder Abruf kann einige MB laden (nichts, wenn sich die Daten nicht geändert haben): Denk daran bei mobilen Daten.	Os tempos de espera só são lidos enquanto a tela inicial, uma parada ou uma linha estão abertas: a cada 30 segundos, a posição dos veículos a cada 15. Cada leitura pode baixar alguns MB (nada, se os dados não mudaram): leve isso em conta nos dados móveis.
 I tuoi tragitti	Your journeys	Vos trajets	Tus trayectos	Deine Verbindungen	Seus trajetos
@@ -215,6 +235,8 @@ Il telefono non ha trovato il treno in tempo: riprova.	The phone didn't find the
 Il tempo d'attesa{0} è calcolato sull'orario programmato: la vettura potrebbe non essere ancora partita.	The waiting time{0} is based on the timetable: the vehicle may not have set off yet.	Le temps d'attente{0} est calculé d'après les horaires prévus : le véhicule n'est peut-être pas encore parti.	El tiempo de espera{0} se calcula según el horario programado: puede que el vehículo aún no haya salido.	Die Wartezeit{0} ist nach dem Fahrplan berechnet: Das Fahrzeug ist vielleicht noch nicht losgefahren.	O tempo de espera{0} é calculado pelo horário programado: o veículo pode ainda não ter saído.
 Il tragitto che parte più vicino a dove sei	The journey starting closest to you	Le trajet qui part le plus près de vous	El trayecto que sale más cerca de donde estás	Die Verbindung, die am nächsten bei dir startet	O trajeto que começa mais perto de você
 Il {0} arriva tra {1}: ti avviso subito.	The {0} arrives in {1}: I'll alert you right away.	Le {0} arrive dans {1} : je vous préviens tout de suite.	El {0} llega en {1}: te aviso ya.	Linie {0} kommt in {1}: Ich sage sofort Bescheid.	O {0} chega em {1}: aviso você agora.
+Il {0} da orario: {1}.	The {0}, scheduled: {1}.	Le {0} selon l'horaire : {1}.	El {0} según el horario: {1}.	Die {0} laut Fahrplan: {1}.	O {0} pelo horário: {1}.
+Il {0} non passa nei prossimi 90 minuti.	The {0} isn't due in the next 90 minutes.	Le {0} ne passe pas dans les 90 prochaines minutes.	El {0} no pasa en los próximos 90 minutos.	Die {0} kommt in den nächsten 90 Minuten nicht.	O {0} não passa nos próximos 90 minutos.
 Il {0} per {1} arriva a {2} alle {3}.	The {0} to {1} arrives at {2} at {3}.	Le {0} pour {1} arrive à {2} à {3}.	El {0} hacia {1} llega a {2} a las {3}.	Linie {0} nach {1} kommt um {3} an {2} an.	O {0} sentido {1} chega a {2} às {3}.
 Il {0} per {1} arriva a {2} alle {3}. A piedi ti servono {4}.	The {0} to {1} arrives at {2} at {3}. You need {4} on foot.	Le {0} pour {1} arrive à {2} à {3}. Il vous faut {4} à pied.	El {0} hacia {1} llega a {2} a las {3}. Necesitas {4} a pie.	Linie {0} nach {1} kommt um {3} an {2} an. Zu Fuß brauchst du {4}.	O {0} sentido {1} chega a {2} às {3}. A pé você precisa de {4}.
 Impossibile salvare l'orario	Couldn't save the timetable	Impossible d'enregistrer les horaires	No se pudo guardar el horario	Fahrplan konnte nicht gespeichert werden	Não foi possível salvar os horários
@@ -270,17 +292,29 @@ Linee {0}.	Lines {0}.	Lignes {0}.	Líneas {0}.	Linien {0}.	Linhas {0}.
 Lingua	Language	Langue	Idioma	Sprache	Idioma
 Lo ritrovi in Home con «esci tra», nel widget e tenendo premuta l'icona di Palina.	You'll find it on Home with “leave in”, in the widget and by long-pressing Palina's icon.	Vous le retrouverez sur l'accueil avec « partez dans », dans le widget et en appuyant longuement sur l'icône de Palina.	Lo encontrarás en el inicio con «sal en», en el widget y manteniendo pulsado el icono de Palina.	Du findest sie auf der Startseite mit „Los in“, im Widget und durch langes Drücken auf das Palina-Symbol.	Você o encontra na tela inicial com “saia em”, no widget e tocando e segurando o ícone do Palina.
 luglio	July	juillet	julio	Juli	julho
+lun	Mon	lun.	lun	Mo	seg
+lunedì	Monday	lundi	lunes	Montag	segunda-feira
+L§lunedì	M	L	L	M	S
 maggio	May	mai	mayo	Mai	maio
+mai	never	jamais	nunca	nie	nunca
 Manca l'orario incluso nell'app.	The built-in timetable is missing.	Les horaires inclus dans l'app sont absents.	Falta el horario incluido en la app.	Der in der App enthaltene Fahrplan fehlt.	Faltam os horários incluídos no app.
+mar	Tue	mar.	mar	Di	ter
+martedì	Tuesday	mardi	martes	Dienstag	terça-feira
 marzo	March	mars	marzo	März	março
 Meno a piedi	Less walking	Moins de marche	Menos a pie	Weniger Fußweg	Menos a pé
 Meno cambi	Fewer changes	Moins de correspondances	Menos transbordos	Weniger Umstiege	Menos baldeações
 meno di 10 m	less than 10 m	moins de 10 m	menos de 10 m	weniger als 10 m	menos de 10 m
+mer	Wed	mer.	mié	Mi	qua
+mercoledì	Wednesday	mercredi	miércoles	Mittwoch	quarta-feira
 min	min	min	min	Min.	min
+modifica	edit	modifier	editar	bearbeiten	editar
 Mostra dove sono	Show my location	Afficher ma position	Mostrar dónde estoy	Meinen Standort zeigen	Mostrar onde estou
 Mostra meno	Show less	Afficher moins	Mostrar menos	Weniger anzeigen	Mostrar menos
 Mostra tutti ({0})	Show all ({0})	Tout afficher ({0})	Mostrar todos ({0})	Alle anzeigen ({0})	Mostrar todos ({0})
+M§martedì	T	M	M	D	T
+M§mercoledì	W	M	X	M	Q
 Nascondi le indicazioni	Hide directions	Masquer l'itinéraire	Ocultar indicaciones	Anweisungen ausblenden	Ocultar instruções
+nei giorni feriali	on weekdays	en semaine	los días laborables	an Werktagen	nos dias úteis
 Nei prossimi 90 minuti non c'è un passaggio che fai in tempo a prendere: fino alla fermata servono {0} a piedi.	In the next 90 minutes there's nothing you can catch in time: it's {0} on foot to the stop.	Dans les 90 prochaines minutes, aucun passage que vous puissiez prendre à temps : il faut {0} à pied jusqu'à l'arrêt.	En los próximos 90 minutos no hay ningún paso que llegues a tiempo a coger: hasta la parada hay {0} a pie.	In den nächsten 90 Minuten erreichst du keine Abfahrt rechtzeitig: Bis zur Haltestelle sind es {0} zu Fuß.	Nos próximos 90 minutos não há nenhuma passagem que dê tempo de pegar: até a parada são {0} a pé.
 Nell'orario questa linea ha una sola direzione (per esempio è circolare).	In the timetable this line has only one direction (for example, it's a loop).	Dans les horaires, cette ligne n'a qu'un seul sens (par exemple, elle est circulaire).	En el horario esta línea tiene un solo sentido (por ejemplo, es circular).	Laut Fahrplan hat diese Linie nur eine Richtung (zum Beispiel eine Ringlinie).	Nos horários esta linha tem só um sentido (por exemplo, é circular).
 Nessun avviso in corso.	No active alert.	Aucune alerte en cours.	Ningún aviso activo.	Kein aktiver Hinweis.	Nenhum aviso ativo.
@@ -303,6 +337,7 @@ Nessuna fermata trovata.	No stops found.	Aucun arrêt trouvé.	No se encontró n
 Nessuna partenza trovata.	No departures found.	Aucun départ trouvé.	No se encontraron salidas.	Keine Abfahrten gefunden.	Nenhuma partida encontrada.
 Nessuna risposta	No response	Pas de réponse	Sin respuesta	Keine Antwort	Sem resposta
 Nessuna vettura GPS in questa direzione	No GPS vehicles in this direction	Aucun véhicule GPS dans ce sens	Ningún vehículo con GPS en este sentido	Keine GPS-Fahrzeuge in dieser Richtung	Nenhum veículo com GPS neste sentido
+Nessuno: li aggiungi da «Avvisami» su una linea («Ripeti ogni settimana…») o dal menu di un tragitto salvato.	None yet: add them from “Alert me” on a line (“Repeat every week…”) or from the menu of a saved journey.	Aucun : ajoutez-les depuis « Me prévenir » sur une ligne (« Répéter chaque semaine… ») ou depuis le menu d'un trajet enregistré.	Ninguno: añádelos desde «Avísame» en una línea («Repetir cada semana…») o desde el menú de un trayecto guardado.	Keine: Füge sie über „Erinnere mich“ bei einer Linie („Jede Woche wiederholen…“) oder im Menü einer gespeicherten Strecke hinzu.	Nenhum: adicione pelo “Me avise” numa linha (“Repetir toda semana…”) ou pelo menu de um trajeto salvo.
 Nome	Name	Nom	Nombre	Name	Nome
 Non riesco a contattare Transitous. Controlla la connessione e riprova.	Can't reach Transitous. Check your connection and try again.	Impossible de joindre Transitous. Vérifiez la connexion et réessayez.	No puedo contactar con Transitous. Comprueba la conexión e inténtalo de nuevo.	Transitous ist nicht erreichbar. Prüfe die Verbindung und versuche es erneut.	Não consigo contatar o Transitous. Verifique a conexão e tente de novo.
 Non riesco a leggere i passaggi. Controlla la connessione e riprova.	Can't read the departures. Check your connection and try again.	Impossible de lire les passages. Vérifiez la connexion et réessayez.	No puedo leer los pasos. Comprueba la conexión e inténtalo de nuevo.	Abfahrten können nicht gelesen werden. Prüfe die Verbindung und versuche es erneut.	Não consigo ler as passagens. Verifique a conexão e tente de novo.
@@ -316,6 +351,7 @@ Non trovo le fermate di questa linea.	I can't find this line's stops.	Je ne trou
 Non trovo le fermate di questo treno.	Can't find this train's stops.	Arrêts de ce train introuvables.	No encuentro las paradas de este tren.	Die Halte dieses Zuges wurden nicht gefunden.	Não encontro as paradas deste trem.
 Non trovo questo treno negli orari: torna indietro e riprova.	Can't find this train in the timetable: go back and try again.	Ce train est introuvable dans les horaires : revenez en arrière et réessayez.	No encuentro este tren en el horario: vuelve atrás e inténtalo de nuevo.	Dieser Zug ist nicht im Fahrplan: Geh zurück und versuche es erneut.	Não encontro este trem nos horários: volte e tente de novo.
 Non trovo un prossimo passaggio da seguire per questa linea.	Can't find an upcoming departure to follow on this line.	Aucun prochain passage à suivre pour cette ligne.	No encuentro un próximo paso que seguir en esta línea.	Keine nächste Abfahrt zum Verfolgen auf dieser Linie.	Não encontro uma próxima passagem para seguir nesta linha.
+Notifiche	Notifications	Notifications	Notificaciones	Mitteilungen	Notificações
 novembre	November	novembre	noviembre	November	novembro
 Numero della palina	Stop number	Numéro de l'arrêt	Número de parada	Haltestellennummer	Número da parada
 Oggi	Today	Aujourd'hui	Hoy	Heute	Hoje
@@ -390,6 +426,9 @@ Prendi le scale in {0}	Take the stairs at {0}	Prenez les escaliers à {0}	Toma l
 Prendo il successivo	I'll take the next one	Je prends le suivant	Cojo el siguiente	Ich nehme den nächsten	Vou pegar o próximo
 Preparo l'orario…	Preparing the timetable…	Préparation des horaires…	Preparando el horario…	Fahrplan wird vorbereitet…	Preparando os horários…
 Prima	Earliest	Plus tôt	Antes	Früheste	Mais cedo
+Promemoria ricorrente	Recurring reminder	Rappel récurrent	Recordatorio periódico	Wiederkehrende Erinnerung	Lembrete recorrente
+Promemoria ricorrenti	Recurring reminders	Rappels récurrents	Recordatorios periódicos	Wiederkehrende Erinnerungen	Lembretes recorrentes
+Promemoria…	Reminder…	Rappel…	Recordatorio…	Erinnerung…	Lembrete…
 Prosegui	Continue	Continuez	Continúa	Weiter	Continue
 Prosegui in {0}	Continue along {0}	Continuez sur {0}	Continúa por {0}	Weiter auf {0}	Continue pela {0}
 Prossimi passaggi	Next departures	Prochains passages	Próximos pasos	Nächste Abfahrten	Próximas passagens
@@ -412,6 +451,7 @@ Richiesta non valida.	Invalid request.	Requête non valide.	Solicitud no válida
 rilevata {0}	recorded {0}	relevée {0}	registrada {0}	erfasst {0}	registrada {0}
 Rinomina	Rename	Renommer	Cambiar nombre	Umbenennen	Renomear
 Rinomina il tragitto	Rename the journey	Renommer le trajet	Cambiar el nombre del trayecto	Strecke umbenennen	Renomear o trajeto
+Ripeti ogni settimana…	Repeat every week…	Répéter chaque semaine…	Repetir cada semana…	Jede Woche wiederholen…	Repetir toda semana…
 Riprova	Try again	Réessayer	Reintentar	Erneut versuchen	Tentar de novo
 Ritardi	Delays	Retards	Retrasos	Verspätungen	Atrasos
 Ritardi dei treni non disponibili ora (ASTRAL non risponde, o di notte non ha ancora l'orario del giorno): vedi l'orario programmato. Tocca un treno per vedere tutte le sue fermate.	Train delays aren't available right now (ASTRAL isn't responding, or at night it doesn't have the day's timetable yet): you see the scheduled times. Tap a train to see all its stops.	Les retards des trains ne sont pas disponibles pour le moment (ASTRAL ne répond pas, ou la nuit il n'a pas encore les horaires du jour) : vous voyez les horaires prévus. Touchez un train pour voir tous ses arrêts.	Los retrasos de los trenes no están disponibles ahora (ASTRAL no responde, o de noche aún no tiene el horario del día): ves el horario programado. Toca un tren para ver todas sus paradas.	Zugverspätungen sind gerade nicht verfügbar (ASTRAL antwortet nicht oder hat nachts den Tagesfahrplan noch nicht): Du siehst die Fahrplanzeiten. Tippe auf einen Zug, um alle seine Halte zu sehen.	Os atrasos dos trens não estão disponíveis agora (a ASTRAL não responde ou, à noite, ainda não tem os horários do dia): você vê o horário programado. Toque em um trem para ver todas as suas paradas.
@@ -421,9 +461,13 @@ Roma Mobilità in questo momento non pubblica il tempo reale: nessuna vettura ne
 Roma Mobilità ora non pubblica il tempo reale: i tempi di Roma sono calcolati sull'orario.	Roma Mobilità isn't publishing real time right now: Rome times are worked out from the timetable.	Roma Mobilità ne publie pas le temps réel pour le moment : les horaires de Rome sont calculés d'après les horaires prévus.	Roma Mobilità no publica ahora el tiempo real: los tiempos de Roma se calculan según el horario.	Roma Mobilità veröffentlicht gerade keine Echtzeit: Die Zeiten in Rom sind nach dem Fahrplan berechnet.	A Roma Mobilità não está publicando o tempo real agora: os horários de Roma são calculados pelo horário programado.
 Roma Mobilità ora non pubblica il tempo reale: tempi da orario.	Roma Mobilità isn't publishing real time right now: scheduled times.	Roma Mobilità ne publie pas le temps réel pour le moment : horaires prévus.	Roma Mobilità no publica ahora el tiempo real: tiempos programados.	Roma Mobilità veröffentlicht gerade keine Echtzeit: Zeiten laut Fahrplan.	A Roma Mobilità não está publicando o tempo real agora: horários programados.
 Roma Mobilità ora non pubblica le posizioni delle vetture	Roma Mobilità isn't publishing vehicle positions right now	Roma Mobilità ne publie pas la position des véhicules pour le moment	Roma Mobilità no publica ahora las posiciones de los vehículos	Roma Mobilità veröffentlicht gerade keine Fahrzeugpositionen	A Roma Mobilità não está publicando as posições dos veículos agora
+sab	Sat	sam.	sáb	Sa	sáb
+sabato	Saturday	samedi	sábado	Samstag	sábado
+sabato e domenica	Saturday and Sunday	samedi et dimanche	sábado y domingo	Samstag und Sonntag	sábado e domingo
 Sali a {0}	Board at {0}	Montez à {0}	Sube en {0}	Einsteigen an {0}	Embarque em {0}
 Salva	Save	Enregistrer	Guardar	Speichern	Salvar
 Salva il tragitto	Save journey	Enregistrer le trajet	Guardar trayecto	Verbindung speichern	Salvar trajeto
+Salva promemoria	Save reminder	Enregistrer le rappel	Guardar recordatorio	Erinnerung speichern	Salvar lembrete
 Salva un tragitto in «Come arrivo» per vedere quando uscire.	Save a journey in “Directions” to see when to leave.	Enregistrez un trajet dans « Itinéraire » pour savoir quand partir.	Guarda un trayecto en «Cómo llegar» para ver cuándo salir.	Speichere eine Verbindung unter „Route“, um zu sehen, wann du losmusst.	Salve um trajeto em “Como chegar” para ver quando sair.
 Scambia partenza e arrivo	Swap start and destination	Inverser départ et arrivée	Intercambiar salida y llegada	Start und Ziel tauschen	Inverter partida e chegada
 Scarica l'orario	Download the timetable	Télécharger les horaires	Descargar el horario	Fahrplan herunterladen	Baixar os horários
@@ -439,6 +483,9 @@ scegli la fermata quando sei a bordo	choose the stop once you're on board	choisi
 Scegli la partenza	Choose the start	Choisir le départ	Elige la salida	Start wählen	Escolha a partida
 Scendi a {0}	Get off at {0}	Descendez à {0}	Bájate en {0}	Aussteigen an {0}	Desembarque em {0}
 Scendi alla prossima	Get off at the next stop	Descendez au prochain arrêt	Bájate en la próxima	Nächste Haltestelle aussteigen	Desça na próxima
+Sciopero domani	Strike tomorrow	Grève demain	Huelga mañana	Streik morgen	Greve amanhã
+Sciopero oggi	Strike today	Grève aujourd'hui	Huelga hoy	Streik heute	Greve hoje
+Sciopero {0}	Strike on {0}	Grève {0}	Huelga el {0}	Streik am {0}	Greve na {0}
 Scrivi il nome di una fermata, il numero della palina (è sul cartello, per esempio 70078), il numero di una linea o un indirizzo.	Type the name of a stop, the stop number (it's on the sign, for example 70078), a line number or an address.	Saisissez le nom d'un arrêt, le numéro de l'arrêt (il figure sur le panneau, par exemple 70078), le numéro d'une ligne ou une adresse.	Escribe el nombre de una parada, el número de la parada (está en el cartel, por ejemplo 70078), el número de una línea o una dirección.	Gib den Namen einer Haltestelle, die Haltestellennummer (sie steht auf dem Schild, zum Beispiel 70078), eine Liniennummer oder eine Adresse ein.	Digite o nome de uma parada, o número da parada (está na placa, por exemplo 70078), o número de uma linha ou um endereço.
 Scuro	Dark	Sombre	Oscuro	Dunkel	Escuro
 secondo l'orario	according to the timetable	selon les horaires	según el horario	laut Fahrplan	conforme o horário
@@ -450,6 +497,7 @@ Sei a {0} da {1}, la sua fermata più vicina ›	You're {0} from {1}, its neares
 Sei qui	You are here	Vous êtes ici	Estás aquí	Du bist hier	Você está aqui
 Sei sul {0}?	On the {0}?	Vous êtes dans le {0} ?	¿Vas en el {0}?	Bist du in Linie {0}?	Está no {0}?
 Sei vicino a	You're near	Vous êtes près de	Estás cerca de	Du bist in der Nähe von	Você está perto de
+Senza il permesso per sveglie e promemoria la notifica può arrivare qualche minuto dopo.	Without permission for alarms and reminders the notification may arrive a few minutes late.	Sans l'autorisation pour les alarmes et rappels, la notification peut arriver quelques minutes plus tard.	Sin el permiso para alarmas y recordatorios, la notificación puede llegar unos minutos tarde.	Ohne die Berechtigung für Wecker und Erinnerungen kann die Mitteilung ein paar Minuten später kommen.	Sem a permissão para alarmes e lembretes, a notificação pode chegar alguns minutos depois.
 Servizio aggiuntivo	Extra service	Service supplémentaire	Servicio adicional	Zusätzlicher Verkehr	Serviço adicional
 Servizio modificato	Service changed	Service modifié	Servicio modificado	Geänderter Verkehr	Serviço alterado
 Servizio ridotto	Reduced service	Service réduit	Servicio reducido	Eingeschränkter Verkehr	Serviço reduzido
@@ -468,6 +516,7 @@ Svolta stretta a destra	Turn sharp right	Tournez franchement à droite	Gira brus
 Svolta stretta a destra in {0}	Turn sharp right onto {0}	Tournez franchement à droite sur {0}	Gira bruscamente a la derecha por {0}	Scharf rechts abbiegen in {0}	Vire acentuadamente à direita na {0}
 Svolta stretta a sinistra	Turn sharp left	Tournez franchement à gauche	Gira bruscamente a la izquierda	Scharf links abbiegen	Vire acentuadamente à esquerda
 Svolta stretta a sinistra in {0}	Turn sharp left onto {0}	Tournez franchement à gauche sur {0}	Gira bruscamente a la izquierda por {0}	Scharf links abbiegen in {0}	Vire acentuadamente à esquerda na {0}
+S§sabato	S	S	S	S	S
 tabellone nero, cifre oro	black board, gold digits	tableau noir, chiffres dorés	panel negro, cifras doradas	schwarze Tafel, goldene Ziffern	painel preto, dígitos dourados
 Telefono non raggiungibile: apri Palina sul telefono e controlla il Bluetooth.	Phone unreachable: open Palina on the phone and check Bluetooth.	Téléphone injoignable : ouvrez Palina sur le téléphone et vérifiez le Bluetooth.	Teléfono no disponible: abre Palina en el teléfono y comprueba el Bluetooth.	Telefon nicht erreichbar: Öffne Palina auf dem Telefon und prüfe Bluetooth.	Celular inacessível: abra o Palina no celular e verifique o Bluetooth.
 Telefono non raggiungibile: non posso chiedere le fermate.	Phone unreachable: can't ask for the stops.	Téléphone injoignable : impossible de demander les arrêts.	Teléfono no disponible: no puedo pedir las paradas.	Telefon nicht erreichbar: Halte können nicht abgefragt werden.	Celular inacessível: não posso pedir as paradas.
@@ -490,6 +539,9 @@ Tieni la sinistra in {0}	Keep left onto {0}	Restez à gauche sur {0}	Mantente a 
 Tocca il cuore in una fermata: la ritrovi qui in cima, con i suoi tempi.	Tap the heart on a stop: you'll find it here at the top, with its times.	Touchez le cœur d'un arrêt : vous le retrouverez ici en haut, avec ses horaires.	Toca el corazón en una parada: la encontrarás aquí arriba, con sus tiempos.	Tippe bei einer Haltestelle auf das Herz: Du findest sie dann hier oben mit ihren Zeiten.	Toque no coração de uma parada: ela aparece aqui no topo, com os horários.
 Tocca la puntina accanto a una linea: resta in cima qui e in Home.	Tap the pin next to a line: it stays at the top here and on Home.	Touchez l'épingle à côté d'une ligne : elle reste en haut ici et sur l'accueil.	Toca la chincheta junto a una línea: se queda arriba aquí y en el inicio.	Tippe auf die Nadel neben einer Linie: Sie bleibt hier und auf der Startseite oben.	Toque no alfinete ao lado de uma linha: ela fica no topo aqui e na tela inicial.
 Tocca per cercare le prossime partenze.	Tap to find the next departures.	Touchez pour chercher les prochains départs.	Toca para buscar las próximas salidas.	Tippe, um die nächsten Abfahrten zu suchen.	Toque para buscar as próximas partidas.
+Tocca per sapere quando uscire.	Tap to find out when to leave.	Touchez pour savoir quand partir.	Toca para saber cuándo salir.	Tippe, um zu sehen, wann du losmusst.	Toque para saber quando sair.
+Tocca per vedere i tempi.	Tap to see the times.	Touchez pour voir les horaires.	Toca para ver los tiempos.	Tippe, um die Zeiten zu sehen.	Toque para ver os tempos.
+Tocca per vedere quando passa il {0} e attivare l'avviso.	Tap to see when the {0} is due and turn on the alert.	Touchez pour voir quand passe le {0} et activer l'alerte.	Toca para ver cuándo pasa el {0} y activar el aviso.	Tippe, um zu sehen, wann die {0} kommt, und die Erinnerung einzuschalten.	Toque para ver quando passa o {0} e ativar o aviso.
 Togli	Unpin	Retirer	Quitar	Lösen	Remover
 Togli dai preferiti	Remove from favourites	Retirer des favoris	Quitar de favoritos	Aus Favoriten entfernen	Remover dos favoritos
 Togli dai tragitti salvati	Remove from saved journeys	Retirer des trajets enregistrés	Quitar de los trayectos guardados	Aus gespeicherten Verbindungen entfernen	Remover dos trajetos salvos
@@ -504,6 +556,7 @@ Tracciati	Routes	Tracés	Recorridos	Linienverläufe	Traçados
 Traghetto	Ferry	Ferry	Ferri	Fähre	Balsa
 Tragitti calcolati da Transitous con i dati di Roma Mobilità, Cotral, Trenitalia e OpenStreetMap. Tocca qui per tutte le fonti.	Journeys calculated by Transitous with data from Roma Mobilità, Cotral, Trenitalia and OpenStreetMap. Tap here for all the sources.	Trajets calculés par Transitous avec les données de Roma Mobilità, Cotral, Trenitalia et OpenStreetMap. Touchez ici pour toutes les sources.	Trayectos calculados por Transitous con datos de Roma Mobilità, Cotral, Trenitalia y OpenStreetMap. Toca aquí para ver todas las fuentes.	Verbindungen berechnet von Transitous mit Daten von Roma Mobilità, Cotral, Trenitalia und OpenStreetMap. Tippe hier für alle Quellen.	Trajetos calculados pelo Transitous com dados da Roma Mobilità, Cotral, Trenitalia e OpenStreetMap. Toque aqui para ver todas as fontes.
 Tragitto	Journey	Trajet	Trayecto	Verbindung	Trajeto
+Tragitto salvato	Saved journey	Trajet enregistré	Trayecto guardado	Gespeicherte Strecke	Trajeto salvo
 Transitous ha ricevuto troppe richieste: riprova tra qualche minuto.	Transitous has received too many requests: try again in a few minutes.	Transitous a reçu trop de requêtes : réessayez dans quelques minutes.	Transitous ha recibido demasiadas solicitudes: inténtalo de nuevo en unos minutos.	Transitous hat zu viele Anfragen erhalten: Versuche es in ein paar Minuten erneut.	O Transitous recebeu solicitações demais: tente de novo em alguns minutos.
 Transitous ha risposto con un errore ({0}).	Transitous replied with an error ({0}).	Transitous a répondu par une erreur ({0}).	Transitous respondió con un error ({0}).	Transitous antwortete mit einem Fehler ({0}).	O Transitous respondeu com um erro ({0}).
 Transitous non ha risposto.	Transitous didn't respond.	Transitous n'a pas répondu.	Transitous no respondió.	Transitous hat nicht geantwortet.	O Transitous não respondeu.
@@ -513,6 +566,8 @@ Treni Cotral	Cotral trains	Trains Cotral	Trenes Cotral	Cotral-Züge	Trens Cotral
 Treno	Train	Train	Tren	Zug	Trem
 Treno delle {0}, {1}: vedi le fermate	{0} train, {1}: see the stops	Train de {0}, {1} : voir les arrêts	Tren de las {0}, {1}: ver las paradas	Zug um {0}, {1}: Halte ansehen	Trem das {0}, {1}: ver as paradas
 Treno {0} verso {1}: 	Train {0} towards {1}: 	Train {0} vers {1} : 	Tren {0} hacia {1}: 	Zug {0} Richtung {1}: 	Trem {0} sentido {1}: 
+tutti i giorni	every day	tous les jours	todos los días	jeden Tag	todos os dias
+Tutti i giorni	Every day	Tous les jours	Todos los días	Jeden Tag	Todos os dias
 Tutto a piedi, {0}	Walk all the way, {0}	Tout à pied, {0}	Todo a pie, {0}	Alles zu Fuß, {0}	Tudo a pé, {0}
 Tutto a piedi: {0}	Walk all the way: {0}	Tout à pied : {0}	Todo a pie: {0}	Alles zu Fuß: {0}	Tudo a pé: {0}
 ultima corsa	last service	dernier passage	último servicio	letzte Fahrt	última viagem
@@ -528,6 +583,8 @@ vedi i treni e le loro fermate	see the trains and their stops	voir les trains et
 vedi la linea	see the line	voir la ligne	ver la línea	Linie ansehen	ver a linha
 vedi la vettura sulla mappa	see the vehicle on the map	voir le véhicule sur la carte	ver el vehículo en el mapa	Fahrzeug auf der Karte ansehen	ver o veículo no mapa
 vedi le partenze da questa stazione	see departures from this station	voir les départs de cette gare	ver las salidas de esta estación	Abfahrten an diesem Bahnhof ansehen	ver as partidas desta estação
+ven	Fri	ven.	vie	Fr	sex
+venerdì	Friday	vendredi	viernes	Freitag	sexta-feira
 verso {0}	towards {0}	vers {0}	hacia {0}	Richtung {0}	sentido {0}
 Verso {0}	To {0}	Vers {0}	Hacia {0}	Richtung {0}	Sentido {0}
 verso {0}, da {1}	towards {0}, from {1}	vers {0}, depuis {1}	hacia {0}, desde {1}	Richtung {0}, ab {1}	sentido {0}, de {1}
@@ -537,6 +594,7 @@ Vicino a te	Near you	Près de vous	Cerca de ti	In deiner Nähe	Perto de você
 VICINO A TE	NEAR YOU	PRÈS DE VOUS	CERCA DE TI	IN DEINER NÄHE	PERTO DE VOCÊ
 Vuoi arrivare entro le…	Arrive by…	Arriver avant…	Llegar antes de las…	Ankommen bis…	Chegar até as…
 Vuoi partire alle…	Depart at…	Partir à…	Salir a las…	Abfahren um…	Partir às…
+V§venerdì	F	V	V	F	S
 Widget della fermata	Stop widget	Widget de l'arrêt	Widget de la parada	Haltestellen-Widget	Widget da parada
 Widget «esci tra»	“Leave in” widget	Widget « partez dans »	Widget «sal en»	„Los in“-Widget	Widget “saia em”
 {0} alle {1}	{0} at {1}	{0} à {1}	{0} a las {1}	{0} um {1}	{0} às {1}
@@ -576,6 +634,7 @@ Widget «esci tra»	“Leave in” widget	Widget « partez dans »	Widget «sal 
 {0} {1} in partenza da {2}	{0} {1} leaving now from {2}	{0} {1} au départ de {2}	{0} {1} saliendo de {2}	{0} {1} fährt gleich ab {2}	{0} {1} saindo agora de {2}
 {0} {1} tra {2} min da {3}	{0} {1} in {2} min from {3}	{0} {1} dans {2} min depuis {3}	{0} {1} en {2} min desde {3}	{0} {1} in {2} Min. ab {3}	{0} {1} em {2} min de {3}
 {0} {1} {2}§data	{0} {1} {2}	{0} {1} {2}	{0} de {1} de {2}	{0}. {1} {2}	{0} de {1} de {2}
+{0} {1} {2}§giorno	{0} {1} {2}	{0} {1} {2}	{0} {1} de {2}	{0}, {1}. {2}	{0}, {1} de {2}
 {0} · non passa nei prossimi 90 minuti	{0} · not running in the next 90 minutes	{0} · ne passe pas dans les 90 prochaines minutes	{0} · no pasa en los próximos 90 minutos	{0} · fährt in den nächsten 90 Minuten nicht	{0} · não passa nos próximos 90 minutos
 {0} · palina {1}	{0} · stop {1}	{0} · arrêt {1}	{0} · parada {1}	{0} · Haltestelle {1}	{0} · parada {1}
 {0} · prenota la fermata	{0} · request the stop	{0} · demandez l'arrêt	{0} · pide la parada	{0} · Haltewunsch drücken	{0} · solicite a parada

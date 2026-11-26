@@ -33,6 +33,7 @@ import it.palinaroma.ui.FermataSchermo
 import it.palinaroma.ui.HomeSchermo
 import it.palinaroma.ui.LineaSchermo
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.leggiRichiestaAvvisami
 import it.palinaroma.dati.Aspetto
 import it.palinaroma.ui.OrarioSchermo
 import it.palinaroma.ui.SceltaLuogoSchermo
@@ -101,7 +102,7 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        /** Cosa aprire: "vicina", "palina", "tragitto:<id>", "fermata:<id>", "scendi", "home". */
+        /** Cosa aprire: "vicina", "palina", "tragitto:<id>", "fermata:<id>", "linea:<id>", "avvisami:...", "scendi", "home". */
         const val APRI = "apri"
     }
 }
@@ -168,6 +169,20 @@ private fun Navigazione() {
             cosa.startsWith("fermata:") -> {
                 tornaAllaHome()
                 apriFermata(cosa.removePrefix("fermata:"))
+            }
+            cosa.startsWith("linea:") -> {
+                tornaAllaHome()
+                apriLinea(cosa.removePrefix("linea:"), null)
+            }
+            // dal promemoria: "Avvisami" per il prossimo passaggio, con il conto alla rovescia in Home
+            cosa.startsWith("avvisami:") -> {
+                tornaAllaHome()
+                val parti = leggiRichiestaAvvisami(cosa)
+                if (parti != null) {
+                    withTimeoutOrNull(30_000) { Archivio.orario.first { it != null } }
+                    val s = runCatching { Avvisatore.avvia(context, parti[0], parti[1], parti[2], parti[3], scendi = false) }.getOrNull()
+                    if (s == null) apriFermata(parti[0])
+                }
             }
             cosa == "vicina" -> {
                 tornaAllaHome()

@@ -62,6 +62,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.titoloPromemoria
+import it.palinaroma.dati.minutiProposti
+import it.palinaroma.dati.promemoriaPerLinea
+import it.palinaroma.dati.Promemoria
 import it.palinaroma.dati.chiaveArrivo
 import it.palinaroma.dati.ultimeDelleRighe
 import it.palinaroma.dati.corseRimasteFermata
@@ -262,6 +266,7 @@ fun FermataSchermo(
     // "Avvisami" per una riga: fermata (la banchina giusta negli scambi), linea e capolinea
     var avvisami by remember { mutableStateOf<Triple<String, String, String>?>(null) }
     var rinominando by remember { mutableStateOf(false) }
+    var nuovoPromemoria by remember { mutableStateOf<Promemoria?>(null) }
     val nomi by Archivio.nomi.collectAsStateWithLifecycle()
     val avvisiRoma by produceState(initialValue = emptyList<SchedaAvviso>(), o, fermataId) {
         value = o?.let { avvisiPerFermata(it, fermataId) }.orEmpty()
@@ -422,6 +427,14 @@ fun FermataSchermo(
             }
         }
     }
+    nuovoPromemoria?.let { p ->
+        FoglioPromemoria(
+            iniziale = p,
+            titolo = titoloPromemoria(p, nomi[p.fermataId] ?: fermata?.nome, Archivio.salvati.value),
+            esistente = false,
+            chiudi = { nuovoPromemoria = null },
+        )
+    }
     if (rinominando) {
         DialogoNome(
             titolo = tx("Dai un nome alla fermata"),
@@ -436,7 +449,13 @@ fun FermataSchermo(
         )
     }
     avvisami?.let { (f, l, c) ->
-        FoglioAvvisami(fermataId = f, lineaId = l, capolinea = c, chiudi = { avvisami = null })
+        FoglioAvvisami(
+            fermataId = f, lineaId = l, capolinea = c, chiudi = { avvisami = null },
+            ripeti = { nomeLinea, quando ->
+                avvisami = null
+                nuovoPromemoria = promemoriaPerLinea(f, l, c, nomeLinea, quando, minutiProposti())
+            },
+        )
     }
 }
 

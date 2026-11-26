@@ -78,6 +78,10 @@ object Archivio {
     private val _cifreLed = MutableStateFlow(true)
     val cifreLed: StateFlow<Boolean> = _cifreLed.asStateFlow()
 
+    /** "Avvisi sulle tue linee": il controllo in sottofondo degli avvisi e degli scioperi. */
+    private val _avvisiLinee = MutableStateFlow(true)
+    val avvisiLinee: StateFlow<Boolean> = _avvisiLinee.asStateFlow()
+
     /** La lingua scelta nelle impostazioni di Palina: "" segue il telefono. */
     private val _lingua = MutableStateFlow("")
     val lingua: StateFlow<String> = _lingua.asStateFlow()
@@ -89,6 +93,13 @@ object Archivio {
     /** Le partenze calcolate dei tragitti salvati (id -> partenze), in memoria. */
     private val _partenze = MutableStateFlow<Map<String, PartenzeTragitto>>(emptyMap())
     val partenze: StateFlow<Map<String, PartenzeTragitto>> = _partenze.asStateFlow()
+
+    /** I promemoria ricorrenti ("nei giorni feriali alle 8:10, il 64 a Lavoro"). */
+    private val _promemoria = MutableStateFlow<List<Promemoria>>(emptyList())
+    val promemoria: StateFlow<List<Promemoria>> = _promemoria.asStateFlow()
+
+    /** Chi deve riprogrammare le notifiche quando cambiano i promemoria. */
+    var quandoCambianoPromemoria: ((Context) -> Unit)? = null
 
     /** I nomi dati alle fermate preferite ("Casa", "Lavoro"). */
     private val _nomi = MutableStateFlow<Map<String, String>>(emptyMap())
@@ -106,9 +117,11 @@ object Archivio {
         _aspetto.value = impostazioni.getString("aspetto", null)
             ?.let { nome -> Aspetto.entries.firstOrNull { it.name == nome } } ?: Aspetto.AUTOMATICO
         _cifreLed.value = impostazioni.getBoolean("cifre_led", true)
+        _avvisiLinee.value = impostazioni.getBoolean("avvisi_linee", true)
         _lingua.value = impostazioni.getString("lingua", "").orEmpty()
         _salvati.value = CodificaTragittiSalvati.leggi(impostazioni.getString("tragitti_salvati", null))
         _nomi.value = CodificaNomi.leggi(impostazioni.getString("nomi_fermate", null))
+        _promemoria.value = CodificaPromemoria.leggi(impostazioni.getString("promemoria", null))
         impostaLingua(app, _lingua.value)
         ambito.launch {
             pulisciAvanzi()
@@ -342,6 +355,29 @@ object Archivio {
 
     fun rinominaTragitto(id: String, nome: String) {
         scriviSalvati(rinominaTragittoSalvato(_salvati.value, id, nome))
+    }
+
+    fun impostaAvvisiLinee(attivi: Boolean) {
+        _avvisiLinee.value = attivi
+        impostazioni.edit().putBoolean("avvisi_linee", attivi).apply()
+        quandoCambianoPromemoria?.invoke(app)
+    }
+
+    /** Gli avvisi gia' notificati (null: mai controllato). */
+    fun avvisiVisti(): Set<String>? = CodificaVisti.leggi(impostazioni.getString("avvisi_visti", null))
+
+    fun salvaAvvisiVisti(visti: Set<String>) {
+        impostazioni.edit().putString("avvisi_visti", CodificaVisti.scrivi(visti)).apply()
+    }
+
+    fun salvaPromemoria(p: Promemoria) = scriviPromemoria(conPromemoria(_promemoria.value, p))
+
+    fun togliPromemoria(id: String) = scriviPromemoria(senzaPromemoria(_promemoria.value, id))
+
+    private fun scriviPromemoria(nuovi: List<Promemoria>) {
+        _promemoria.value = nuovi
+        impostazioni.edit().putString("promemoria", CodificaPromemoria.scrivi(nuovi)).apply()
+        quandoCambianoPromemoria?.invoke(app)
     }
 
     /** Il nome della fermata [id] ("Lavoro"); vuoto lo toglie. */
