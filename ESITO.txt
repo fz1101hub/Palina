@@ -1,0 +1,4 @@
+commit: 2f2d55190e207ed327decaed1a9072ef9d063e7d
+android: skipped
+android sugli emulatori: skipped
+iphone: success

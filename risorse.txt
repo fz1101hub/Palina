@@ -1,0 +1,8 @@
+total 59680
+drwxr-xr-x  7 runner  staff       224 Nov 26 11:11 .
+drwxr-xr-x  9 runner  staff       288 Nov 26 11:05 ..
+-rw-r--r--  1 runner  staff       108 Nov 26 11:05 LEGGIMI.txt
+-rw-r--r--  1 runner  staff        13 Jan  1  1981 orario-incluso.txt
+-rw-r--r--  1 runner  staff  15572992 Jan  1  1981 orario.db
+-rw-r--r--  1 runner  staff        13 Jan  1  1981 reti-incluse.txt
+-rw-r--r--  1 runner  staff  14970880 Jan  1  1981 reti.db

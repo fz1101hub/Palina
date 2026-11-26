@@ -1,0 +1,118 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.9.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :motore:kmpPartiallyResolvedDependenciesChecker
+> Task :motore:checkKotlinGradlePluginConfigurationErrors SKIPPED
+
+> Task :motore:downloadKotlinNativeDistribution
+Kotlin/Native bundle directory /Users/runner/.konan/kotlin-native-prebuilt-macos-aarch64-2.4.21 is not empty. Native bundle files will be overwritten.
+Downloading native dependencies (LLVM, sysroot etc). This is a one-time action performed only on the first run of the compiler.
+Downloading dependency https://download.jetbrains.com/kotlin/native/resources/llvm/21-aarch64-macos/llvm-21-aarch64-macos-essentials-97.tar.gz to /Users/runner/.konan/dependencies/cache/llvm-21-aarch64-macos-essentials-97.tar.gz
+Done.
+Extracting dependency: /Users/runner/.konan/dependencies/cache/llvm-21-aarch64-macos-essentials-97.tar.gz into /Users/runner/.konan/dependencies
+Downloading dependency https://download.jetbrains.com/kotlin/native/libffi-3.3-1-macos-arm64.tar.gz to /Users/runner/.konan/dependencies/cache/libffi-3.3-1-macos-arm64.tar.gz
+Done.
+Extracting dependency: /Users/runner/.konan/dependencies/cache/libffi-3.3-1-macos-arm64.tar.gz into /Users/runner/.konan/dependencies
+
+> Task :motore:compileKotlinIosArm64
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:69 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:73:43 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+
+> Task :motore:linkDebugFrameworkIosArm64
+w: The number of threads 4 is more than the number of processors 3
+
+> Task :motore:assembleDebugIosFatFrameworkForMotoreXCFramework SKIPPED
+
+> Task :motore:compileKotlinIosSimulatorArm64
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:69 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:73:43 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+
+> Task :motore:linkDebugFrameworkIosSimulatorArm64
+w: The number of threads 4 is more than the number of processors 3
+
+> Task :motore:assembleDebugIosSimulatorFatFrameworkForMotoreXCFramework SKIPPED
+> Task :motore:assembleDebugMacosFatFrameworkForMotoreXCFramework SKIPPED
+> Task :motore:assembleDebugTvosFatFrameworkForMotoreXCFramework SKIPPED
+> Task :motore:assembleDebugTvosSimulatorFatFrameworkForMotoreXCFramework SKIPPED
+
+> Task :motore:compileKotlinWatchosArm64
+w: file:///Users/runner/work/Palina/Palina/motore/src/appleMain/kotlin/it/palinaroma/dati/HttpApple.kt:58:66 Redundant call of conversion method.
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:69 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:73:43 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+
+> Task :motore:linkDebugFrameworkWatchosArm64
+
+> Task :motore:compileKotlinWatchosDeviceArm64
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:69 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:73:43 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+
+> Task :motore:linkDebugFrameworkWatchosDeviceArm64
+> Task :motore:assembleDebugWatchosFatFrameworkForMotoreXCFramework
+
+> Task :motore:compileKotlinWatchosSimulatorArm64
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:69 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///Users/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:73:43 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+
+> Task :motore:linkDebugFrameworkWatchosSimulatorArm64
+> Task :motore:assembleDebugWatchosSimulatorFatFrameworkForMotoreXCFramework SKIPPED
+> Task :motore:generateSyntheticLinkageSwiftPMImportProjectForXCFrameworkMotoreDebug SKIPPED
+
+> Task :motore:assembleMotoreDebugXCFramework
+xcframework successfully written out to: /Users/runner/work/Palina/Palina/motore/build/XCFrameworks/debug/Motore.xcframework
+gradle/actions: Writing build results to /Users/runner/work/_temp/.gradle-actions/build-results/__run-1795691130951.json
+
+[Incubating] Problems report is available at: file:///Users/runner/work/Palina/Palina/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.9.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 5m 47s
+14 actionable tasks: 14 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.9.0/userguide/configuration_cache_enabling.html
+Motore.xcframework
+
+motore/build/XCFrameworks/debug/Motore.xcframework:
+Info.plist
+ios-arm64
+ios-arm64-simulator
+watchos-arm64_arm64_32
+watchos-arm64-simulator
+
+motore/build/XCFrameworks/debug/Motore.xcframework/ios-arm64:
+Motore.framework
+
+motore/build/XCFrameworks/debug/Motore.xcframework/ios-arm64/Motore.framework:
+Headers
+Info.plist
+Modules
+Motore
+
+motore/build/XCFrameworks/debug/Motore.xcframework/ios-arm64/Motore.framework/Headers:
+Motore.h
+
+motore/build/XCFrameworks/debug/Motore.xcframework/ios-arm64/Motore.framework/Modules:
+module.modulemap
+
+motore/build/XCFrameworks/debug/Motore.xcframework/ios-arm64-simulator:
+Motore.framework
+
+motore/build/XCFrameworks/debug/Motore.xcframework/ios-arm64-simulator/Motore.framework:
+Headers
+Info.plist
+Modules
+Motore
+
+motore/build/XCFrameworks/debug/Motore.xcframework/ios-arm64-simulator/Motore.framework/Headers:
+Motore.h
+
+motore/build/XCFrameworks/debug/Motore.xcframework/ios-arm64-simulator/Motore.framework/Modules:
+module.modulemap
+
+motore/build/XCFrameworks/debug/Motore.xcframework/watchos-arm64_arm64_32:

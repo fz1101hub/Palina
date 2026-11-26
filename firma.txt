@@ -1,0 +1,10 @@
+Executable=/private/tmp/ipa/Payload/Palina.app/Watch/PalinaWatch.app/PalinaWatch
+[Dict]
+	[Key] com.apple.security.application-groups
+	[Value]
+		[Array]
+			[String] group.it.palinaroma
+/tmp/ipa/Payload/Palina.app
+/tmp/ipa/Payload/Palina.app/PlugIns/PalinaWidget.appex
+/tmp/ipa/Payload/Palina.app/Watch/PalinaWatch.app
+/tmp/ipa/Payload/Palina.app/Watch/PalinaWatch.app/PlugIns/PalinaWatchWidget.appex
