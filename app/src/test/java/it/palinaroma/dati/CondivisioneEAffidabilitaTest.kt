@@ -57,8 +57,7 @@ class CondivisioneEAffidabilitaTest {
         assertNull(suggerimentoCondivisione(t, listOf(monopattino to 400.0)))
     }
 
-    private val giorno = kotlinx.datetime.LocalDate(2026, 11, 26)
-    private fun alle(ore: Int, minuti: Int, giorniDopo: Int = 0) = secondiARoma(giorno, ore, minuti, giorniDopo) * 1000
+    private fun alle(ore: Int, minuti: Int, giorniDopo: Int = 0) = istanteARoma(2026, 11, 26, ore, minuti, giorniDopo)
 
     @Test
     fun affidabilita() {
@@ -69,7 +68,8 @@ class CondivisioneEAffidabilitaTest {
         assertEquals("S01", chiaveFascia(alle(2, 0, 2)))
         assertEquals("D17", chiaveFascia(alle(18, 0, 3)))
         assertEquals("D09", chiaveFascia(alle(10, 0, 12)))
-        assertEquals("D", tipoGiorno(kotlinx.datetime.LocalDate(2026, 4, 6)))
+        // Pasquetta 2026 come una domenica
+        assertEquals("D09", chiaveFascia(istanteARoma(2026, 4, 6, 10, 0)))
         val d = leggiAffidabilita("""{"v":1,"aggiornato":1,"giorni":12,"linee":{"64":{"F05":[340,190,78,9]},"40":{"F05":[50,20,96,0]}}}""")
         assertNotNull(d)
         assertEquals("Di solito a quest'ora: in orario 8 corse su 10, ritardo medio 3 min", testoAffidabilita(d, "64", alle(8, 0)))

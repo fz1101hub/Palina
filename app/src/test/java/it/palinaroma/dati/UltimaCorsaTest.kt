@@ -8,8 +8,7 @@ import org.junit.Test
 
 /** L'ultima corsa: quando si controlla, come si contano le corse rimaste. */
 class UltimaCorsaTest {
-    private val giorno = kotlinx.datetime.LocalDate(2026, 11, 26)
-    private fun alle(ore: Int, minuti: Int, giorniDopo: Int = 0) = secondiARoma(giorno, ore, minuti, giorniDopo) * 1000
+    private fun alle(ore: Int, minuti: Int, giorniDopo: Int = 0) = istanteARoma(2026, 11, 26, ore, minuti, giorniDopo)
 
     @Test
     fun quandoSiControlla() {

@@ -9,8 +9,7 @@ import org.junit.Test
 /** Promemoria ricorrenti, avvisi sulle tue linee e scioperi. */
 class PromemoriaEAvvisiTest {
     // giovedi' 26 novembre 2026
-    private val giorno = kotlinx.datetime.LocalDate(2026, 11, 26)
-    private fun alle(ore: Int, minuti: Int, giorniDopo: Int = 0) = secondiARoma(giorno, ore, minuti, giorniDopo) * 1000
+    private fun alle(ore: Int, minuti: Int, giorniDopo: Int = 0) = istanteARoma(2026, 11, 26, ore, minuti, giorniDopo)
 
     private val il64 = promemoriaPerLinea("70078", "64", "Stazione S. Pietro", "64", "cinque", 8 * 60 + 10)
 
