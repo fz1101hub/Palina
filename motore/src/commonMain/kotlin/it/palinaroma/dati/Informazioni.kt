@@ -92,7 +92,8 @@ object TestiImpostazioni {
     /** "Orario del 24 novembre 2026, incluso nell'app · 7269 fermate, 383 linee. " (poi la parte del telefono). */
     fun statoOrario(orario: Orario, creato: Long, incluso: Boolean): String =
         (if (incluso) tx("Orario del {0}, incluso nell'app · ", giornoLungo(creato)) else tx("Aggiornato il {0} · ", giornoLungo(creato))) +
-            tx("{0} fermate, {1} linee. ", orario.info("fermate") ?: "?", orario.info("linee") ?: "?")
+            // durante l'aggiornamento il vecchio orario si chiude mentre lo schermo lo legge ancora: niente eccezioni
+            tx("{0} fermate, {1} linee. ", runCatching { orario.info("fermate") }.getOrNull() ?: "?", runCatching { orario.info("linee") }.getOrNull() ?: "?")
 
     /** Come si aggiorna l'orario sull'iPhone: lo prepara GitHub ogni settimana, gia' pronto. */
     fun aggiornamentoIPhone(megabyte: Int): String =
