@@ -615,7 +615,6 @@ struct DettaglioTragittoVista: View {
                     mappa
                         .frame(height: g.size.height * 0.45)
                     List {
-                        SezioneAvvisi(avvisi: avvisi)
                         RigaEstremo(partenza: true, testo: dettaglio.partenza, ora: dettaglio.oraPartenza)
                         ForEach(Array(dettaglio.blocchi.enumerated()), id: \.offset) { i, blocco in
                             if blocco.aPiedi {
@@ -625,6 +624,8 @@ struct DettaglioTragittoVista: View {
                             }
                         }
                         RigaEstremo(partenza: false, testo: dettaglio.arrivo, ora: dettaglio.oraArrivo)
+                        // gli avvisi di Roma Mobilita' dopo il viaggio, che resta in cima
+                        SezioneAvvisi(avvisi: avvisi)
                         Attribuzione()
                     }
                     .listStyle(.plain)

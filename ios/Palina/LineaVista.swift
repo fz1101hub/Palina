@@ -51,7 +51,6 @@ struct LineaVista: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 List {
-                    SezioneAvvisi(avvisi: avvisi)
                     ForEach(Array(fermate.enumerated()), id: \.offset) { i, f in
                         NavigationLink(value: Destinazione.fermata(f.id)) {
                             RigaPercorso(nome: f.nome, prima: i == 0, ultima: i == fermate.count - 1,
@@ -59,6 +58,8 @@ struct LineaVista: View {
                         }
                         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                     }
+                    // gli avvisi di Roma Mobilita' dopo il percorso, che resta in cima
+                    SezioneAvvisi(avvisi: avvisi)
                 }
                 .listStyle(.plain)
                 .frame(maxHeight: .infinity)

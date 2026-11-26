@@ -35,8 +35,9 @@ struct FermataVista: View {
                 if let avviso = tabellone?.avviso {
                     Text(avviso).font(.footnote).foregroundStyle(Tavolozza.oro)
                 }
-                SezioneAvvisi(avvisi: avvisi)
                 tempi
+                // gli avvisi di Roma Mobilita' sotto i tempi d'attesa, che restano in cima
+                SezioneAvvisi(avvisi: avvisi)
                 Section(tx("Linee")) {
                     ForEach(linee, id: \.self) { l in
                         NavigationLink(value: Destinazione.linea(RichiestaLinea(lineaId: l.lineaId, direzione: Int(l.direzione), fermata: fermataId))) {

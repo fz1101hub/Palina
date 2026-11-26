@@ -426,9 +426,6 @@ fun LineaSchermo(
                     .fillMaxWidth()
                     .weight(1f),
             ) {
-                if (avvisiRoma.isNotEmpty()) {
-                    item { SchedaAvvisiRoma(avvisiRoma, Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) }
-                }
                 itemsIndexed(fermate, key = { i, f -> "$i-${f.id}" }) { i, f ->
                     RigaPercorso(
                         f,
@@ -436,6 +433,10 @@ fun LineaSchermo(
                         ultima = i == fermate.lastIndex,
                         attesa = fermataAttesa?.id == f.id,
                     ) { apriFermata(f.id) }
+                }
+                // gli avvisi di Roma Mobilita' dopo il percorso, che resta in cima
+                if (avvisiRoma.isNotEmpty()) {
+                    item { SchedaAvvisiRoma(avvisiRoma, Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) }
                 }
             }
         }

@@ -202,7 +202,6 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
                     .weight(1.1f),
                 contentPadding = PaddingValues(vertical = 8.dp),
             ) {
-                if (avvisiRoma.isNotEmpty()) item { SchedaAvvisiRoma(avvisiRoma) }
                 item { RigaEstremo(true, tragitto.tratti.first().da.nome, tragitto.partenza) }
                 tragitto.tratti.forEachIndexed { i, tratto ->
                     item(key = "tratto-$i") {
@@ -210,6 +209,8 @@ fun DettaglioTragittoSchermo(indice: Int, indietro: () -> Unit, apriFermata: (St
                     }
                 }
                 item { RigaEstremo(false, tragitto.tratti.last().a.nome, tragitto.arrivo) }
+                // gli avvisi di Roma Mobilita' dopo il viaggio, che resta in cima
+                if (avvisiRoma.isNotEmpty()) item { SchedaAvvisiRoma(avvisiRoma) }
                 item { Attribuzione() }
             }
         }

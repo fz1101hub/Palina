@@ -294,7 +294,6 @@ fun FermataSchermo(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 item { RigaAggiornamento(aggiornatoAlle, adessoMs) }
-                if (avvisiRoma.isNotEmpty()) item { SchedaAvvisiRoma(avvisiRoma) }
                 errore?.let { testo ->
                     item { AvvisoRete(testo, riprova = { ambito.launch { carica(forza = true) } }) }
                 }
@@ -371,6 +370,8 @@ fun FermataSchermo(
                         )
                     }
                 }
+                // gli avvisi di Roma Mobilita' sotto i tempi d'attesa, che restano in cima
+                if (avvisiRoma.isNotEmpty()) item { SchedaAvvisiRoma(avvisiRoma) }
                 if (linee.isNotEmpty()) {
                     item { Intestazione(tx("Linee di questa fermata"), rientro = 8.dp) }
                     item {
