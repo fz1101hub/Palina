@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="it.palinaroma.dati.AvvisamiETragittiTest" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-11-26T11:07:04.486Z" hostname="runnervm3lb7s" time="0.176">
+  <properties/>
+  <testcase name="minutiAPiediDallaDistanza" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.015"/>
+  <testcase name="propostaSenzaPosizione" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.002"/>
+  <testcase name="esciTra" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.039"/>
+  <testcase name="propostaSenzaPassaggi" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.0"/>
+  <testcase name="widgetDelTelefono" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.084"/>
+  <testcase name="leggeGliAvvisi" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.004"/>
+  <testcase name="fasiDellAvviso" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.006"/>
+  <testcase name="seguimentoInJsonConLaDiscesa" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.001"/>
+  <testcase name="ordineDeiRisultati" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.003"/>
+  <testcase name="ricalcolaSegueLaStessaCorsa" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.0"/>
+  <testcase name="propostaQuandoNonFaiInTempo" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.0"/>
+  <testcase name="nomiDelleFermate" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.002"/>
+  <testcase name="avvisiPerLineaEFermata" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.014"/>
+  <testcase name="salvaRitrovaERimuove" classname="it.palinaroma.dati.AvvisamiETragittiTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,3 @@
+Problem found: Kotlin compiler: UNNECESSARY_NOT_NULL_ASSERTION (id: UNNECESSARY_NOT_NULL_ASSERTION, in kotlin > compiler:warning)
+    Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+    Location: /home/runner/work/Palina/Palina/app/src/main/java/it/palinaroma/ui/CorsaSchermo.kt:183

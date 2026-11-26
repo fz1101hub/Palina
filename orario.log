@@ -1,0 +1,89 @@
+orario incluso: fonte https://romamobilita.it/sites/default/files/rome_static_gtfs.zip, 47M
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.9.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugBuildConfig
+> Task :app:generateDebugResources
+> Task :app:packageDebugResources
+> Task :motore:androidPreBuild UP-TO-DATE
+> Task :motore:preAndroidMainBuild UP-TO-DATE
+> Task :motore:generateAndroidMainEmptyResourceFiles
+> Task :app:processDebugNavigationResources
+> Task :motore:kmpPartiallyResolvedDependenciesChecker
+> Task :motore:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:parseDebugLocalResources
+> Task :app:javaPreCompileDebug
+> Task :motore:writeAndroidMainAarMetadata
+> Task :app:generateDebugRFile
+> Task :app:mapDebugSourceSetPaths
+> Task :app:checkDebugAarMetadata
+> Task :app:compileDebugNavigationResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest
+> Task :motore:processAndroidMainManifest
+> Task :app:mergeDebugResources
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :app:processDebugResources
+
+> Task :motore:compileAndroidMain
+w: file:///home/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///home/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:60:69 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+w: file:///home/runner/work/Palina/Palina/motore/src/commonMain/kotlin/it/palinaroma/dati/Corsa.kt:73:43 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
+
+> Task :motore:compressAndroidMainJavaRes
+> Task :motore:bundleAndroidMainClassesToCompileJar
+> Task :motore:bundleAndroidMainClassesToRuntimeJar
+
+> Task :app:compileDebugKotlin
+w: file:///home/runner/work/Palina/Palina/app/src/main/java/it/palinaroma/ui/CorsaSchermo.kt:183:66 Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+
+> Task :app:compileDebugJavaWithJavac
+> Task :app:compressDebugJavaRes
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:compressDebugUnitTestJavaRes
+> Task :app:extractDebugUnitTestJavaRes
+> Task :app:testDebugUnitTest
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1795691111106.json
+
+[Incubating] Problems report is available at: file:///home/runner/work/Palina/Palina/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.9.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 49s
+35 actionable tasks: 35 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.9.0/userguide/configuration_cache_enabling.html
+orario incluso: si', 2026-11-26 11:05 UTC, 15.6 MB, linee 435, fermate 8321, corse 174428, percorsi 719, fermata_linee 24224, forme 719
+reti incluse: fonte http://travel.mob.cotralspa.it:7777/GTFS/GTFS_COTRAL.zip, 28M
+reti incluse: fonte http://travel.mob.cotralspa.it:7777/GTFS/GTFS_FERRO.zip, 192K
+reti incluse: fonte https://proxy.busone.app/trenitalia/gtfs.zip, 25M
+    reti incluse: Cotral, 13590 fermate
+    reti incluse: Treni Cotral, 46 fermate
+    reti incluse: Trenitalia, 533 fermate
+BUILD SUCCESSFUL in 12s
+reti incluse: si', 2026-11-26 11:06 UTC, 15.0 MB
+reti incluse: Cotral bus 13590 fermate, 4145 linee, 4145 percorsi
+reti incluse: Cotral treni 46 fermate, 3 linee, 6 percorsi
+reti incluse: Trenitalia 533 fermate, 959 linee, 0 percorsi
+reti incluse: Cotral bus, linee per esempio: MC137D, TV19D, CS746A, BA24A, AA443D, FR128D, NE779A, SR105D
+reti incluse: Cotral treni, linee per esempio: Metromare, Roma Nord, Roma–Viterbo
+reti incluse: Trenitalia, linee per esempio: BUS, REG, IC, RV, EN, FR, REG, REG
+reti incluse: peso: percorso_fermate 3.3 MB, fermata_linee 3.2 MB, sqlite_autoindex_fermata_linee_1 3.2 MB, sqlite_autoindex_percorso_fermate_1 2.3 MB, fermate 1.5 MB, linee 0.4 MB, fermate_lat 0.2 MB, sqlite_autoindex_fermate_1 0.2 MB
+reti incluse: prova Frascati · Piazza Marconi (C:f12858), domani alle 8: 17 partenze, 0 in tempo reale. VL010A -> ROMA | Anagnina (Metro A) # f3583 (it-Lazio-Cotral_f12858); NAV01 -> GROTTAFERRATA | Via 24 Maggio (Villa Cavalletti) # f12994 (it-Lazio-Cotral_f12858); VL200D -> VELLETRI | Stazione FS # f2818 (it-Lazio-Cotral_f12858); CF76D -> ROMA | Anagnina (Metro A) # f3582 (it-Lazio-Cotral_f12858)
+reti incluse: prova Lido Centro (F:RL_LIDOCENTRO), domani alle 8: 12 partenze, 0 in tempo reale. ROMALIDO -> Cristoforo Colombo (it-Lazio-Cotral-Ferrovie_RL_LIDOCENTRO); ROMALIDO -> Porta San Paolo (it-Lazio-Cotral-Ferrovie_RL_LIDOCENTRO); ROMALIDO -> Cristoforo Colombo (it-Lazio-Cotral-Ferrovie_RL_LIDOCENTRO); ROMALIDO -> Porta San Paolo (it-Lazio-Cotral-Ferrovie_RL_LIDOCENTRO)
+reti incluse: prova Roma Ostiense (T:08406), domani alle 8: 31 partenze, 0 in tempo reale. REG -> POGGIO MIRTETO (it-trenitalia_08406); REG -> FIUMICINO AEROPORTO (it-trenitalia_08406); REG -> LA STORTA (it-trenitalia_08406); REG -> ROMA TERMINI (it-trenitalia_08406)
+reti incluse: prova ASTRAL: 14 stazioni sulla Metromare, Lido Centro = ff90006
+reti incluse: prova ASTRAL Lido Centro: 70 treni oggi verso Cristoforo Colombo, 70 con il ritardo. 05:46 +0, 06:01 +0, 06:16 +0, 06:31 +0, 06:46 +0
+reti incluse: prova stazioni ASTRAL: Acilia, Acilia Sud Dragona, Acqua Acetosa, Bagnaia, Campi Sportivi, Casal Bernocchi Centro Giano, Castelfusano, Catalano, Centro RAI, Civita Castellana, Corchiano, Cristoforo Colombo, Due Ponti, EUR Magliana, Euclide, Fabrica, Faleri, Flaminio, Giustiniana, Grotta Rossa, La Celsa, La Fornacchia, Labaro, Lido Centro, Lido Nord, Magliano Romano, Monte Antenne, Montebello, Morlupo, Ostia Antica, Pian Paradiso, Porta San Paolo, Prima Porta, Rignano Flaminio, San Paolo, Sant Oreste, Saxa Rubra, Soriano, Stella Polare, Tor Di Quinto, Tor Di Valle, Vallerano, Vignanello, Viterbo, Vitinia, Vitorchiano
+reti incluse: prova stazioni GTFS Cotral: Acilia, Acilia Sud, Acqua Acetosa, Bagnaia, Campi Sportivi, Casal Bernocchi Centro Giano, Castelfusano, Catalano, Centro RAI, Civita Castellana, Corchiano, Cristoforo Colombo, Due Ponti, EUR Magliana, Euclide, Fabrica, Faleri, Flaminio, Giustiniana, Grotta Rossa, La Celsa, La Fornacchia, Labaro, Lido Centro, Lido Nord, Magliano Romano, Monte Antenne, Montebello, Morlupo, Ostia Antica, Pian Paradiso, Porta San Paolo, Prima Porta, Rignano Flaminio, San Paolo, Sant'Oreste, Saxa Rubra, Soriano, Stella Polare, Tor Di Quinto, Tor Di Valle, Vallerano, Vignanello, Viterbo, Vitinia, Vitorchiano

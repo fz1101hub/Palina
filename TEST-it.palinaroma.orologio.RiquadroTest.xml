@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="it.palinaroma.orologio.RiquadroTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-26T11:07:37.357Z" hostname="runnervm3lb7s" time="0.369">
+  <properties/>
+  <testcase name="ilWidgetComeIlRiquadro" classname="it.palinaroma.orologio.RiquadroTest" time="0.097"/>
+  <testcase name="ilTempoRealeSpostaIlPassaggioSeguito" classname="it.palinaroma.orologio.RiquadroTest" time="0.013"/>
+  <testcase name="seguireUnaLinea" classname="it.palinaroma.orologio.RiquadroTest" time="0.007"/>
+  <testcase name="ilRiquadroMostraLaPrimaFermataConPassaggi" classname="it.palinaroma.orologio.RiquadroTest" time="0.19"/>
+  <testcase name="ilTabelloneVecchioSiChiedeDiNuovo" classname="it.palinaroma.orologio.RiquadroTest" time="0.039"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

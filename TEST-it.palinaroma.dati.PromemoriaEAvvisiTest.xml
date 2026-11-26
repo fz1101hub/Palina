@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="it.palinaroma.dati.PromemoriaEAvvisiTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-26T11:07:04.856Z" hostname="runnervm3lb7s" time="0.006">
+  <properties/>
+  <testcase name="testiEJson" classname="it.palinaroma.dati.PromemoriaEAvvisiTest" time="0.002"/>
+  <testcase name="quandoScatta" classname="it.palinaroma.dati.PromemoriaEAvvisiTest" time="0.001"/>
+  <testcase name="scioperi" classname="it.palinaroma.dati.PromemoriaEAvvisiTest" time="0.002"/>
+  <testcase name="avvisiSulleTueLinee" classname="it.palinaroma.dati.PromemoriaEAvvisiTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

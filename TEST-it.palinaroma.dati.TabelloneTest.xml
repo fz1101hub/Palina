@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="it.palinaroma.dati.TabelloneTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-26T11:07:04.871Z" hostname="runnervm3lb7s" time="0.003">
+  <properties/>
+  <testcase name="sciogliLeAbbreviazioniPerIlLettoreDelloSchermo" classname="it.palinaroma.dati.TabelloneTest" time="0.001"/>
+  <testcase name="ogniRigaDiventaUnaFraseSola" classname="it.palinaroma.dati.TabelloneTest" time="0.001"/>
+  <testcase name="trovaLaPreferitaPiuVicinaEntroIlRaggio" classname="it.palinaroma.dati.TabelloneTest" time="0.0"/>
+  <testcase name="leLineeFissateVannoInCimaEQuelleSenzaPassaggiNonSpariscono" classname="it.palinaroma.dati.TabelloneTest" time="0.0"/>
+  <testcase name="minutiInteriMaiNegativi" classname="it.palinaroma.dati.TabelloneTest" time="0.0"/>
+  <testcase name="iPassaggiSuccessiviInBreve" classname="it.palinaroma.dati.TabelloneTest" time="0.0"/>
+  <testcase name="diceDaQuantoSonoArrivatiIDati" classname="it.palinaroma.dati.TabelloneTest" time="0.0"/>
+  <testcase name="leggeLeLineeFissateDiUnaSolaFermata" classname="it.palinaroma.dati.TabelloneTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

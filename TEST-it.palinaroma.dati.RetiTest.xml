@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="it.palinaroma.dati.RetiTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-26T11:07:04.863Z" hostname="runnervm3lb7s" time="0.007">
+  <properties/>
+  <testcase name="leLineeDelleAltreRetiNonDiventanoMaiQuelleDiRoma" classname="it.palinaroma.dati.RetiTest" time="0.001"/>
+  <testcase name="iTreniDiAstralDiventanoPassaggiConIlRitardo" classname="it.palinaroma.dati.RetiTest" time="0.001"/>
+  <testcase name="laReteSiRiconosceDalPrefisso" classname="it.palinaroma.dati.RetiTest" time="0.0"/>
+  <testcase name="trovaLaStazioneDiAstralDalNome" classname="it.palinaroma.dati.RetiTest" time="0.001"/>
+  <testcase name="leggeLeRisposteDiAstral" classname="it.palinaroma.dati.RetiTest" time="0.001"/>
+  <testcase name="leFermateComeLeChiamaTransitous" classname="it.palinaroma.dati.RetiTest" time="0.002"/>
+  <testcase name="nomiDelleLineeFerroviarieCotral" classname="it.palinaroma.dati.RetiTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

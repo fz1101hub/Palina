@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="it.palinaroma.dati.CondivisioneEAffidabilitaTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-26T11:07:04.676Z" hostname="runnervm3lb7s" time="0.018">
+  <properties/>
+  <testcase name="suggerimentoNeiTragitti" classname="it.palinaroma.dati.CondivisioneEAffidabilitaTest" time="0.006"/>
+  <testcase name="affidabilita" classname="it.palinaroma.dati.CondivisioneEAffidabilitaTest" time="0.006"/>
+  <testcase name="gbfs" classname="it.palinaroma.dati.CondivisioneEAffidabilitaTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
