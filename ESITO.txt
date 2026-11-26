@@ -1,0 +1,20 @@
+commit: 2f2d55190e207ed327decaed1a9072ef9d063e7d
+esito: success
+== prova-26
+immagine: system-images;android-26;google_apis;x86_64 (app su pixel_7)
+esito: riuscita
+BUILD SUCCESSFUL in 6m 51s
+== prova-37
+immagine: system-images;android-37.0;google_apis;x86_64 (app su pixel_7)
+esito: riuscita
+BUILD SUCCESSFUL in 7m 46s
+== prova-wear34
+immagine: system-images;android-34;android-wear;x86_64 (orologio su wearos_small_round)
+esito: riuscita
+APK di rilascio (3.9M): si apre senza errori
+BUILD SUCCESSFUL in 2m 53s
+== prova-wear37
+immagine: system-images;android-37.0;android-wear-signed;x86_64 (orologio su wearos_large_round)
+esito: riuscita
+APK di rilascio (3.9M): si apre senza errori
+BUILD SUCCESSFUL in 2m 22s

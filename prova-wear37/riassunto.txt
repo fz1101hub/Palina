@@ -1,0 +1,4 @@
+immagine: system-images;android-37.0;android-wear-signed;x86_64 (orologio su wearos_large_round)
+esito: riuscita
+APK di rilascio (3.9M): si apre senza errori
+BUILD SUCCESSFUL in 2m 22s

@@ -1,0 +1,4 @@
+rilascio Riquadro: Broadcasting: Intent { act=com.google.android.wearable.app.DEBUG_SURFACE flg=0x400000 (has extras) }
+Broadcast completed: result=1, data="Index=[0]"
+rilascio ServizioWidget: Broadcasting: Intent { act=com.google.android.wearable.app.DEBUG_SURFACE flg=0x400000 (has extras) }
+Broadcast completed: result=1, data="Index=[0]"

@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="11" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-11-26T11:19:16" hostname="localhost">
+  <testsuite name="it.palinaroma.ProvaSchermate" tests="11" failures="0" errors="0" skipped="0" time="367.170" timestamp="2026-11-26T11:19:16" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="a1_schermataPrincipaleConOrarioIncluso" classname="it.palinaroma.ProvaSchermate" time="5.016" />
+    <testcase name="a2_fermateVicine" classname="it.palinaroma.ProvaSchermate" time="12.388" />
+    <testcase name="a3_cercaUnaFermataEApriLaConITempi" classname="it.palinaroma.ProvaSchermate" time="28.682" />
+    <testcase name="a4_lineaSullaMappaConLeVetture" classname="it.palinaroma.ProvaSchermate" time="23.613" />
+    <testcase name="a5_tragittoFinoAlColosseo" classname="it.palinaroma.ProvaSchermate" time="17.010" />
+    <testcase name="a6_impostazioniETemaScuro" classname="it.palinaroma.ProvaSchermate" time="30.871" />
+    <testcase name="a7_testoGrandeDiAndroid" classname="it.palinaroma.ProvaSchermate" time="15.908" />
+    <testcase name="a8_cotralETreni" classname="it.palinaroma.ProvaSchermate" time="121.867" />
+    <testcase name="a9_altreLingue" classname="it.palinaroma.ProvaSchermate" time="42.905" />
+    <testcase name="b1_avvisamiDallaFermata" classname="it.palinaroma.ProvaSchermate" time="27.712" />
+    <testcase name="b2_tragittoSalvatoEWidget" classname="it.palinaroma.ProvaSchermate" time="41.198" />
+  </testsuite>
+</testsuites>

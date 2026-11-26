@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="6" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-11-26T11:13:04" hostname="localhost">
+  <testsuite name="it.palinaroma.orologio.ProvaOrologio" tests="6" failures="0" errors="0" skipped="0" time="79.671" timestamp="2026-11-26T11:13:04" hostname="localhost">
+    <properties>
+      <property name="device" value="emulator-5554" />
+    </properties>
+    <testcase name="a0_complicazione" classname="it.palinaroma.orologio.ProvaOrologio" time="0.015" />
+    <testcase name="a1_tabelloneDalTelefono" classname="it.palinaroma.orologio.ProvaOrologio" time="9.385" />
+    <testcase name="a2_riquadroEComplicazione" classname="it.palinaroma.orologio.ProvaOrologio" time="13.495" />
+    <testcase name="a3_lineaETreno" classname="it.palinaroma.orologio.ProvaOrologio" time="13.981" />
+    <testcase name="a4_seguireUnaLinea" classname="it.palinaroma.orologio.ProvaOrologio" time="19.758" />
+    <testcase name="a5_widget" classname="it.palinaroma.orologio.ProvaOrologio" time="23.037" />
+  </testsuite>
+</testsuites>
