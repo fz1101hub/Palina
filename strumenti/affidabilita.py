@@ -27,7 +27,7 @@ FEED = "https://romamobilita.it/sites/default/files/rome_rtgtfs_trip_updates_fee
 AGENTE = "PalinaRoma-CI (+https://github.com/fz1101hub/Palina)"
 ROMA = ZoneInfo("Europe/Rome")
 GIORNI_TENUTI = 28
-MINIMO_CORSE = 20
+MINIMO_CORSE = 60
 
 # feste nazionali (piu' i santi Pietro e Paolo, patroni di Roma): si contano come domeniche
 FESTE = {(1, 1), (1, 6), (4, 25), (5, 1), (6, 2), (6, 29), (8, 15), (11, 1), (12, 8), (12, 25), (12, 26)}
