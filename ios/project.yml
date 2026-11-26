@@ -57,6 +57,9 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # anche per iPad: tutte le rotazioni (e Split View)
+        UISupportedInterfaceOrientations~ipad:
+          [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         NSLocationWhenInUseUsageDescription: "Palina usa la tua posizione per mostrarti le fermate vicine e per calcolare i tragitti."
         # le cifre a punti delle paline (Doto, SIL Open Font License)
         UIAppFonts: [Doto-Black.ttf]
@@ -67,7 +70,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: it.palinaroma
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         OTHER_LDFLAGS: ["-lsqlite3", "-lc++"]
         # il motore per il simulatore c'e' solo per i Mac Apple Silicon (arm64)
         EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
@@ -142,7 +145,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: it.palinaroma.widget
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
         CODE_SIGN_STYLE: Manual
         CODE_SIGNING_ALLOWED: "NO"

@@ -443,6 +443,9 @@ struct CartaTragittoVista: View {
                 Text(parti).font(.subheadline.bold()).foregroundStyle(Tavolozza.oro)
             }
             SequenzaPezzi(pezzi: carta.pezzi)
+            if let condivisione = carta.condivisione {
+                Text("🛴 " + condivisione).font(.footnote).foregroundStyle(Tavolozza.oro)
+            }
             if let primo = carta.primoMezzo {
                 Text(primo).font(.subheadline).lineLimit(2)
             }

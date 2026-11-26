@@ -101,6 +101,7 @@ import it.palinaroma.dati.avvisoPermessoTragitti
 import it.palinaroma.dati.cartaTragitto
 import it.palinaroma.dati.cercaTragitti
 import it.palinaroma.dati.ultimeCorseTragitti
+import it.palinaroma.dati.suggerimentiCondivisione
 import it.palinaroma.dati.giornoEOra
 import it.palinaroma.dati.luogoDaFermata
 import it.palinaroma.dati.ErroreTransitous
@@ -157,6 +158,8 @@ object StatoTragitto {
     var ordine by mutableStateOf("")
     /** Dalla sera: per ogni tragitto ([Tragitto.chiave]) "64: ultima corsa" (si aggiungono dopo i risultati). */
     var ultime by mutableStateOf<Map<String, String>>(emptyMap())
+    /** Monopattini o bici vicino alla partenza, quando il primo tratto a piedi e' lungo. */
+    var condivisione by mutableStateOf<Map<String, String>>(emptyMap())
 
     /** I tragitti nell'ordine scelto: l'elenco e il dettaglio usano questo. */
     fun ordinati(): List<Tragitto> = (esito as? EsitoTragitti.Pronto)?.let { ordinaTragitti(it.tragitti, ordine) }.orEmpty()
@@ -192,6 +195,7 @@ object StatoTragitto {
         chiaveUltima = chiave()
         esito = EsitoTragitti.InCorso
         ultime = emptyMap()
+        condivisione = emptyMap()
         val partenza = risolvi(context, daScelto)
         val arrivo = risolvi(context, aScelto)
         val (istante, arrivaEntro) = when (val q = quando) {
@@ -212,6 +216,7 @@ object StatoTragitto {
 
     /** Dopo i risultati (che si vedono subito): quali mezzi sono l'ultima o la penultima corsa. */
     private suspend fun segnaUltime(tragitti: List<Tragitto>) {
+        seRiesce { suggerimentiCondivisione(tragitti) }?.let { condivisione = condivisione + it }
         val trovate = seRiesce { ultimeCorseTragitti(tragitti) } ?: return
         ultime = ultime + trovate
     }
@@ -396,7 +401,7 @@ fun TragittoSchermo(indietro: () -> Unit, scegliLuogo: (String) -> Unit, apriDet
                         }
                     }
                     itemsIndexed(stato.ordinati(), key = { _, t -> t.chiave }) { i, t ->
-                        CartaTragitto(t, adesso, stato.ultime) { apriDettaglio(i) }
+                        CartaTragitto(t, adesso, stato.ultime, stato.condivisione) { apriDettaglio(i) }
                     }
                     if (esito.cursoreDopo != null && esito.tragitti.isNotEmpty()) {
                         item {
@@ -611,7 +616,7 @@ private fun DialogoOrario(arrivo: Boolean, iniziale: Long, chiudi: () -> Unit, c
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun CartaTragitto(t: Tragitto, adesso: Long, ultime: Map<String, String>, onClick: () -> Unit) {
+private fun CartaTragitto(t: Tragitto, adesso: Long, ultime: Map<String, String>, condivisione: Map<String, String>, onClick: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Superficie),
         shape = RoundedCornerShape(12.dp),
@@ -621,7 +626,7 @@ private fun CartaTragitto(t: Tragitto, adesso: Long, ultime: Map<String, String>
             .clickable(onClick = onClick),
     ) {
         // i testi della carta vengono dal motore, uguali sull'iPhone
-        val carta = cartaTragitto(t, adesso, ultime)
+        val carta = cartaTragitto(t, adesso, ultime, condivisione)
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             // ultima o penultima corsa della giornata: in cima, perche' cambia la scelta
             carta.ultimaCorsa?.let {
@@ -645,6 +650,7 @@ private fun CartaTragitto(t: Tragitto, adesso: Long, ultime: Map<String, String>
             }
             carta.partiTra?.let { Text(it, color = Accento, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium) }
             SequenzaTratti(t.tratti)
+            carta.condivisione?.let { Text("🛴 " + it, style = MaterialTheme.typography.bodySmall, color = Accento) }
             carta.primoMezzo?.let { testo ->
                 Text(
                     testo,

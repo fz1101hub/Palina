@@ -1,0 +1,64 @@
+name: Affidabilità delle linee
+
+# Ogni ora: il tempo reale di Roma Mobilita' confrontato con l'orario, linea per
+# linea (strumenti/affidabilita.py). Lo stato delle ultime 4 settimane e il
+# riassunto per l'app stanno nella release "ultima" (niente file nel repository).
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: affidabilita
+  cancel-in-progress: false
+
+jobs:
+  campiona:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: strumenti
+
+      - name: Giorno di oggi (per l'orario in cache)
+        id: oggi
+        run: echo "giorno=$(TZ=Europe/Rome date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      # l'orario di Roma Mobilita' si scarica una volta al giorno
+      - name: Orario di oggi
+        id: orario
+        continue-on-error: true
+        uses: actions/cache@v4
+        with:
+          path: /tmp/gtfs/gtfs.zip
+          key: gtfs-roma-${{ steps.oggi.outputs.giorno }}
+
+      - name: Scarica l'orario se manca
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/gtfs
+          if [ ! -s /tmp/gtfs/gtfs.zip ]; then
+            for url in https://romamobilita.it/sites/default/files/rome_static_gtfs.zip https://files.mobilitydatabase.org/mdb-1294/latest.zip; do
+              curl -fsSL --retry 2 --max-time 600 -A "PalinaRoma-CI (+https://github.com/fz1101hub/Palina)" -o /tmp/gtfs/gtfs.zip "$url" \
+                && unzip -tq /tmp/gtfs/gtfs.zip > /dev/null && break
+              rm -f /tmp/gtfs/gtfs.zip
+            done
+          fi
+          ls -la /tmp/gtfs
+
+      - name: Campiona e riassumi
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          python3 -m venv /tmp/venv
+          /tmp/venv/bin/pip install -q gtfs-realtime-bindings
+          gh release download ultima -p affidabilita-stato.json.gz -D /tmp --clobber -R "$GITHUB_REPOSITORY" || echo "nessuno stato precedente"
+          orario=/tmp/gtfs/gtfs.zip
+          [ -s "$orario" ] || orario=-
+          /tmp/venv/bin/python strumenti/affidabilita.py /tmp/affidabilita-stato.json.gz "$orario" /tmp/affidabilita.json
+          gh release upload ultima /tmp/affidabilita-stato.json.gz /tmp/affidabilita.json --clobber -R "$GITHUB_REPOSITORY"

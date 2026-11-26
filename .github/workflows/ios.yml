@@ -295,6 +295,22 @@ jobs:
           sleep 16
           xcrun simctl io "$dispositivo" screenshot /tmp/esito/schermate/ios-33-en-home.png
           xcrun simctl terminate "$dispositivo" it.palinaroma
+          # 16. iPad: la Home e una fermata, in orizzontale
+          tavoletta=$(xcrun simctl create prova-ipad "iPad Air 11-inch (M3)" 2>/dev/null || xcrun simctl create prova-ipad "iPad (A16)" 2>/dev/null || xcrun simctl create prova-ipad "iPad Air 11-inch (M2)" 2>/dev/null || true)
+          if [ -n "$tavoletta" ]; then
+            xcrun simctl boot "$tavoletta" && xcrun simctl bootstatus "$tavoletta" -b
+            xcrun simctl install "$tavoletta" ios/build/dd/Build/Products/Debug-iphonesimulator/Palina.app
+            xcrun simctl privacy "$tavoletta" grant location it.palinaroma || true
+            xcrun simctl launch "$tavoletta" it.palinaroma -posizione 41.8958,12.4826 -provaPreferiti "70078" -provaNomi "70078=Lavoro"
+            sleep 16
+            xcrun simctl io "$tavoletta" screenshot /tmp/esito/schermate/ipad-01-home.png
+            xcrun simctl terminate "$tavoletta" it.palinaroma
+            xcrun simctl launch "$tavoletta" it.palinaroma -posizione 41.8958,12.4826 -apri fermata:70078
+            sleep 12
+            xcrun simctl io "$tavoletta" screenshot /tmp/esito/schermate/ipad-02-fermata.png
+            xcrun simctl terminate "$tavoletta" it.palinaroma
+            xcrun simctl shutdown "$tavoletta" || true
+          fi
           # 7. Apple Watch con il tabellone di esempio del motore (senza iPhone collegato)
           orologio=$(xcrun simctl create prova-watch "Apple Watch Series 11 (46mm)" 2>/dev/null || xcrun simctl create prova-watch "Apple Watch Series 10 (46mm)")
           xcrun simctl boot "$orologio"

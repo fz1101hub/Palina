@@ -17,6 +17,7 @@ struct LineaVista: View {
     @State private var camera: MapCameraPosition = .automatic
     @State private var giro = 0
     @State private var avvisi: [SchedaAvviso] = []
+    @State private var affidabilita: AffidabilitaLinea?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -51,6 +52,15 @@ struct LineaVista: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 List {
+                    // di solito a quest'ora: quante corse in orario e il ritardo medio
+                    if let affidabilita {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(affidabilita.testo).font(.footnote)
+                            Text(affidabilita.fonte).font(.caption2).foregroundStyle(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("affidabilita")
+                    }
                     ForEach(Array(fermate.enumerated()), id: \.offset) { i, f in
                         NavigationLink(value: Destinazione.fermata(f.id)) {
                             RigaPercorso(nome: f.nome, prima: i == 0, ultima: i == fermate.count - 1,
@@ -82,6 +92,7 @@ struct LineaVista: View {
         .task(id: archivio.orario != nil) { prepara() }
         .task(id: giro) { await seguiVetture() }
         .task { avvisi = (try? await AvvisiServizioKt.avvisiPerLinea(lineaId: richiesta.lineaId)) ?? [] }
+        .task { affidabilita = try? await AffidabilitaKt.affidabilitaLinea(lineaId: richiesta.lineaId, adessoMs: Int64(Date().timeIntervalSince1970 * 1000)) }
     }
 
     private func intestazione(_ motore: MotoreLinea) -> some View {

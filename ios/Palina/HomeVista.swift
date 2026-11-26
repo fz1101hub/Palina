@@ -21,6 +21,7 @@ struct HomeVista: View {
     @EnvironmentObject private var promemorie: Promemorie
     /** Uno sciopero oggi o nei prossimi giorni (dagli avvisi di Roma Mobilita'). */
     @State private var sciopero: Sciopero?
+    @State private var condivisione: RiquadroCondivisione?
     @State private var daRinominare: TragittoSalvato?
     @State private var nomeNuovo = ""
 
@@ -63,6 +64,14 @@ struct HomeVista: View {
         }
         .listStyle(.insetGrouped)
         .sheet(item: $promemoriaAperto) { PromemoriaVista(aperto: $0) }
+        .task(id: posizioneArrotondata) {
+            // i mezzi in condivisione: per la posizione (a passi di circa 100 m), ogni 2 minuti
+            guard let lat = posizione.lat, let lon = posizione.lon else { return }
+            while !Task.isCancelled {
+                if let trovato = try? await CondivisioneKt.condivisioneVicino(lat: lat, lon: lon) { condivisione = trovato }
+                try? await Task.sleep(nanoseconds: 120 * 1_000_000_000)
+            }
+        }
         .task {
             // gli scioperi: ogni 30 minuti (il feed degli avvisi resta in memoria)
             while !Task.isCancelled {
@@ -205,6 +214,10 @@ struct HomeVista: View {
                 NavigationLink(value: Destinazione.fermata(riga.voce.id)) { RigaFermataConTempi(riga: riga) }
             }
         }
+        // monopattini, bici e scooter in condivisione qui intorno (dati aperti degli operatori)
+        if let condivisione {
+            Section { SchedaCondivisione(riquadro: condivisione) }
+        }
         if let suggerimento = stato?.suggerimento {
             Text(suggerimento).font(.footnote).foregroundStyle(.secondary)
         }
@@ -214,6 +227,11 @@ struct HomeVista: View {
     private var righeVicine: [FermataConTempi] {
         if let vicineConTempi = stato?.vicine, !vicineConTempi.isEmpty { return vicineConTempi }
         return vicine.map { FermataConTempi(voce: $0, pillole: [], altre: 0, perVoce: $0.perVoce) }
+    }
+
+    private var posizioneArrotondata: String {
+        guard let lat = posizione.lat, let lon = posizione.lon else { return "" }
+        return "\(Int(lat * 1000)),\(Int(lon * 1000))"
     }
 
     private var chiave: String {
@@ -388,5 +406,46 @@ struct SchedaSciopero: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(sciopero.perVoce)
         .accessibilityIdentifier("sciopero")
+    }
+}
+
+/** "In condivisione qui vicino": il riassunto e i mezzi piu' vicini; un tocco apre l'app dell'operatore. */
+struct SchedaCondivisione: View {
+    let riquadro: RiquadroCondivisione
+    @State private var aperta = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button { aperta.toggle() } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tx("In condivisione qui vicino").uppercased())
+                            .font(.system(size: 12, weight: .bold)).tracking(1.4).foregroundStyle(Tavolozza.oro)
+                        Text(riquadro.riassunto).font(.subheadline).foregroundStyle(Color.primary)
+                    }
+                    Spacer()
+                    Image(systemName: aperta ? "chevron.up" : "chevron.down").foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+            if aperta {
+                ForEach(riquadro.voci, id: \.id) { v in
+                    let riga = HStack {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(v.titolo).font(.subheadline.weight(.medium))
+                            Text(v.sotto).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    if let apri = v.apri.flatMap({ URL(string: $0) }) {
+                        Link(destination: apri) { riga }.foregroundStyle(Color.primary)
+                    } else {
+                        riga
+                    }
+                }
+                Text(riquadro.fonti).font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityIdentifier("condivisione")
     }
 }

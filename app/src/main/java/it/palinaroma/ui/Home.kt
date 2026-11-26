@@ -75,6 +75,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import it.palinaroma.Richieste
 import it.palinaroma.avviso.Avvisatore
 import it.palinaroma.dati.Luogo
+import it.palinaroma.dati.condivisioneVicino
+import it.palinaroma.dati.RiquadroCondivisione
 import it.palinaroma.dati.titoloSciopero
 import it.palinaroma.dati.scioperoInVista
 import it.palinaroma.dati.Sciopero
@@ -316,6 +318,16 @@ private fun Tabellone(
     val chiaviFissate by Archivio.fissate.collectAsStateWithLifecycle()
     val aggiornamento by Archivio.aggiornamento.collectAsStateWithLifecycle()
     val (vicino, permessoPosizione, chiediPermesso) = rememberVicine(orario)
+    // i mezzi in condivisione: per la posizione (a passi di circa 100 m), ogni 2 minuti
+    val chiaveQui = vicino.lat?.let { la -> vicino.lon?.let { lo -> (la * 1000).toInt() to (lo * 1000).toInt() } }
+    val condivisione by produceState<RiquadroCondivisione?>(initialValue = null, chiaveQui) {
+        val la = vicino.lat ?: return@produceState
+        val lo = vicino.lon ?: return@produceState
+        while (true) {
+            value = seRiesce { condivisioneVicino(la, lo) } ?: value
+            delay(120_000L)
+        }
+    }
     var riprova by remember { mutableIntStateOf(0) }
     var adessoMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -475,6 +487,10 @@ private fun Tabellone(
                     arrivi = elenco,
                     adesso = adesso,
                 )
+            }
+            // monopattini, bici e scooter in condivisione qui intorno (dati aperti degli operatori)
+            condivisione?.let { c ->
+                item(key = "condivisione") { SchedaCondivisione(c, Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) }
             }
             item {
                 TextButton(onClick = { vicino.tentativo++ }, modifier = Modifier.padding(horizontal = 8.dp)) {
@@ -806,6 +822,54 @@ private fun SchedaSciopero(s: Sciopero, modifier: Modifier = Modifier) {
                     Text(tx("Dettagli su Roma Mobilità"), color = Accento, fontWeight = FontWeight.Bold)
                 }
             }
+        }
+    }
+}
+
+
+/** "In condivisione qui vicino": il riassunto e i mezzi piu' vicini; un tocco apre l'app dell'operatore. */
+@Composable
+private fun SchedaCondivisione(c: RiquadroCondivisione, modifier: Modifier = Modifier) {
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    var aperta by remember { mutableStateOf(false) }
+    Column(
+        modifier
+            .fillMaxWidth()
+            .riquadroTabellone(Superficie, Bordo)
+            .testTag("condivisione")
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClickLabel = if (aperta) tx("chiudi") else tx("mostra")) { aperta = !aperta },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(tx("In condivisione qui vicino").uppercase(), color = Accento, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 1.4.sp)
+                Text(c.riassunto, style = MaterialTheme.typography.bodyMedium)
+            }
+            Text(if (aperta) "▴" else "▾", color = Secondario)
+        }
+        if (aperta) {
+            c.voci.forEach { v ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 44.dp)
+                        .then(if (v.apri != null) Modifier.clickable(onClickLabel = tx("apri l'app per noleggiarlo")) { runCatching { uri.openUri(v.apri!!) } } else Modifier)
+                        .semantics(mergeDescendants = true) { contentDescription = v.perVoce },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(v.titolo, fontWeight = FontWeight.Medium)
+                        Text(v.sotto, style = MaterialTheme.typography.bodySmall, color = Secondario)
+                    }
+                    if (v.apri != null) Text("›", color = Accento, fontWeight = FontWeight.Bold)
+                }
+            }
+            Text(c.fonti, style = MaterialTheme.typography.labelSmall, color = Secondario)
         }
     }
 }

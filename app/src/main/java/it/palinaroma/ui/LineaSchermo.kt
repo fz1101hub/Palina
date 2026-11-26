@@ -13,6 +13,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -70,6 +71,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import it.palinaroma.dati.SchedaAvviso
+import it.palinaroma.dati.affidabilitaLinea
+import it.palinaroma.dati.AffidabilitaLinea
 import it.palinaroma.dati.avvisiPerLinea
 import it.palinaroma.dati.Archivio
 import it.palinaroma.dati.tx
@@ -130,6 +133,8 @@ fun LineaSchermo(
     val o = orario
     val linea = remember(o, lineaId) { o?.linea(lineaId) }
     val avvisiRoma by produceState(initialValue = emptyList<SchedaAvviso>(), lineaId) { value = avvisiPerLinea(lineaId) }
+    // di solito a quest'ora: quante corse in orario e il ritardo medio (dal tempo reale delle ultime settimane)
+    val affidabilita by produceState<AffidabilitaLinea?>(initialValue = null, lineaId) { value = affidabilitaLinea(lineaId) }
     val percorsi = remember(o, lineaId) { o?.percorsi(lineaId).orEmpty() }
     var direzione by rememberSaveable { mutableStateOf(direzioneIniziale) }
     val percorso = percorsi.firstOrNull { it.direzione == direzione } ?: percorsi.firstOrNull()
@@ -426,6 +431,14 @@ fun LineaSchermo(
                     .fillMaxWidth()
                     .weight(1f),
             ) {
+                affidabilita?.let { a ->
+                    item(key = "affidabilita") {
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).testTag("affidabilita")) {
+                            Text(a.testo, style = MaterialTheme.typography.bodySmall, color = Testo)
+                            Text(a.fonte, style = MaterialTheme.typography.labelSmall, color = Secondario)
+                        }
+                    }
+                }
                 itemsIndexed(fermate, key = { i, f -> "$i-${f.id}" }) { i, f ->
                     RigaPercorso(
                         f,

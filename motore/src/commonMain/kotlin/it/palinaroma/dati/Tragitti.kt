@@ -124,12 +124,19 @@ data class CartaTragitto(
     val partiTra: String? = null,
     /** "64: ultima corsa", "Metro B: penultima corsa", o null. */
     val ultimaCorsa: String? = null,
+    /** "Monopattino Bird a 60 m: 4 min invece di 12 a piedi", o null. */
+    val condivisione: String? = null,
 )
 
 /** Il colore di un tratto: quello della linea, se Transitous lo da', o porpora. */
 fun coloreTratto(t: Tratto): Long = t.colore?.let { it.toLong() and 0xFFFFFFFFL } ?: Colori.PORPORA
 
-fun cartaTragitto(t: Tragitto, adessoMs: Long, ultime: Map<String, String> = emptyMap()): CartaTragitto {
+fun cartaTragitto(
+    t: Tragitto,
+    adessoMs: Long,
+    ultime: Map<String, String> = emptyMap(),
+    condivisione: Map<String, String> = emptyMap(),
+): CartaTragitto {
     val primo = t.mezzi.firstOrNull()
     val testoPrimo = primo?.let {
         val tra = ((it.partenza - adessoMs) / 60_000).toInt()
@@ -162,6 +169,7 @@ fun cartaTragitto(t: Tragitto, adessoMs: Long, ultime: Map<String, String> = emp
             (ultime[t.chiave]?.let { " $it." } ?: ""),
         partiTra = testoPartiTra(t, adessoMs),
         ultimaCorsa = ultime[t.chiave],
+        condivisione = condivisione[t.chiave],
     )
 }
 

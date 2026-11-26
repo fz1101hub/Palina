@@ -115,6 +115,7 @@ class MotoreTragitti(private val orario: Orario) {
         val arrivo = if (aScelto.tipo == TipoLuogo.POSIZIONE) qui.takeIf { it.haCoordinate } else aScelto
         val ist = if (quando == 0) null else istante
         ultime = emptyMap()
+        condivisione = emptyMap()
         val r = cercaTragitti(partenza, arrivo, ist, quando == 2)
         risultato = r
         if (r.errore == null && partenza != null && arrivo != null) richiesta = Richiesta(partenza, arrivo, ist, quando == 2)
@@ -138,10 +139,21 @@ class MotoreTragitti(private val orario: Orario) {
     /** Dalla sera: per ogni tragitto "64: ultima corsa" (dopo i risultati, con [ultimeCorse]). */
     private var ultime: Map<String, String> = emptyMap()
 
+    /** Monopattini o bici vicino alla partenza (con [ultimeCorse]). */
+    private var condivisione: Map<String, String> = emptyMap()
+
     /** Da chiamare dopo [cerca] e [altri]: segna i mezzi che sono l'ultima o la penultima corsa. */
     suspend fun ultimeCorse(): StatoTragitti = withContext(Dispatchers.Main) {
         val r = risultato
         if (r != null && r.errore == null) {
+            val vicini = try {
+                suggerimentiCondivisione(r.tragitti)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyMap()
+            }
+            condivisione = condivisione + vicini
             val trovate = try {
                 ultimeCorseTragitti(r.tragitti)
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -200,7 +212,7 @@ class MotoreTragitti(private val orario: Orario) {
                 else -> null
             },
             riprova = !inCorso && r?.errore != null && a != null,
-            carte = if (pronto) ordinati().map { cartaTragitto(it, adesso, ultime) } else emptyList(),
+            carte = if (pronto) ordinati().map { cartaTragitto(it, adesso, ultime, condivisione) } else emptyList(),
             aPiedi = if (pronto) r.soloAPiedi?.let { cartaAPiedi(it) } else null,
             prima = pronto && r.cursorePrima != null && r.tragitti.isNotEmpty(),
             dopo = pronto && r.cursoreDopo != null && r.tragitti.isNotEmpty(),
