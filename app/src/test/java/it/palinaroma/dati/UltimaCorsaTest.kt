@@ -54,7 +54,7 @@ class UltimaCorsaTest {
         assertNull(rimaste.per(Arrivo("40", "40", 1, "Termini", listOf(passaggio(t + 600, "c")))))
         // una linea che non c'e' fra le rimaste: non si sa
         assertNull(rimaste.per(Arrivo("8", "8", 0, "Casaletto", listOf(passaggio(t, "z")))))
-        val scritte = ultimeDelleRighe(rimaste, listOf(il64, ultimo64))
+        val scritte = ultimeDelleRighe(rimaste, listOf(il64))
         assertEquals("penultima corsa", scritte[chiaveArrivo(il64)])
     }
 
