@@ -165,5 +165,7 @@ final class DatiWidgetIphone {
         WidgetCenter.shared.reloadTimelines(ofKind: "palina-tabellone")
         WidgetCenter.shared.reloadTimelines(ofKind: "palina-vicina")
         WidgetCenter.shared.reloadTimelines(ofKind: "palina-tragitto")
+        // le fermate che Siri conosce ("Quanto manca a Lavoro")
+        ScorciatoiePalina.updateAppShortcutParameters()
     }
 }

@@ -75,6 +75,8 @@ dependencies {
 
     implementation(project(":motore"))
     implementation("androidx.core:core-ktx:1.19.1")
+    // le scorciatoie delle preferite anche per l'assistente Google ("Apri Lavoro su Palina")
+    implementation("androidx.core:core-google-shortcuts:1.1.0")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.navigation:navigation-compose:2.10.2")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")

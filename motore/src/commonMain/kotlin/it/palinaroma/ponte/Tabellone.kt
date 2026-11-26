@@ -249,7 +249,12 @@ data class FermataOrologio(
     /** Metri dal telefono, se si sa dove si e'. */
     val distanza: Int?,
     val righe: List<RigaOrologio>,
+    /** Il nome che le hai dato sul telefono ("Lavoro"), vuoto se nessuno. */
+    val etichetta: String = "",
 )
+
+/** Il nome corto per riquadri e complicazioni: quello dato sul telefono ("Lavoro") o quello della fermata. */
+val FermataOrologio.nomeBreve: String get() = etichetta.ifEmpty { nome }
 
 data class TabelloneOrologio(
     /** Quando il telefono l'ha calcolato, in millisecondi. */
@@ -275,6 +280,7 @@ object CodificaOrologio {
                         put("sotto", f.sotto)
                         put("preferita", f.preferita)
                         f.distanza?.let { put("distanza", it) }
+                        if (f.etichetta.isNotEmpty()) put("etichetta", f.etichetta)
                         put(
                             "righe",
                             f.righe.map { r ->
@@ -312,6 +318,7 @@ object CodificaOrologio {
                         sotto = f.testoO("sotto"),
                         preferita = f["preferita"] == true,
                         distanza = f.intero("distanza"),
+                        etichetta = f.testoO("etichetta"),
                         righe = oggetti(f["righe"]).map { r ->
                             RigaOrologio(
                                 linea = r.testoO("linea"),

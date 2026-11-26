@@ -26,6 +26,7 @@ import androidx.wear.watchface.complications.data.TimeDifferenceStyle
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import com.google.common.util.concurrent.ListenableFuture
+import it.palinaroma.ponte.nomeBreve
 import it.palinaroma.ponte.RigaOrologio
 import it.palinaroma.ponte.TabelloneOrologio
 import it.palinaroma.ponte.oraBreve
@@ -91,7 +92,7 @@ fun contenutoRiquadro(t: TabelloneOrologio?, adesso: Long, pacchetto: String): L
             ),
         )
     } else {
-        colonna.addContent(testo(fermata.nome, 14f, ORO, grassetto = true))
+        colonna.addContent(testo(fermata.nomeBreve, 14f, ORO, grassetto = true))
         colonna.addContent(spazio(6f))
         val righe = fermata.righe.filter { it.prossimi(adesso).isNotEmpty() }.take(3)
         if (righe.isEmpty()) colonna.addContent(testo(tx("Nessun passaggio a breve"), 12f, GRIGIO, righe = 2))
@@ -188,7 +189,7 @@ class Complicazione : SuspendingComplicationDataSourceService() {
         val prossimo = tabellone?.fermate?.firstNotNullOfOrNull { f -> f.primoPassaggio(adesso)?.let { f to it } }
             ?: return NoDataComplicationData()
         val (fermata, passaggio) = prossimo
-        return testoComplicazione(passaggio.first.linea, passaggio.second, fermata.nome, apriApp())
+        return testoComplicazione(passaggio.first.linea, passaggio.second, fermata.nomeBreve, apriApp())
     }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData? =

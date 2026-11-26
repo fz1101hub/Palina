@@ -1,0 +1,5 @@
+/* Le frasi per Siri: "Quanto manca a Lavoro con Palina". */
+"Quanto manca a ${fermata} con ${applicationName}" = "How long until the bus at ${fermata} with ${applicationName}";
+"Quando passa il bus a ${fermata} con ${applicationName}" = "When is the bus at ${fermata} with ${applicationName}";
+"Tempi di ${fermata} su ${applicationName}" = "Times at ${fermata} on ${applicationName}";
+"Quanto manca con ${applicationName}" = "Next bus with ${applicationName}";

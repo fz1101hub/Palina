@@ -87,5 +87,6 @@ suspend fun tabelloneOrologio(
         posizione?.let { Punto(it.latitude, it.longitude) },
         adessoMs,
         seguite,
+        nomi = Archivio.nomi.value,
     )
 }

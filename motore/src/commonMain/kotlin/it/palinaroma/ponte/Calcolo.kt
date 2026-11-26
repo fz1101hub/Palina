@@ -55,6 +55,8 @@ suspend fun calcolaTabelloneOrologio(
     seguite: List<LineaSeguita> = emptyList(),
     /** Fermate che ci devono essere comunque (quelle scelte nei widget del telefono). */
     sempre: Collection<String> = emptyList(),
+    /** I nomi dati alle fermate ("Lavoro"): anche sull'orologio. */
+    nomi: Map<String, String> = emptyMap(),
 ): TabelloneOrologio {
     val adesso = adessoMs / 1000
 
@@ -122,6 +124,7 @@ suspend fun calcolaTabelloneOrologio(
                 righe = righeOrologio(arrivi, inCima, adesso) { a ->
                     membri.firstOrNull { Rete.di(it) == Rete.di(a.lineaId) } ?: f.id
                 },
+                etichetta = nomi[f.id].orEmpty(),
             )
         }
     }

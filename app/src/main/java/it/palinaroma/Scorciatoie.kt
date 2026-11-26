@@ -6,6 +6,7 @@ import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.tx
 import it.palinaroma.ponte.scorciatoie
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,6 +42,18 @@ object Scorciatoie {
             val massimo = ShortcutManagerCompat.getMaxShortcutCountPerActivity(context)
             ShortcutManagerCompat.setDynamicShortcuts(context, elenco.take(massimo))
         }
+        // "Quanto manca a Lavoro": le preferite con un nome, anche per l'assistente (OPEN_APP_FEATURE)
+        Archivio.nomi.value.entries.take(3).forEachIndexed { i, (id, nome) ->
+            val voce = ShortcutInfoCompat.Builder(context, "voce:$id")
+                .setShortLabel(nome.take(24))
+                .setLongLabel(tx("Quanto manca a {0}", nome))
+                .setRank(10 + i)
+                .setIcon(IconCompat.createWithResource(context, R.drawable.ic_scorciatoia_vicina))
+                .setIntent(Intent(context, MainActivity::class.java).setAction(Intent.ACTION_VIEW).putExtra(MainActivity.APRI, "voce:$id"))
+                .addCapabilityBinding("actions.intent.OPEN_APP_FEATURE", "feature", listOf(nome))
+                .build()
+            runCatching { ShortcutManagerCompat.pushDynamicShortcut(context, voce) }
+        }
     }
 }
 
@@ -54,10 +67,19 @@ object Richieste {
     val apri: StateFlow<String?> = _apri.asStateFlow()
 
     fun da(intent: Intent?) {
+        // dall'assistente ("Apri Lavoro su Palina"): la fermata detta a voce, con i tempi letti
+        intent?.getStringExtra(FUNZIONE)?.takeIf { it.isNotBlank() }?.let { funzione ->
+            intent.removeExtra(FUNZIONE)
+            _apri.value = "voce:$funzione"
+            return
+        }
         val cosa = intent?.getStringExtra(MainActivity.APRI) ?: return
         intent.removeExtra(MainActivity.APRI)
         _apri.value = cosa
     }
+
+    /** Il parametro dell'assistente (shortcuts.xml): il nome della fermata. */
+    const val FUNZIONE = "funzione"
 
     fun fatta() {
         _apri.value = null

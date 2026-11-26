@@ -30,10 +30,11 @@ class MotorePerWatch(private val orario: Orario) {
         lat: Double,
         lon: Double,
         richiesta: String,
+        nomi: Map<String, String>,
     ): String = withContext(Dispatchers.Main) {
         val seguite = RichiestaOrologio.leggi(richiesta.encodeToByteArray())
         val posizione = if (conPosizione) Punto(lat, lon) else null
-        CodificaOrologio.scrivi(calcolaTabelloneOrologio(orario, preferiti, fissate, posizione, adessoMs(), seguite))
+        CodificaOrologio.scrivi(calcolaTabelloneOrologio(orario, preferiti, fissate, posizione, adessoMs(), seguite, nomi = nomi))
     }
 
     /** Le fermate di un treno chiesto dall'orologio ([treno] in JSON). */

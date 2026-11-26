@@ -33,6 +33,8 @@ import it.palinaroma.ui.FermataSchermo
 import it.palinaroma.ui.HomeSchermo
 import it.palinaroma.ui.LineaSchermo
 import it.palinaroma.dati.Archivio
+import it.palinaroma.dati.rispostaQuantoManca
+import it.palinaroma.dati.fermataDaNome
 import it.palinaroma.dati.leggiRichiestaAvvisami
 import it.palinaroma.dati.Aspetto
 import it.palinaroma.ui.OrarioSchermo
@@ -169,6 +171,22 @@ private fun Navigazione() {
             cosa.startsWith("fermata:") -> {
                 tornaAllaHome()
                 apriFermata(cosa.removePrefix("fermata:"))
+            }
+            // "Quanto manca": la fermata e i tempi letti ad alta voce (assistente o scorciatoia)
+            cosa.startsWith("voce:") -> {
+                val orario = withTimeoutOrNull(20_000) { Archivio.orario.first { it != null } }
+                val testo = cosa.removePrefix("voce:")
+                val id = if (orario?.fermata(testo) != null) testo else orario?.let {
+                    withContext(Dispatchers.IO) { fermataDaNome(testo, Archivio.preferiti.value, Archivio.nomi.value, it) }
+                }
+                if (orario != null && id != null) {
+                    tornaAllaHome()
+                    apriFermata(id)
+                    val risposta = withContext(Dispatchers.IO) {
+                        rispostaQuantoManca(orario, id, Archivio.nomi.value[id], Archivio.fissate.value)
+                    }
+                    LettoreVoce.leggi(context, risposta)
+                }
             }
             cosa.startsWith("linea:") -> {
                 tornaAllaHome()

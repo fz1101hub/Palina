@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    L'assistente di Android: "Apri Lavoro su Palina" apre la fermata preferita
+    con quel nome e ne legge i tempi. I nomi arrivano dalle scorciatoie dinamiche
+    (una per ogni preferita con un nome), legate a questa capacita'.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <capability android:name="actions.intent.OPEN_APP_FEATURE">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="it.palinaroma.MainActivity"
+            android:targetPackage="it.palinaroma">
+            <parameter
+                android:name="feature"
+                android:key="funzione" />
+        </intent>
+    </capability>
+</shortcuts>

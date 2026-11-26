@@ -35,7 +35,8 @@ final class PonteWatch: NSObject, WCSessionDelegate {
             conPosizione: lat != nil && lon != nil,
             lat: lat ?? 0,
             lon: lon ?? 0,
-            richiesta: richiesta
+            richiesta: richiesta,
+            nomi: preferiti?.nomi ?? [:]
         )
     }
 

@@ -138,7 +138,7 @@ suspend fun calcolaDatiWidget(
         }
     }
     val tabellone = try {
-        calcolaTabelloneOrologio(orario, preferiti, fissate, posizione, adesso, sempre = fermateWidget)
+        calcolaTabelloneOrologio(orario, preferiti, fissate, posizione, adesso, sempre = fermateWidget, nomi = nomi)
     } catch (e: CancellationException) {
         throw e
     } catch (_: Exception) {

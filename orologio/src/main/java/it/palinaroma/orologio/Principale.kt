@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -297,6 +298,10 @@ private fun SchedaFermata(f: FermataOrologio, adesso: Long, apriRiga: (RigaOrolo
             .background(SchedaOrologio, RoundedCornerShape(18.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
+        // il nome che le hai dato sul telefono ("LAVORO"), sopra il nome della fermata
+        if (f.etichetta.isNotEmpty()) {
+            Text(f.etichetta.uppercase(), color = OroOrologio, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 1.sp, maxLines = 1)
+        }
         Text(
             f.nome,
             color = Color.White,

@@ -56,6 +56,10 @@ struct TabelloneWatch: View {
                         }
                     } header: {
                         VStack(alignment: .leading, spacing: 1) {
+                            // il nome che le hai dato sull'iPhone ("LAVORO"), sopra il nome della fermata
+                            if !fermata.etichetta.isEmpty {
+                                Text(fermata.etichetta.uppercased()).font(.system(size: 11, weight: .bold)).foregroundStyle(Color.oroPalina).textCase(nil)
+                            }
                             Text((fermata.preferita ? "♥ " : "") + fermata.nome).font(.headline).textCase(nil)
                             Text(fermata.sotto).font(.caption2).foregroundStyle(.secondary).textCase(nil)
                         }

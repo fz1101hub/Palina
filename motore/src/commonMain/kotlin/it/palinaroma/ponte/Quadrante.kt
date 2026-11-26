@@ -33,5 +33,5 @@ fun contenutoWidget(t: TabelloneOrologio?, adesso: Long, piccolo: Boolean): Cont
         piccolo -> null
         else -> tx("tempi delle {0}", oraBreve(t!!.creato))
     }
-    return ContenutoWidget(fermata.nome, righe, nota)
+    return ContenutoWidget(fermata.nomeBreve, righe, nota)
 }
