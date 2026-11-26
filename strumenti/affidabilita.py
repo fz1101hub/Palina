@@ -104,7 +104,9 @@ def orari_previsti(gtfs, corse):
             h, m, s = (int(x) for x in orario.split(":"))
             secondi = h * 3600 + m * 60 + s
             previsti[(corsa, r["stop_sequence"])] = secondi
-            previsti[(corsa, "id:" + r["stop_id"])] = secondi
+            # per fermata solo se la corsa ci passa una volta (le circolari ci ripassano)
+            chiave = (corsa, "id:" + r["stop_id"])
+            previsti[chiave] = None if chiave in previsti else secondi
     return previsti
 
 
@@ -139,17 +141,28 @@ def campiona(feed, gtfs, adesso):
             pronti.append((linea, ritardo))
         elif istante is not None and istante <= adesso + 30 * 60:
             da_cercare[tu.trip.trip_id] = (linea, sequenza, fermata, istante)
+    dal_feed = len(pronti)
+    per_sequenza = per_fermata = 0
     if da_cercare and gtfs:
         previsti = orari_previsti(gtfs, set(da_cercare))
         for corsa, (linea, sequenza, fermata, istante) in da_cercare.items():
             secondi = previsti.get((corsa, str(sequenza))) if sequenza is not None else None
-            if secondi is None:
+            if secondi is not None:
+                per_sequenza += 1
+            else:
                 secondi = previsti.get((corsa, "id:" + fermata))
-            if secondi is None:
-                continue
+                if secondi is None:
+                    continue
+                per_fermata += 1
             pronti.append((linea, round(istante - istante_previsto(secondi, istante))))
-    # un ritardo di piu' di un'ora e' quasi sempre un errore del feed
-    return [(l, r) for l, r in pronti if -900 <= r <= 3600]
+    # un ritardo di piu' di un'ora (o un anticipo di oltre 15 minuti) e' quasi sempre un errore del feed
+    buoni = [(l, r) for l, r in pronti if -900 <= r <= 3600]
+    ritardi = sorted(r for _, r in buoni)
+    if ritardi:
+        q = lambda x: ritardi[min(len(ritardi) - 1, int(x * len(ritardi)))]
+        print("ritardi: %d dal feed, %d per sequenza, %d per fermata, %d scartati; 10%%=%ds mediana=%ds 90%%=%ds"
+              % (dal_feed, per_sequenza, per_fermata, len(pronti) - len(buoni), q(0.1), q(0.5), q(0.9)))
+    return buoni
 
 
 def aggiungi(stato, adesso, campioni):
