@@ -213,7 +213,7 @@ struct FermataVista: View {
                 }
                 // prove: -provaSegui YES segue la prima linea del tabellone
                 if caricando, Prova.segui, let prima = ((tabellone?.fissate ?? []) + (tabellone?.altre ?? [])).first {
-                    await seguito.avvisami(fermataId: fermataId, lineaId: prima.lineaId, capolinea: prima.capolinea, quando: "cinque", scendi: true, posizione: nil)
+                    await seguito.avvisami(fermataId: fermataId, lineaId: prima.lineaId, capolinea: prima.capolinea, quando: "cinque", scendi: true, blocco: true, posizione: nil)
                 }
                 caricando = false
             } else {
